@@ -1,0 +1,62 @@
+{
+  "homePage": {
+    "title": "Bienvenido a la aplicación de libros de cocina",
+    "description": "Descubre y comparte recetas de todo el mundo."
+  },
+  "buttons": {
+    "submit": "Enviar",
+    "goToRecipes": "Ir a recetas",
+    "checkout": "Pagar",
+    "prevPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "addRecipe": "Agregar receta",
+    "pay": "pagar",
+    "loading": "Cargando...",
+    "logOut": "Cerrar sesión",
+    "returnHome": "Volver a la página principal",
+    "returnToHome": "Volver a la página principal",
+    "viewDetails": "Ver detalles",
+    "unpublish": "Despublicar",
+    "publish": "Publicar",
+    "goBack": "Volver",
+    "addNewRecipe": "Agregar nueva receta",
+    "viewRecipes": "Ver recetas",
+    "goToDashboard": "Ir al Dashboard",
+    "submitting": "Enviando..."
+  },
+  "labels": {
+    "fullName": "Nombre completo",
+    "location": "Ubicación",
+    "country": "País",
+    "region": "Región/Estado",
+    "photo": "Foto de tu abuela",
+    "bio": "Biografía corta",
+    "geoHistory": "Historia GEO",
+    "dishImage": "Imagen del plato",
+    "recipeImage": "Imagen de la receta manuscrita",
+    "recipe": "Receta",
+    "influences": "Influencias",
+    "releaseSignature": "Firma de liberación",
+    "language": "Idioma",
+    "first": "primero",
+    "dashboard": "Dashboard",
+    "published": "Publicado"
+  },
+  "descriptions": {
+    "fullName": "¿Cómo llamas a tu abuela?",
+    "location": "¿De dónde es tu abuela?",
+    "releaseSignature": "Acepto liberar mi firma para esta receta",
+    "verifyingPurchase": "Verificando tu compra...",
+    "somethingWentWrong": "Algo salió mal",
+    "paymentSuccessful": "Pago exitoso!",
+    "thankYouForYourPurchase": "Gracias por tu compra. Tu pedido ha sido procesado exitosamente.",
+    "orderSummary": "Resumen de pedido",
+    "amount": "Cantidad",
+    "orderId": "ID de pedido",
+    "newRecipes": "Nuevas recetas",
+    "publishedRecipes": "Recetas publicadas",
+    "noRecipesFound": "No se encontraron recetas.",
+    "yes": "Sí",
+    "no": "No"
+  }
+}

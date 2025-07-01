@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1750855711653,
+      "tag": "0000_yielding_nighthawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1751048179859,
+      "tag": "0001_wooden_loa",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1751048366589,
+      "tag": "0002_robust_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1751285361916,
+      "tag": "0003_left_raza",
+      "breakpoints": true
+    }
+  ]
+}

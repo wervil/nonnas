@@ -1,0 +1,62 @@
+{
+  "homePage": {
+    "title": "Bienvenue dans l'application de livres de cuisine",
+    "description": "Découvrez et partagez des recettes de toute la terre."
+  },
+  "buttons": {
+    "submit": "Soumettre",
+    "goToRecipes": "Voir les recettes",
+    "checkout": "Paiement",
+    "prevPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "addRecipe": "Ajouter une recette",
+    "pay": "payer",
+    "loading": "Chargement...",
+    "logOut": "Déconnexion",
+    "returnHome": "Retour à la page d'accueil",
+    "returnToHome": "Retour à la page d'accueil",
+    "viewDetails": "Voir les détails",
+    "unpublish": "Dépublier",
+    "publish": "Publier",
+    "goBack": "Retour",
+    "addNewRecipe": "Ajouter une nouvelle recette",
+    "viewRecipes": "Voir les recettes",
+    "goToDashboard": "Aller au Dashboard",
+    "submitting": "Envoi en cours..."
+  },
+  "labels": {
+    "fullName": "Nom complet",
+    "location": "Emplacement",
+    "country": "Pays",
+    "region": "Région/État",
+    "photo": "Photo de votre grand-mère",
+    "bio": "Courte biographie",
+    "geoHistory": "Histoire GEO",
+    "dishImage": "Image du plat",
+    "recipeImage": "Image de la recette manuscrite",
+    "recipe": "Recette",
+    "influences": "Influences",
+    "releaseSignature": "Signature de libération",
+    "language": "Langue",
+    "first": "d'abord",
+    "dashboard": "Tableau de bord",
+    "published": "Publié"
+  },
+  "descriptions": {
+    "fullName": "Comment appelez-vous votre grand-mère ?",
+    "location": "D'où vient votre grand-mère ?",
+    "releaseSignature": "J'accepte de libérer ma signature pour cette recette",
+    "verifyingPurchase": "Vérification de votre commande...",
+    "somethingWentWrong": "Une erreur est survenue",
+    "paymentSuccessful": "Paiement réussi!",
+    "thankYouForYourPurchase": "Merci pour votre commande. Votre commande a été traitée avec succès.",
+    "orderSummary": "Résumé de la commande",
+    "amount": "Montant",
+    "orderId": "ID de commande",
+    "newRecipes": "Nouvelles recettes",
+    "publishedRecipes": "Recettes publiées",
+    "noRecipesFound": "Aucune recette trouvée.",
+    "yes": "Oui",
+    "no": "Non"
+  }
+}

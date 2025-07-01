@@ -1,0 +1,62 @@
+{
+  "homePage": {
+    "title": "Welcome to the Cook Book App",
+    "description": "Discover and share recipes from around the world."
+  },
+  "buttons": {
+    "submit": "Submit",
+    "goToRecipes": "Go to recipes",
+    "checkout": "Checkout",
+    "prevPage": "Prev Page",
+    "nextPage": "Next Page",
+    "addRecipe": "Add recipe",
+    "pay": "pay",
+    "loading": "Loading...",
+    "logOut": "Log out",
+    "returnHome": "Return home",
+    "returnToHome": "Return to Home",
+    "viewDetails": "View details",
+    "unpublish": "Unpublish",
+    "publish": "Publish",
+    "goBack": "Go back",
+    "addNewRecipe": "Add new recipe",
+    "viewRecipes": "View recipes",
+    "goToDashboard": "Go to Dashboard",
+    "submitting": "Submitting..."
+  },
+  "labels": {
+    "fullName": "Full Name",
+    "location": "Location",
+    "country": "Country",
+    "region": "Region/State",
+    "photo": "Photo of your grandmother",
+    "bio": "Short bio",
+    "geoHistory": "GEO History",
+    "dishImage": "Image of dish",
+    "recipeImage": "Image of hand-written recipe",
+    "recipe": "Recipe",
+    "influences": "Influences",
+    "releaseSignature": "Release signature",
+    "language": "Language",
+    "first": "first",
+    "dashboard": "Dashboard",
+    "published": "Published"
+  },
+  "descriptions": {
+    "fullName": "How do you call your grandmother?",
+    "location": "Where is your grandmother from?",
+    "releaseSignature": "I agree to release my signature for this recipe",
+    "verifyingPurchase": "Verifying your purchase...",
+    "somethingWentWrong": "Something went wrong",
+    "paymentSuccessful": "Payment Successful!",
+    "thankYouForYourPurchase": "Thank you for your purchase. Your order has been processed successfully.",
+    "orderSummary": "Order Summary",
+    "amount": "Amount",
+    "orderId": "Order ID",
+    "newRecipes": "New recipes",
+    "publishedRecipes": "Published recipes",
+    "noRecipesFound": "No recipes found.",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "recipes" ADD COLUMN "release_signature" boolean DEFAULT false; 
