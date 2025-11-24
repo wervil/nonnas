@@ -1,12 +1,14 @@
-ALTER TABLE recipes
-ADD COLUMN search_vector tsvector
+ALTER TABLE recipes DROP COLUMN search_vector;
+
+ALTER TABLE recipes ADD COLUMN search_vector tsvector
   GENERATED ALWAYS AS (
     to_tsvector(
-      'english',
+      'simple',
+      coalesce(fullName, '') || ' ' ||
       coalesce(country, '') || ' ' ||
       coalesce(region, '') || ' ' ||
-      coalesce(recipe, '') || ' ' ||
-      coalesce(history, '')
+      coalesce(history, '') || ' ' ||
+      coalesce(recipe, '')
     )
   ) STORED;
 

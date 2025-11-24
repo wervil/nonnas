@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useForm, FieldValues } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { z } from 'zod'
@@ -13,25 +13,43 @@ import CountryRegionSelector from '@/components/ui/CountryRegionSelector'
 import { TextEditor } from '@/components/ui/TextEditor'
 import FileUpload from '@/components/ui/FileUpload'
 import { sanitizeHtml } from '@/utils/utils'
-import Link from 'next/link'
-import { CheckoutButton } from '@/components/CheckoutButton'
 import { allCountries } from 'country-region-data'
+import { Typography } from './ui/Typography'
+import Textarea from './ui/Textarea'
+import { Recipe } from '@/db/schema'
 
 const recipeSchema = z.object({
-  fullName: z.string().min(1, 'Full Name is required'),
+  grandmotherTitle: z.string().min(1, 'Grandmother Title is required'),
+  firstName: z.string().min(1, 'First Name is required'),
+  lastName: z.string().min(1, 'Last Name is required'),
   country: z.string().min(1, 'Country is required'),
   history: z.string().min(1, 'History is required'),
-  recipe: z.string().min(1, 'Recipe is required'),
-  region: z.string().optional(),
+  recipeTitle: z.string().min(1, 'Recipe Title is required'),
+  recipe: z.string().min(1, 'Ingredients are required'),
+  directions: z.string().min(1, 'Directions are required'),
+  region: z.string().min(1, 'Region is required'),
+  traditions: z.string().min(1, 'Traditions is required'),
   geo_history: z.string().optional(),
   influences: z.string().optional(),
   photo: z.any().optional(),
   recipe_image: z.any().optional(),
   dish_image: z.any().optional(),
-  release_signature: z.literal(true, { errorMap: () => ({ message: 'You must agree to release your signature' }) }),
+  userId: z.string().optional(),
+  release_signature: z
+    .boolean()
+    .default(true)
+    .refine((val) => val === true, {
+      message: 'You must agree to release your signature',
+    }),
 })
 
-export const AddRecipe = ({ userId }: { userId: string }) => {
+export const AddRecipe = ({
+  userId,
+  recipe,
+}: {
+  userId?: string
+  recipe?: Recipe
+}) => {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,22 +57,61 @@ export const AddRecipe = ({ userId }: { userId: string }) => {
   const l = useTranslations('labels')
   const d = useTranslations('descriptions')
 
-  const { handleSubmit, control, formState: { errors } } = useForm({
+  const {
+    handleSubmit,
+    control,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
-      fullName: '',
+      grandmotherTitle: '',
+      firstName: '',
+      traditions: '',
+      lastName: '',
       country: '',
       region: '',
       history: '',
       geo_history: '',
+      recipeTitle: '',
       recipe: '',
+      directions: '',
       influences: '',
       photo: [],
       recipe_image: [],
       dish_image: [],
       release_signature: false,
+      userId: userId || '',
     },
     resolver: zodResolver(recipeSchema),
   })
+
+  useEffect(() => {
+    if (recipe) {
+      reset({
+        grandmotherTitle: recipe.grandmotherTitle,
+        firstName: recipe.firstName,
+        lastName: recipe.lastName,
+        recipeTitle: recipe.recipeTitle,
+        country:
+          allCountries.find((country) => country[1] === recipe.country)?.[0] ||
+          recipe.country,
+        region: recipe.region || '',
+        history: sanitizeHtml(recipe.history),
+        geo_history: sanitizeHtml(recipe.geo_history || ''),
+        recipe: sanitizeHtml(recipe.recipe),
+        directions: sanitizeHtml(recipe.directions),
+        influences: sanitizeHtml(recipe.influences || ''),
+        traditions: sanitizeHtml(recipe.traditions || ''),
+        photo: recipe.photo || [],
+        dish_image: recipe.dish_image || [],
+        recipe_image: recipe.recipe_image || [],
+        release_signature: recipe.release_signature || false,
+        userId,
+      })
+    }
+  }, [recipe, reset, userId])
 
   const onSubmit = async (data: FieldValues) => {
     try {
@@ -63,27 +120,46 @@ export const AddRecipe = ({ userId }: { userId: string }) => {
 
       // Sanitize HTML content
       const sanitizedData = {
-        fullName: data.fullName,
-        user_id: userId,
-        country: allCountries.find((country) => country[1] === data.country)?.[0] || data.country,
+        grandmotherTitle: data.grandmotherTitle,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        recipeTitle: data.recipeTitle,
+        country:
+          allCountries.find((country) => country[1] === data.country)?.[0] ||
+          data.country,
         region: data.region || null,
         history: sanitizeHtml(data.history),
         geo_history: sanitizeHtml(data.geo_history),
         recipe: sanitizeHtml(data.recipe),
+        directions: sanitizeHtml(data.directions),
         influences: sanitizeHtml(data.influences),
+        traditions: sanitizeHtml(data.traditions),
         photo: data.photo || [],
         dish_image: data.dish_image || [],
         recipe_image: data.recipe_image || [],
         release_signature: data.release_signature || false,
+        user_id: data.userId,
       }
 
-      const response = await fetch('/api/recipes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sanitizedData),
-      })
+      const response = recipe
+        ? await fetch('/api/recipes', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...sanitizedData,
+              id: recipe.id,
+              published: recipe.published,
+            }),
+          })
+        : await fetch('/api/recipes', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(sanitizedData),
+          })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -91,7 +167,7 @@ export const AddRecipe = ({ userId }: { userId: string }) => {
       }
 
       // Redirect to the recipe list page or show success message
-      router.push('/') // You can change this to redirect to another page
+      router.push(recipe ? `/profile/${recipe.id}` : '/')
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message || 'An error occurred while saving the recipe')
@@ -103,79 +179,151 @@ export const AddRecipe = ({ userId }: { userId: string }) => {
   }
 
   return (
-    <div className="p-5 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold mb-6">{b('addRecipe')}</h1>
-        <CheckoutButton />
-        <Link href="/recipes">
-          <Button variant="secondary">{b('goToRecipes')}</Button>
-        </Link>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+    <div className="p-5 max-w-6xl mx-auto z-10">
+      {error ? <Typography color="dangerMain">{error}</Typography> : null}
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col md:flex-row"
+      >
+        <div className="bg-brown-pale p-6 rounded-tl-3xl rounded-tr-3xl md:rounded-bl-3xl md:rounded-tr-none flex flex-col gap-5 w-full">
+          <Input
+            label={`${l('grandmotherTitle')}*`}
+            name="grandmotherTitle"
+            control={control}
+            description={d('grandmotherDesc')}
+            error={errors.grandmotherTitle?.message}
+          />
+          <div className="flex w-full gap-5">
+            <Input
+              label={`${l('firstName')}*`}
+              name="firstName"
+              control={control}
+              error={errors.firstName?.message}
+            />
+            <Input
+              label={`${l('lastName')}*`}
+              name="lastName"
+              control={control}
+              error={errors.lastName?.message}
+            />
+          </div>
+          <div>
+            <CountryRegionSelector
+              countryName="country"
+              regionName="region"
+              control={control}
+              label={l('location')}
+            />
+          </div>
+          <FileUpload
+            label={`${l('photo')}*`}
+            description={d('photoDesc')}
+            name="photo"
+            control={control}
+            maxFiles={5}
+            setValue={setValue}
+            watch={watch}
+          />
+          <FileUpload
+            label={`${l('recipeImage')}*`}
+            description={d('recipeImage')}
+            name="recipe_image"
+            control={control}
+            maxFiles={1}
+            setValue={setValue}
+            watch={watch}
+          />
+          <Textarea
+            label={`${l('bio')}*`}
+            description={d('bio')}
+            name="history"
+            control={control}
+            error={errors.history?.message}
+          />
+          <Textarea
+            label={l('geoHistory')}
+            description={d('geoHistory')}
+            name="geo_history"
+            control={control}
+            error={errors.geo_history?.message}
+          />
         </div>
-      )}
+        <div className="bg-primary-hover p-6 rounded-bl-3xl rounded-br-3xl md:rounded-tr-3xl md:rounded-bl-none flex flex-col gap-5 w-full">
+          <Input
+            label={`${l('recipeTitle')}*`}
+            name="recipeTitle"
+            control={control}
+            error={errors.recipeTitle?.message}
+            theme="light"
+          />
+          <TextEditor
+            title={`${l('ingredients')}*`}
+            description={d('ingredientsDesc')}
+            name="recipe"
+            control={control}
+            theme="light"
+          />
+          {errors.recipe && (
+            <Typography size="bodyXS" color="dangerMain" className="mt-2">
+              {errors.recipe.message as string}
+            </Typography>
+          )}
+          <TextEditor
+            title={`${l('directions')}*`}
+            description={d('directionsDesc')}
+            name="directions"
+            control={control}
+            theme="light"
+          />
+          {errors.directions && (
+            <Typography size="bodyXS" color="dangerMain" className="mt-2">
+              {errors.directions.message as string}
+            </Typography>
+          )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Input
-          label={l('fullName')}
-          name="fullName"
-          description={d('fullName')}
-          control={control}
-        />
-        {errors.fullName && <div className="text-red-500 text-sm mb-2">{errors.fullName.message as string}</div>}
-
-        <CountryRegionSelector
-          countryName="country"
-          regionName="region"
-          control={control}
-          label={l('location')}
-          description={d('location')}
-        />
-        {errors.country && <div className="text-red-500 text-sm mb-2">{errors.country.message as string}</div>}
-
-        <FileUpload
-          label={l('photo')}
-          name="photo"
-          control={control}
-          maxFiles={4}
-        />
-
-        <TextEditor title={l('bio')} name="history" control={control} />
-        {errors.history && <div className="text-red-500 text-sm mb-2">{errors.history.message as string}</div>}
-
-        <TextEditor title={l('geoHistory')} name="geo_history" control={control} />
-        <FileUpload
-          label={l('dishImage')}
-          name="dish_image"
-          control={control}
-          maxFiles={1}
-        />
-
-        <FileUpload
-          label={l('recipeImage')}
-          name="recipe_image"
-          control={control}
-          maxFiles={1}
-        />
-
-        <TextEditor title={l('recipe')} name="recipe" control={control} />
-        {errors.recipe && <div className="text-red-500 text-sm mb-2">{errors.recipe.message as string}</div>}
-
-        <TextEditor title={l('influences')} name="influences" control={control} />
-
-        <Checkbox
-          label={l('releaseSignature')}
-          name="release_signature"
-          control={control}
-          description={d('releaseSignature')}
-        />
-
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {isSubmitting ? b('submitting') : b('submit')}
-        </Button>
+          <Textarea
+            label={`${l('traditions')}*`}
+            description={d('traditions')}
+            name="traditions"
+            control={control}
+            theme="light"
+          />
+          <Textarea
+            label={l('influences')}
+            description={d('influences')}
+            name="influences"
+            control={control}
+            theme="light"
+          />
+          <Checkbox
+            label={
+              <Typography
+                as="label"
+                htmlFor="release_signature"
+                size="bodyXS"
+                color="primaryFocus"
+                className="mt-2 cursor-pointer"
+              >
+                {l('releaseSignature')}
+                <a
+                  href="https://nonnasoftheworld.com/terms-conditions/"
+                  target="_blank"
+                >
+                  {l('termsAndConditions')}
+                </a>
+              </Typography>
+            }
+            name="release_signature"
+            control={control}
+            description={d('releaseSignature')}
+            theme="light"
+          />
+          <div className="flex justify-end mt-4">
+            <Button type="submit" variant="primary" disabled={isSubmitting}>
+              {isSubmitting ? b('submitting') : b('submit')}
+            </Button>
+          </div>
+        </div>
       </form>
     </div>
   )

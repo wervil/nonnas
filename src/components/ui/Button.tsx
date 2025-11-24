@@ -1,8 +1,37 @@
-import React, { ButtonHTMLAttributes } from 'react';
+import React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { clsx } from 'clsx'
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline';
-  size?: 'sm' | 'md' | 'lg';
+const button = cva(
+  [
+    'flex items-center justify-center rounded-md',
+    'text-xl leading-6 font-medium text-white',
+    'transition-all duration-200 ease-in-out',
+    'cursor-pointer',
+    'disabled:cursor-not-allowed',
+    'font-[var(--font-bell)]'
+  ],
+  {
+    variants: {
+      variant: {
+        primary: ['bg-green-dark', 'text-primary-focus'],
+        outline: ['border-1 border-primary-main', 'text-primary-main'],
+        ghost: ['bg-transparent', 'text-primary-main', 'hover:bg-primary-light' ],
+      },
+      size: {
+        shrink: ['px-1 py-0', 'text-sm!'],
+        md: ['px-6 py-2'],
+      },
+    },
+  }
+)
+
+export interface ButtonProps
+  extends VariantProps<typeof button>,
+    Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'> {
+  children: React.ReactNode
+  className?: string
+  asChild?: boolean
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -12,28 +41,12 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseClasses = 'font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors';
-  
-  const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
-    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-500',
-    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700 focus:ring-gray-500',
-  };
-  
-  const sizeClasses = {
-    sm: 'py-1 px-3 text-sm',
-    md: 'py-2 px-4 text-base',
-    lg: 'py-3 px-6 text-lg',
-  };
 
   return (
-    <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
-      {...props}
-    >
+    <button className={clsx(button({ variant, size }), className)} {...props}>
       {children}
     </button>
-  );
-};
+  )
+}
 
-export default Button;
+export default Button

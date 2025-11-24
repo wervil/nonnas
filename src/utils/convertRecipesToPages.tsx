@@ -1,63 +1,178 @@
 import { Recipe } from '@/db/schema'
-import Image from 'next/image'
 
-export const convertRecipesToPages = (recipes: Recipe[]) =>
-  recipes?.map((recipe) => [
-    <div className="page" key={`${recipe.id}-1`}>
+import Image from 'next/image'
+import { countriesReverseMap } from './countries'
+import { Description } from '@/components/Book/Description'
+import { RecipeSection } from '@/components/Book/RecipeSection'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Navigation, Pagination } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+import { FlagIcon, FlagIconCode } from 'react-flag-kit'
+import { Dispatch, SetStateAction } from 'react'
+
+const getLeftSizeDescriptionHeight = (
+  hasGeoHistory: boolean,
+  contentHeight: number
+) => {
+  const imageHeight = window.innerWidth < 1536 ? 190 : 240
+  const titleHeight = window.innerWidth < 1536 ? 32 : 50
+  const height =
+    contentHeight -
+    40 -
+    titleHeight -
+    20 -
+    imageHeight -
+    20 -
+    (hasGeoHistory ? 20 : 0)
+  return hasGeoHistory ? height / 2 : height
+}
+
+const getRightSizeDescriptionHeight = (
+  hasInfluences: boolean,
+  contentHeight: number,
+  isMobile: boolean
+) => {
+  const height = contentHeight - 60 - (hasInfluences ? (isMobile ? 40 : 20) : 0)
+  return height / 4
+}
+
+export const convertRecipesToPages = (
+  recipes: Recipe[],
+  l: unknown,
+  contentHeight: number,
+  setImages: Dispatch<SetStateAction<string[] | null>>
+) =>
+  recipes?.map((recipe, index) => [
+    <div className="page" key={`${index}-1`}>
       <div className="page-content">
         <div className="pokemon-container">
           <div className="pokemon-info">
-            <h2 className="pokemon-name">{recipe.fullName}</h2>
+            <h2 className="page-title">{`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}</h2>
           </div>
-          <div className="relative w-[150px] h-[150px]">
-            {' '}
-            {recipe.photo?.map((image, index) => (
-              <Image src={image} alt={recipe.fullName} key={index} fill />
-            ))}
+          <div className="flex gap-3 items-center flex-wrap justify-around w-full">
+            <div className="max-w-[110px] flex flex-col items-center gap-1">
+              <FlagIcon
+                code={
+                  countriesReverseMap[
+                    recipe.country
+                  ]?.countryShortCode.toUpperCase() as FlagIconCode
+                }
+                size={window.innerWidth < 768 ? 60 : 80}
+              />
+              <h3 className={`text-federant text-yellow-light text-center`}>
+                {recipe.country}
+              </h3>
+              <p className={`text-federant text-yellow-light text-center`}>
+                ({recipe.region})
+              </p>
+            </div>
+            <div className="relative w-[120px] md:w-[180px] lg:w-[240px] h-[90px] md:h-[150px] lg:h-[190px] 2xl:w-[360px] 2xl:h-[240px]">
+              {recipe.photo && recipe.photo.length > 0 && (
+                <Swiper
+                  modules={[Navigation, Pagination]}
+                  navigation
+                  pagination={{ clickable: true }}
+                  loop={recipe.photo.length > 1}
+                  className="w-full h-full cursor-pointer"
+                  style={
+                    {
+                      '--swiper-navigation-sides-offset': '0px',
+                    } as React.CSSProperties
+                  }
+                >
+                  {recipe.photo.map((image, index) => (
+                    <SwiperSlide key={index}>
+                      <Image
+                        src={image}
+                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${
+                          index + 1
+                        }`}
+                        fill
+                        style={{ objectFit: 'cover' }}
+                        className="object-cover"
+                        onClick={() => setImages(recipe.photo)}
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              )}
+              <div className="corner corner--big lt" />
+              <div className="corner corner--big rt" />
+              <div className="corner corner--big lb" />
+              <div className="corner corner--big rb" />
+            </div>
           </div>
-          <div className="pokemon-info">
-            {/* <div>
-                        {pokemon.types.map((type) => (
-                            <span
-                                key={type}
-                                className={`pokemon-type type-${type.toLowerCase()}`}
-                            >
-                                {type}
-                            </span>
-                        ))}
-                    </div> */}
-            <div
-              className="pokemon-description"
-              dangerouslySetInnerHTML={{ __html: recipe.history || '' }}
-            ></div>
-            <div
-              className="pokemon-description"
-              dangerouslySetInnerHTML={{ __html: recipe.geo_history || '' }}
-            ></div>
+          <div className="page-info">
+            <Description
+              title={(l as (name: string) => string)('bio')}
+              text={recipe.history}
+              height={getLeftSizeDescriptionHeight(
+                !!recipe.geo_history,
+                contentHeight
+              )}
+              imageUrl="/bg-1.webp"
+              popupImageUrl="/bg-1.webp"
+            />
+            {recipe.geo_history ? (
+              <Description
+                title={(l as (name: string) => string)('history')}
+                text={recipe.geo_history}
+                imageUrl="/bg-2.webp"
+                popupImageUrl="/bg-2.webp"
+                height={getLeftSizeDescriptionHeight(
+                  !!recipe.geo_history,
+                  contentHeight
+                )}
+              />
+            ) : null}
           </div>
         </div>
       </div>
     </div>,
-    <div className="page" key={`${recipe.id}-2`}>
+    <div className="page" key={`${index}-2`}>
       <div className="page-content">
         <div className="pokemon-container">
-          {recipe.dish_image?.length ? (
-            <div className="relative w-[150px] h-[150px]">
-              {' '}
-              {recipe.dish_image?.map((image, index) => (
-                <Image src={image} alt={recipe.fullName} key={index} fill />
-              ))}
-            </div>
-          ) : null}
-          <div className="pokemon-info">
-            <div
-              className="pokemon-description"
-              dangerouslySetInnerHTML={{ __html: recipe.recipe || '' }}
-            ></div>
-            <div
-              className="pokemon-description"
-              dangerouslySetInnerHTML={{ __html: recipe.influences || '' }}
-            ></div>
+          <RecipeSection
+            title={recipe.recipeTitle}
+            images={recipe.recipe_image}
+            ingredientsText={recipe.recipe}
+            directionsText={recipe.directions}
+            hasInfluences={!!recipe.influences}
+            contentHeight={contentHeight}
+            setImages={setImages}
+          />
+
+          <div className="page-info">
+            {recipe.traditions ? (
+              <Description
+                title={(l as (name: string) => string)('traditions')}
+                text={recipe.traditions}
+                imageUrl="/bg-3.webp"
+                popupImageUrl="/bg-3.webp"
+                maxWidth="90%"
+                height={getRightSizeDescriptionHeight(
+                  !!recipe.influences,
+                  contentHeight,
+                  window.innerWidth < 768
+                )}
+              />
+            ) : null}
+            {recipe.influences ? (
+              <Description
+                title={(l as (name: string) => string)('influencesShort')}
+                text={recipe.influences}
+                imageUrl="/bg-4.webp"
+                popupImageUrl="/bg-4.webp"
+                maxWidth="90%"
+                height={getRightSizeDescriptionHeight(
+                  !!recipe.influences,
+                  contentHeight,
+                  window.innerWidth < 768
+                )}
+              />
+            ) : null}
           </div>
         </div>
       </div>

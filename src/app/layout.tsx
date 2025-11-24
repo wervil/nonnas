@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { StackProvider, StackTheme } from '@stackframe/stack'
 import { stackServerApp } from '../stack'
 import './globals.css'
+import { Footer } from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: 'Cook Book App',
@@ -16,12 +17,16 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const locale = await getLocale()
+
   return (
     <html lang={locale}>
       <body>
         <NextIntlClientProvider>
           <StackProvider app={stackServerApp}>
-            <StackTheme>{children}</StackTheme>
+            <StackTheme>
+              <div className='min-h-svh'>{children}</div>
+              <Footer />
+            </StackTheme>
           </StackProvider>
         </NextIntlClientProvider>
       </body>

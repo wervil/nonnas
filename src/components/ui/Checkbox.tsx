@@ -1,12 +1,16 @@
-import React, { InputHTMLAttributes } from 'react';
-import { Control, Controller, FieldValues, Path } from 'react-hook-form';
+import React, { InputHTMLAttributes, ReactNode } from 'react'
+import { Control, Controller, FieldValues, Path } from 'react-hook-form'
+import { Typography } from './Typography'
+import { clsx } from 'clsx'
 
-interface CheckboxProps<T extends FieldValues> extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
-  label: string;
-  description?: string;
-  name: Path<T>;
-  control: Control<T>;
-  error?: string;
+interface CheckboxProps<T extends FieldValues>
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
+  label: ReactNode
+  description?: string
+  name: Path<T>
+  control: Control<T>
+  error?: string
+  theme?: 'dark' | 'light'
 }
 
 const Checkbox = <T extends FieldValues>({
@@ -15,18 +19,31 @@ const Checkbox = <T extends FieldValues>({
   control,
   error,
   className = '',
-  description,
+  theme = 'dark',
   ...props
 }: CheckboxProps<T>) => {
   return (
-    <div className="mb-4">
+    <div className={clsx('mb-4', className)}>
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState }) => (
           <>
             <div className="flex items-start">
-              <div className="flex items-center h-5">
+              <div className="flex items-center h-5 relative">
+                <div
+                  className={clsx(
+                    'w-4 h-4 border rounded-sm text-text-pale focus:outline-none border-primary-focus flex items-center justify-center',
+                    theme === 'dark' ? 'bg-primary-hover!' : 'bg-brown-pale!',
+                    fieldState.error
+                      ? 'border-danger-main'
+                      : 'border-primary-focus'
+                  )}
+                >
+                  {field.value === true ? (
+                    <i className="check text-sm w-3 h-3 text-primary-focus" />
+                  ) : null}
+                </div>
                 <input
                   {...field}
                   {...props}
@@ -34,30 +51,24 @@ const Checkbox = <T extends FieldValues>({
                   id={name}
                   checked={field.value}
                   onChange={(e) => field.onChange(e.target.checked)}
-                  className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 ${
-                    fieldState.error ? 'border-red-500' : 'border-gray-300'
-                  } ${className}`}
+                  className="w-4 h-4 absolute appearance-none cursor-pointer"
                 />
               </div>
               <div className="ml-3 text-sm">
-                <label htmlFor={name} className="font-medium text-gray-700">
-                  {label}
-                </label>
-                {description && (
-                  <p className="text-gray-500">{description}</p>
-                )}
+                {label}
+                {/* {description && <p className="text-gray-500">{description}</p>} */}
               </div>
             </div>
             {(fieldState.error || error) && (
-              <p className="mt-1 text-sm text-red-600">
+              <Typography size="bodyXS" color="dangerMain" className="mt-2">
                 {error || fieldState.error?.message}
-              </p>
+              </Typography>
             )}
           </>
         )}
       />
     </div>
-  );
-};
+  )
+}
 
-export default Checkbox; 
+export default Checkbox

@@ -1,12 +1,16 @@
-import React, { InputHTMLAttributes } from 'react';
-import { Control, Controller, FieldValues, Path } from 'react-hook-form';
+import React, { InputHTMLAttributes } from 'react'
+import { Control, Controller, FieldValues, Path } from 'react-hook-form'
+import { Typography } from './Typography'
+import { clsx } from 'clsx'
 
-interface InputProps<T extends FieldValues> extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+interface InputProps<T extends FieldValues>
+  extends InputHTMLAttributes<HTMLInputElement> {
+  label: string
   description?: string
-  name: Path<T>;
-  control: Control<T>;
-  error?: string;
+  name: Path<T>
+  control: Control<T>
+  theme?: 'dark' | 'light'
+  error?: string
 }
 
 const Input = <T extends FieldValues>({
@@ -16,14 +20,19 @@ const Input = <T extends FieldValues>({
   error,
   className = '',
   description,
+  theme = 'dark',
   ...props
 }: InputProps<T> & { description?: string }) => {
   return (
-    <div className="mb-4">
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700">
+    <div>
+      <Typography
+        as="label"
+        htmlFor={name}
+        color="primaryFocus"
+        className="mb-2"
+      >
         {label}
-      </label>
-      {description ? <p className="text-xs text-gray-500 mb-1">{description}</p> : null}
+      </Typography>
       <Controller
         name={name}
         control={control}
@@ -33,20 +42,28 @@ const Input = <T extends FieldValues>({
               {...field}
               {...props}
               id={name}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                fieldState.error ? 'border-red-500' : 'border-gray-300'
-              } ${className}`}
+              className={clsx(
+                'w-full px-3 py-2 border rounded-lg text-text-pale focus:outline-none text-base font-[var(--font-merriweather)]',
+                theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale',
+                fieldState.error ? 'border-danger-main' : 'border-primary-main',
+                className
+              )}
             />
             {(fieldState.error || error) && (
-              <p className="mt-1 text-sm text-red-600">
+              <Typography size="bodyXS" color="dangerMain" className="mt-2">
                 {error || fieldState.error?.message}
-              </p>
+              </Typography>
             )}
           </>
         )}
       />
+      {description ? (
+        <Typography size="bodyXS" color="primaryFocus" className="mt-2">
+          {description}
+        </Typography>
+      ) : null}
     </div>
-  );
-};
+  )
+}
 
-export default Input;
+export default Input

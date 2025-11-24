@@ -29,6 +29,27 @@
       "when": 1751285361916,
       "tag": "0003_left_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1755788650000,
+      "tag": "0004_update_search_vector_and_remove_fullname",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1759179452036,
+      "tag": "0005_make_user_id_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1759179864714,
+      "tag": "0006_bright_boomer",
+      "breakpoints": true
     }
   ]
 }

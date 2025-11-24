@@ -16,7 +16,9 @@ export function ListCommandPlugin() {
     return editor.registerCommand(
       INSERT_UNORDERED_LIST_COMMAND,
       () => {
-        $insertList('bullet')
+        editor.update(() => {
+          $insertList('bullet')
+        })
         return true
       },
       COMMAND_PRIORITY_LOW
@@ -27,7 +29,9 @@ export function ListCommandPlugin() {
     return editor.registerCommand(
       INSERT_ORDERED_LIST_COMMAND,
       () => {
-        $insertList('number')
+        editor.update(() => {
+          $insertList('number')
+        })
         return true
       },
       COMMAND_PRIORITY_LOW
@@ -49,7 +53,9 @@ export function ListCommandPlugin() {
     return editor.registerCommand(
       REMOVE_LIST_COMMAND,
       () => {
-        $removeList()
+        editor.update(() => {
+          $removeList()
+        })
         return true
       },
       COMMAND_PRIORITY_LOW

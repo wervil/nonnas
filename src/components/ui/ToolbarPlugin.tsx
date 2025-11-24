@@ -13,7 +13,7 @@ import {
   CAN_REDO_COMMAND,
   CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_LOW,
-  FORMAT_ELEMENT_COMMAND,
+  // FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
@@ -39,8 +39,8 @@ export default function ToolbarPlugin() {
   const [canRedo, setCanRedo] = useState(false)
   const [isBold, setIsBold] = useState(false)
   const [isItalic, setIsItalic] = useState(false)
-  const [isUnderline, setIsUnderline] = useState(false)
-  const [isStrikethrough, setIsStrikethrough] = useState(false)
+  // const [isUnderline, setIsUnderline] = useState(false)
+  // const [isStrikethrough, setIsStrikethrough] = useState(false)
 
   const $updateToolbar = useCallback(() => {
     const selection = $getSelection()
@@ -48,8 +48,8 @@ export default function ToolbarPlugin() {
       // Update text format
       setIsBold(selection.hasFormat('bold'))
       setIsItalic(selection.hasFormat('italic'))
-      setIsUnderline(selection.hasFormat('underline'))
-      setIsStrikethrough(selection.hasFormat('strikethrough'))
+      // setIsUnderline(selection.hasFormat('underline'))
+      // setIsStrikethrough(selection.hasFormat('strikethrough'))
     }
   }, [])
 
@@ -132,7 +132,7 @@ export default function ToolbarPlugin() {
       >
         <i className="format italic" />
       </button>
-      <button
+      {/* <button
         type="button"
         onClick={() => {
           editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')
@@ -151,9 +151,9 @@ export default function ToolbarPlugin() {
         aria-label="Format Strikethrough"
       >
         <i className="format strikethrough" />
-      </button>
+      </button> */}
       <Divider />
-      <button
+      {/* <button
         type="button"
         onClick={() => {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'left')
@@ -193,7 +193,7 @@ export default function ToolbarPlugin() {
       >
         <i className="format justify-align" />
       </button>
-      <Divider />
+      <Divider /> */}
       <button
         type="button"
         onClick={() => {
