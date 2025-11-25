@@ -29,14 +29,14 @@ export default function Dashboard() {
   const b = useTranslations('buttons')
   const user = useUser()
   let hasPermissions = true
-  // if (user) {
-  //   const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
-  //   hasPermissions = team ? !!user.usePermission(team, 'admin:access') : false
-  // }
-  // const router = useRouter()
-  // if (!hasPermissions) {
-  //   router.push('/')
-  // }
+  if (user) {
+    const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
+    hasPermissions = team ? !!user.usePermission(team, 'admin:access') : false
+  }
+  const router = useRouter()
+  if (!hasPermissions) {
+    router.push('/')
+  }
 
   const loadRecipes = async () => {
     setLoading(true)
@@ -64,7 +64,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold mb-4">{l('dashboard')}</h1>
         <Link href="/">
-          <Button >{b('returnHome')}</Button>
+          <Button>{b('returnHome')}</Button>
         </Link>
         <Button onClick={() => user?.signOut()}>{b('logOut')}</Button>
       </div>
@@ -85,7 +85,7 @@ export default function Dashboard() {
         >
           {d('publishedRecipes')}
         </button>
-        
+
         <select
           value={selectedCountry}
           onChange={(e) => {
