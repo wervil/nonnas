@@ -31,7 +31,7 @@ export default function Dashboard() {
   let hasPermissions = true
   if (user) {
     const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
-    hasPermissions = team ? !!user.usePermission(team, 'admin:access') : false
+    hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
   }
   const router = useRouter()
   if (!hasPermissions) {
