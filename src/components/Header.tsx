@@ -51,7 +51,8 @@ export const Header = ({
   return (
     <header className="flex items-center justify-center md:justify-between px-3 md:px-20 pt-3 bg-white gap-4">
       <a className="shrink-0" href="https://nonnasoftheworld.org/">
-        <Image src="/logo_community.svg" width={75} height={63} alt="logo" />
+        {/* <Image src="/logo_community.svg" width={75} height={63} alt="logo" /> */}
+        <Image src="/logoMain.png" width={75} height={63} alt="logo" />
       </a>
       <div className="items-center gap-1 relative hidden md:flex">
         {setSearch ? (

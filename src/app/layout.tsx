@@ -9,6 +9,11 @@ import { Footer } from '@/components/Footer'
 export const metadata: Metadata = {
   title: 'Cook Book App',
   description: 'Best recipes all over the world',
+  icons: {
+    icon: "/logoMain.png",
+    shortcut: "/logoMain.png",
+    apple: "/apple-touch-icon.png",
+  },
 }
 
 export default async function RootLayout({
