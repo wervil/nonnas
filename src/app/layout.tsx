@@ -7,14 +7,16 @@ import './globals.css'
 import { Footer } from '@/components/Footer'
 
 export const metadata: Metadata = {
-  title: 'Cook Book App',
-  description: 'Best recipes all over the world',
+  title: "Cook Book App",
+  description: "Best recipes all over the world",
   icons: {
-    icon: "/logoMain.png",
-    shortcut: "/logoMain.png",
-    apple: "/apple-touch-icon.png",
+    icon: [
+      { url: "/logoMain.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" }, // optional fallback
+    ],
+    apple: "/apple-touch-icon.png", // optional
   },
-}
+};
 
 export default async function RootLayout({
   children,
