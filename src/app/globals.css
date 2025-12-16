@@ -660,3 +660,15 @@ h1 {
 .select__single-value {
   color: grey !important;
 }
+
+
+/* Inject message above Stack's SignUp button */
+.signup-wrapper form button[type="submit"]::before {
+  content: "By continuing, you agree to our Terms of Use, Privacy Policy, and consent to communications.";
+  display: block;
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 12px;
+  text-align: center;
+  line-height: 1.4;
+}

@@ -25,6 +25,7 @@
     "drizzle-orm": "^0.44.2",
     "isomorphic-dompurify": "^2.25.0",
     "jspdf": "^3.0.1",
+    "leaflet": "^1.9.4",
     "lexical": "^0.34.0",
     "lucide-react": "^0.525.0",
     "next": "^15.3.4",
@@ -35,24 +36,29 @@
     "react-dropzone": "^14.3.8",
     "react-flag-kit": "^1.1.1",
     "react-hook-form": "^7.58.1",
+    "react-leaflet": "^5.0.0",
     "react-pageflip": "^2.0.3",
     "react-select": "^5.10.2",
     "stripe": "^18.2.1",
     "swiper": "^12.0.3",
+    "three": "^0.182.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.10",
+    "@types/leaflet": "^1",
     "@types/node": "^24.5.2",
     "@types/pg": "^8.10.0",
     "@types/react": "^19.1.15",
     "@types/react-dom": "^19",
+    "@types/three": "^0",
     "drizzle-kit": "^0.31.2",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "tailwindcss": "^4.1.10",
     "tsx": "^4.20.3",
     "typescript": "^5"
-  }
+  },
+  "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728"
 }
