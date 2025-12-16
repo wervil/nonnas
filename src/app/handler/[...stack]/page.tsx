@@ -1,12 +1,20 @@
 import { StackHandler } from "@stackframe/stack";
 import { stackServerApp } from "../../../stack";
 
-export default function Handler(props: { params: any; searchParams: any }) {
+type HandlerProps = {
+  params: Promise<{ stack?: string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function Handler(props: HandlerProps) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+
   return (
     <StackHandler
       fullPage
       app={stackServerApp}
-      routeProps={props}
+      routeProps={{ params, searchParams }}
       componentProps={{
         SignUp: {
           extraInfo: (
@@ -16,6 +24,7 @@ export default function Handler(props: { params: any; searchParams: any }) {
                 href="/terms-of-use"
                 className="underline hover:text-neutral-700"
                 target="_blank"
+                rel="noreferrer"
               >
                 Terms of Service
               </a>{" "}
@@ -24,6 +33,7 @@ export default function Handler(props: { params: any; searchParams: any }) {
                 href="/privacy-policy"
                 className="underline hover:text-neutral-700"
                 target="_blank"
+                rel="noreferrer"
               >
                 Privacy Policy
               </a>
