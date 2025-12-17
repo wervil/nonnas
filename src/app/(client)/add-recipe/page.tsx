@@ -8,6 +8,8 @@ const AddRecipePage = async () => {
   const user = await stackServerApp.getUser({ or: 'redirect' })
   const hasAdminAccess = user ? await checkAdminPermission(user) : false
 
+  // console.log('user', user)
+
   return (
     <div className="min-h-svh flex flex-col">
       <Header hasAdminAccess={hasAdminAccess} />
