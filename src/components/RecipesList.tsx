@@ -17,7 +17,7 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
 
   return (
     <ul className="space-y-4">
-      {recipes.length === 0 && <li>{d('noRecipesFound')}</li>}
+      {recipes && recipes.length === 0 && <li>{d('noRecipesFound')}</li>}
       {recipes.map((recipe) => (
         <li
           key={recipe.id}

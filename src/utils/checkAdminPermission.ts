@@ -28,6 +28,7 @@ export const checkAdminPermission = async (user: CurrentServerUser) => {
 
   // 1) Get the team using the env id
   const team = await user.getTeam(TEAM_ID)
+  console.log('team', team)
   if (!team) return false
 
   // 2) Check if the user has the admin permission in that team
