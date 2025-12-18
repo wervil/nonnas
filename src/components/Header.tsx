@@ -9,13 +9,16 @@ import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
 
-export const button = (path: string, n: (key: string) => string) => {
+export const button = (path: string, n: (key: string) => string, hasAdminAccess: boolean) => {
   if (path === '/add-recipe') {
     return (
       <Link href="/">
         <Button>{n('home')}</Button>
       </Link>
     )
+  }
+  if(hasAdminAccess){
+    return ("")
   }
   return (
     <Link href="/add-recipe">
@@ -86,7 +89,7 @@ export const Header = ({
                 src="/Gear-icon.svg"
                 width={30}
                 height={30}
-                alt="Go to profile"
+                alt="Go to dashboard"
               />
             </Link>
           ) : (
@@ -100,7 +103,7 @@ export const Header = ({
             </Link>
           )
         ) : null}
-        {button(path, n as (key: string) => string)}
+        {button(path, n as (key: string) => string, hasAdminAccess)}
       </div>
     </header>
   )

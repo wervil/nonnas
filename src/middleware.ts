@@ -15,14 +15,11 @@ const USER_PATHS = [
   /^\/checkout(\/|$)/,
 ]
 
-// Register flow routes
-const REGISTER_AUTH_REQUIRED = [/^\/register\/complete(\/|$)/]
+// Only allow viewing Stack signup if invite cookie is present
+const SIGNUP_HANDLER_PATH = /^\/handler\/sign-up(\/|$)/
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  // const isRegisterRoute = pathname.startsWith('/register')
-  // const isInviteApiRoute = pathname.startsWith('/api/private-invite')
   const isHandlerRoute = pathname.startsWith('/handler')
 
   // Read user ONCE
@@ -40,33 +37,26 @@ export async function middleware(request: NextRequest) {
   }
 
   /**
-   * 1) REGISTER / INVITE ROUTES
+   * 0.5) INVITE-ONLY SIGNUP GATE
+   * If user is logged OUT and tries to open /handler/sign-up directly,
+   * allow ONLY if invite_token cookie is valid.
    */
-  // if (isRegisterRoute || isInviteApiRoute) {
-  //   // 🚫 Logged-in users → redirect home
-  //   if (user) {
-  //     return NextResponse.redirect(new URL('/', request.url))
-  //   }
+  if (!user && SIGNUP_HANDLER_PATH.test(pathname)) {
+    const inviteCookie = request.cookies.get('invite_token')?.value ?? ''
+    const expected = process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN ?? '' // server-only env
 
-  //   // 🔐 Logged-out users → /register/complete requires login
-  //   if (pathname.startsWith('/register/complete')) {
-  //     const signInUrl = new URL('/handler/sign-in', request.url)
-  //     signInUrl.searchParams.set('after_auth_return_to', pathname)
-  //     return NextResponse.redirect(signInUrl)
-  //   }
-
-  //   // ✅ Public register + invite routes
-  //   return NextResponse.next()
-  // }
+    if (!expected || inviteCookie !== expected) {
+      // Block signup page for non-invited users
+      return NextResponse.redirect(new URL('/404', request.url)) // or '/register'
+    }
+  }
 
   /**
-   * 2) NORMAL AUTH RULES
+   * 1) NORMAL AUTH RULES
    */
   const needsAdmin = ADMIN_PATHS.some((re) => re.test(pathname))
   const isUserRoute = USER_PATHS.some((re) => re.test(pathname))
-
-  const needsAuth =
-    needsAdmin || isUserRoute || REGISTER_AUTH_REQUIRED.some((re) => re.test(pathname))
+  const needsAuth = needsAdmin || isUserRoute
 
   // Public route
   if (!needsAuth) {
@@ -84,7 +74,6 @@ export async function middleware(request: NextRequest) {
   const isAdminUser = await checkAdminPermission(user)
 
   /**
-   * ✅ New rule:
    * If user is admin and tries to access USER_PATHS → send to /dashboard
    */
   if (isAdminUser && isUserRoute) {
@@ -113,7 +102,7 @@ export const config = {
     '/profile/:path*',
     '/checkout/:path*',
 
-    // Register flow
+    // Register flow (public)
     '/register/:path*',
 
     // Invite APIs
