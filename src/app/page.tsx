@@ -11,6 +11,7 @@ import { countriesReverseMap } from '@/utils/countries'
 import { Select } from '@/components/Select'
 import { Typography } from '@/components/ui/Typography'
 import { usePathname } from 'next/navigation'
+// import WorldGrandmasView from '@/components/globe/GlobeComponent'
 
 export default function Recipes() {
   const n = useTranslations('navigation')
@@ -72,6 +73,8 @@ export default function Recipes() {
         </select>
       </div> */}
 
+      {/* <WorldGrandmasView /> */}
+
       <div className="min-h-svh flex flex-col overflow-hidden">
         <Header
           hasAdminAccess={hasPermissions}
@@ -104,7 +107,7 @@ export default function Recipes() {
                 </Typography>
               </div>
             </div>
-            {button(path, n as (key: string) => string)}
+            {button(path, n as (key: string) => string, hasPermissions)}
             {setSearch ? (
               <div className="flex items-center gap-1 border-2 border-green-dark rounded-full px-2 w-full bg-white">
                 <Image
