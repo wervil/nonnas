@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
 import { stackServerApp } from "@/stack";
-import { deleteStackUser, getStackUser } from "@/utils/stackAdmin";
+import { deleteStackUser, getStackUser, StackUserFromAdminApi } from "@/utils/stackAdmin";
 
-function parseCreatedAtMs(u: any): number | null {
-  const v =
-    u?.signed_up_at_millis ??
-    u?.createdAt ??
-    u?.created_at ??
-    u?.created_at_millis ??
-    u?.created_at_ms;
+function parseCreatedAtMs(
+  u: StackUserFromAdminApi
+): number | null {
+  const v = u.signed_up_at_millis;
 
-  if (!v) return null;
-  if (typeof v === "number") return v;
-
-  const ms = Date.parse(String(v));
-  return Number.isFinite(ms) ? ms : null;
+  if (v == null) return null;
+  return typeof v === "number" ? v : null;
 }
 
 function clearStackCookies(req: Request, res: NextResponse) {
