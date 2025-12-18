@@ -106,7 +106,7 @@ export default function Dashboard() {
         <div className="flex gap-2">
           {hasPermissions && (
             <Button onClick={copyInviteLink}>
-              {copied ? 'Copied ✓' : 'Copy Admin Invite'}
+              {copied ? 'Copied ✓' : 'Copy Invite Link'}
             </Button>
           )}
 
