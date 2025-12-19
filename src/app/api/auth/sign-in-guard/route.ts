@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { stackServerApp } from "@/stack";
-import { deleteStackUser, getStackUser, StackUserFromAdminApi } from "@/utils/stackAdmin";
+import {
+  deleteStackUser,
+  getStackUser,
+  StackUserFromAdminApi,
+} from "@/utils/stackAdmin";
 
-function parseCreatedAtMs(
-  u: StackUserFromAdminApi
-): number | null {
+function parseCreatedAtMs(u: StackUserFromAdminApi): number | null {
   const v = u.signed_up_at_millis;
-
   if (v == null) return null;
   return typeof v === "number" ? v : null;
 }
@@ -50,41 +51,55 @@ export async function GET(req: Request) {
 
   const team = await user.getTeam(teamId);
 
+  // ✅ CHANGE: if NOT team member AND account is old -> redirect to '/'
   if (!team) {
-    console.log("🚫 User NOT in team — will block + cleanup");
+    console.log("🚫 User NOT in team — deciding redirect based on account age");
     const userId = user.id;
 
-    // Redirect back to sign-in with error
+    // Fetch full user to get signed_up_at_millis
+    let createdAtMs: number | null = null;
+    try {
+      console.log("🔍 Fetching full Stack user for age check");
+      const fullUser = await getStackUser(userId);
+      createdAtMs = parseCreatedAtMs(fullUser);
+      console.log("📅 createdAtMs:", createdAtMs);
+    } catch (e) {
+      console.error("❌ Failed to fetch Stack user for age check:", e);
+    }
+
+    const now = Date.now();
+    const ageMs = createdAtMs != null ? now - createdAtMs : null;
+    console.log("⏱ ageMs:", ageMs);
+
+    // Define "old account" threshold
+    const OLD_THRESHOLD_MS = 30_000; // 30s (change if you want)
+    const isOldAccount = ageMs != null && ageMs > OLD_THRESHOLD_MS;
+
+    if (isOldAccount) {
+      console.log("🏠 Old account + not in team -> redirecting to '/'");
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+
+    // Fresh/unknown-age account -> cleanup + optional delete + redirect to sign-in with error
+    console.log("🧹 Fresh or unknown-age account -> redirect to sign-in + cleanup cookies");
+
     const url = new URL("/handler/sign-in", req.url);
     url.searchParams.set("error", "user_not_found");
 
     const res = NextResponse.redirect(url);
 
-    // ✅ Force logout by clearing the REAL Stack cookies
+    // ✅ Force logout by clearing Stack cookies
     clearStackCookies(req, res);
     console.log("🍪 Cleared stack-access / stack-refresh-* cookies");
 
-    // ✅ Optional: delete if account is very fresh
+    // ✅ Optional: delete if account is very fresh (<= 30s)
     try {
-      console.log("🔍 Fetching full Stack user for age check");
-      const fullUser = await getStackUser(userId);
-
-      const createdAtMs = parseCreatedAtMs(fullUser);
-      console.log("📅 createdAtMs:", createdAtMs);
-
-      if (createdAtMs) {
-        const ageMs = Date.now() - createdAtMs;
-        console.log("⏱ ageMs:", ageMs);
-
-        if (ageMs >= 0 && ageMs <= 30_000) {
-          console.log("🧨 Deleting user (age <= 30s):", userId);
-          await deleteStackUser(userId);
-          console.log("✅ Deleted user:", userId);
-        } else {
-          console.log("ℹ️ Not deleting: user older than 30s");
-        }
+      if (ageMs != null && ageMs >= 0 && ageMs <= OLD_THRESHOLD_MS) {
+        console.log("🧨 Deleting user (age <= threshold):", userId);
+        await deleteStackUser(userId);
+        console.log("✅ Deleted user:", userId);
       } else {
-        console.log("⚠️ Could not determine createdAt for deletion decision");
+        console.log("ℹ️ Not deleting: age unknown or older than threshold");
       }
     } catch (e) {
       console.error("❌ Deletion check failed (continuing anyway):", e);
