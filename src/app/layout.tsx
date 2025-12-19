@@ -1,10 +1,12 @@
-import { NextIntlClientProvider } from 'next-intl'
-import { getLocale } from 'next-intl/server'
-import type { Metadata } from 'next'
-import { StackProvider, StackTheme } from '@stackframe/stack'
-import { stackServerApp } from '../stack'
-import './globals.css'
-import { Footer } from '@/components/Footer'
+import type { Metadata } from "next"
+import "./globals.css"
+
+import { NextIntlClientProvider } from "next-intl"
+import { getLocale, getMessages } from "next-intl/server"
+
+import { StackProvider, StackTheme } from "@stackframe/stack"
+import { stackServerApp } from "../stack"
+import { Footer } from "@/components/Footer"
 
 export const metadata: Metadata = {
   title: "Cook Book App",
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png", // optional
   },
-};
+}
 
 export default async function RootLayout({
   children,
@@ -24,14 +26,15 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const locale = await getLocale()
+  const messages = await getMessages()
 
   return (
     <html lang={locale}>
       <body>
-        <NextIntlClientProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <StackProvider app={stackServerApp}>
             <StackTheme>
-              <div className='min-h-svh'>{children}</div>
+              <div className="min-h-svh">{children}</div>
               <Footer />
             </StackTheme>
           </StackProvider>
