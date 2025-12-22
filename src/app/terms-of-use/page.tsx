@@ -1,13 +1,13 @@
-import { stackServerApp } from '@/stack'
-import { redirect } from 'next/navigation'
+// import { stackServerApp } from '@/stack'
+// import { redirect } from 'next/navigation'
 
 export default async function TermsOfUsePage() {
-  const user = await stackServerApp.getUser({ or: 'return-null' })
+  // const user = await stackServerApp.getUser({ or: 'return-null' })
 
-  // Logged in? kick them out
-  if (user) {
-    redirect('/') // or '/'
-  }
+  // // Logged in? kick them out
+  // if (user) {
+  //   redirect('/') // or '/'
+  // }
 
   return (
     <div className="max-w-3xl mx-auto py-10">

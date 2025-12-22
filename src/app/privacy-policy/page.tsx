@@ -1,12 +1,12 @@
-import { stackServerApp } from '@/stack'
-import { redirect } from 'next/navigation'
+// import { stackServerApp } from '@/stack'
+// import { redirect } from 'next/navigation'
 
 export default async function PrivacyPage() {
-  const user = await stackServerApp.getUser({ or: 'return-null' })
+  // const user = await stackServerApp.getUser({ or: 'return-null' })
 
-  if (user) {
-    redirect('/') // or '/'
-  }
+  // if (user) {
+  //   redirect('/') // or '/'
+  // }
 
   return (
     <div className="max-w-3xl mx-auto py-10">
