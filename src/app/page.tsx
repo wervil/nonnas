@@ -11,7 +11,26 @@ import { countriesReverseMap } from '@/utils/countries'
 import { Select } from '@/components/Select'
 import { Typography } from '@/components/ui/Typography'
 import { usePathname } from 'next/navigation'
-// import WorldGrandmasView from '@/components/globe/GlobeComponent'
+import WorldGrandmasView from '@/components/globe/GlobeComponent'
+import HomeShell from '@/components/globe/HomeShell'
+// import GithubStyleGlobe from '@/components/globe/GithubStyleGlobe'
+
+import Globe2D3DShell from "@/components/globe/Globe2D3DShell";
+
+import dynamic from "next/dynamic";
+import GoogleMapClusterLayer from '@/components/globe/GoogleClusterMap'
+import { useMemo, useState } from 'react'
+
+const GithubStyleGlobe = dynamic(() => import("@/components/globe/GithubStyleGlobe"), {
+  ssr: false,
+});
+
+export type ClusterPoint = {
+  id: string;
+  lat: number;
+  lng: number;
+  weight?: number; // optional
+};
 
 export default function Recipes() {
   const n = useTranslations('navigation')
@@ -26,6 +45,37 @@ export default function Recipes() {
       label: `${countriesReverseMap[country]?.flag} ${country}`,
     })),
   ]
+
+    // 🔹 Dummy clustered points
+    const points = useMemo<ClusterPoint[]>(() => {
+      return [
+        // Islamabad
+        { id: "1", lat: 33.6844, lng: 73.0479, weight: 5 },
+        { id: "2", lat: 33.6849, lng: 73.0485, weight: 3 },
+        { id: "3", lat: 33.6838, lng: 73.0465, weight: 4 },
+  
+        // Lahore
+        { id: "4", lat: 31.5204, lng: 74.3587, weight: 6 },
+        { id: "5", lat: 31.5210, lng: 74.3595, weight: 4 },
+  
+        // Karachi
+        { id: "6", lat: 24.8607, lng: 67.0011, weight: 7 },
+        { id: "7", lat: 24.8615, lng: 67.0020, weight: 5 },
+  
+        // NYC
+        { id: "8", lat: 40.7128, lng: -74.006, weight: 6 },
+        { id: "9", lat: 40.7135, lng: -74.005, weight: 4 },
+      ];
+    }, []);
+  
+    // 🔹 Dummy center (start position)
+    const [center, setCenter] = useState<{ lat: number; lng: number }>({
+      lat: 33.6844,
+      lng: 73.0479,
+    });
+  
+    // 🔹 Dummy zoom
+    const [zoom, setZoom] = useState<number>(6);
 
   const {
     loading,
@@ -75,7 +125,12 @@ export default function Recipes() {
 
       {/* <WorldGrandmasView /> */}
 
-      <div className="min-h-svh flex flex-col overflow-hidden">
+      {/* <HomeShell /> */}
+
+      <Globe2D3DShell />
+
+
+      {/* <div className="min-h-svh flex flex-col overflow-hidden">
         <Header
           hasAdminAccess={hasPermissions}
           countriesOptions={countriesOptions}
@@ -142,7 +197,7 @@ export default function Recipes() {
             <Book recipes={recipes} tableOfContents={tableOfContents} />
           )}
         </main>
-      </div>
+      </div> */}
     </>
   )
 }
