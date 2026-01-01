@@ -914,6 +914,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@googlemaps/js-api-loader@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "@googlemaps/js-api-loader@npm:2.0.2"
+  dependencies:
+    "@types/google.maps": "npm:^3.53.1"
+  checksum: 10c0/1bd8f1e117145de83a7cfca7c05cf4cfb2d9095d507497f8b0e590be94de3a6a27a7a3c80801de6f58d77e5a2ce169a6b6d9c9d0dfc20ea1039d890226318c46
+  languageName: node
+  linkType: hard
+
 "@googlemaps/markerclusterer@npm:^2.6.2":
   version: 2.6.2
   resolution: "@googlemaps/markerclusterer@npm:2.6.2"
@@ -3399,7 +3408,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/google.maps@npm:^3.58.1":
+"@types/google.maps@npm:^3.53.1, @types/google.maps@npm:^3.58.1":
   version: 3.58.1
   resolution: "@types/google.maps@npm:3.58.1"
   checksum: 10c0/0247c61d2aeb216d04ab9392602ef41d58328c6336ed4e9a4e9e69834002e82c116a34def2bf4ceb31c4292f14899815058da4bb8d803147295c6b47c1162621
@@ -4530,6 +4539,7 @@ __metadata:
   resolution: "cook-book@workspace:."
   dependencies:
     "@eslint/eslintrc": "npm:^3"
+    "@googlemaps/js-api-loader": "npm:^2.0.2"
     "@googlemaps/markerclusterer": "npm:^2.6.2"
     "@hookform/resolvers": "npm:^5.2.1"
     "@lexical/html": "npm:^0.34.0"

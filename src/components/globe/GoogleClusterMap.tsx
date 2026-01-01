@@ -1,4 +1,3 @@
-// src/components/globe/GoogleClusterMap.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -14,9 +13,8 @@ export type ClusterPoint = {
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
-
-function almostEqual(a: number, b: number, eps = 1e-7) {
-  return Math.abs(a - b) <= eps;
+function round6(n: number) {
+  return Math.round(n * 1e6) / 1e6;
 }
 
 export default function GoogleMapClusterLayer({
@@ -40,37 +38,44 @@ export default function GoogleMapClusterLayer({
   const mapRef = useRef<google.maps.Map | null>(null);
   const clustererRef = useRef<MarkerClusterer | null>(null);
 
-  // ✅ refs to avoid stale closures in listeners
+  // latest props/callbacks without re-binding listeners
   const activeRef = useRef(active);
-  const onZoomRef = useRef(onZoomChange);
   const onCenterRef = useRef(onCenterChange);
+  const onZoomRef = useRef(onZoomChange);
 
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
 
   useEffect(() => {
-    onZoomRef.current = onZoomChange;
-  }, [onZoomChange]);
-
-  useEffect(() => {
     onCenterRef.current = onCenterChange;
   }, [onCenterChange]);
 
-  // ✅ prevent feedback loop between props->map and listeners->props
-  const muteRef = useRef(false);
+  useEffect(() => {
+    onZoomRef.current = onZoomChange;
+  }, [onZoomChange]);
 
-  // track last emitted values to avoid duplicate setState
-  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
-  const lastZoomRef = useRef<number | null>(null);
+  // prevent feedback loops
+  const syncingRef = useRef(false);
 
-  /* 1️⃣ CREATE MAP — ONCE */
+  // throttle emits
+  const rafCenterRef = useRef<number | null>(null);
+  const rafZoomRef = useRef<number | null>(null);
+
+  const lastEmittedCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastEmittedZoomRef = useRef<number | null>(null);
+
+  /* 1️⃣ CREATE MAP — ONCE (wait for window.google) */
   useEffect(() => {
     if (!containerRef.current) return;
 
     const wait = setInterval(() => {
       if (!window.google?.maps) return;
       if (mapRef.current) return;
+
+      // container must have size
+      const rect = containerRef.current!.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
 
       clearInterval(wait);
 
@@ -86,10 +91,7 @@ export default function GoogleMapClusterLayer({
         zoom,
         minZoom: 2,
         maxZoom: 20,
-        restriction: {
-          latLngBounds: WORLD_BOUNDS,
-          strictBounds: true,
-        },
+        restriction: { latLngBounds: WORLD_BOUNDS, strictBounds: true },
         disableDefaultUI: true,
         gestureHandling: "greedy",
         clickableIcons: false,
@@ -98,48 +100,56 @@ export default function GoogleMapClusterLayer({
 
       mapRef.current = map;
 
-      // initialize last known values
-      lastCenterRef.current = center;
-      lastZoomRef.current = zoom;
+      // prime refs
+      const c0 = map.getCenter();
+      if (c0) {
+        lastEmittedCenterRef.current = { lat: round6(c0.lat()), lng: round6(c0.lng()) };
+      }
+      const z0 = map.getZoom();
+      if (typeof z0 === "number") lastEmittedZoomRef.current = z0;
 
-      map.addListener("zoom_changed", () => {
-        if (!activeRef.current) return;
-        if (muteRef.current) return;
-
-        const z = map.getZoom();
-        if (typeof z !== "number") return;
-
-        const zClamped = clamp(z, 2, 20);
-        if (lastZoomRef.current === zClamped) return;
-
-        lastZoomRef.current = zClamped;
-        onZoomRef.current?.(zClamped);
-      });
-
+      // center_changed → emit (throttled, no loop)
       map.addListener("center_changed", () => {
         if (!activeRef.current) return;
-        if (muteRef.current) return;
+        if (syncingRef.current) return;
 
-        const c = map.getCenter();
-        if (!c) return;
+        if (rafCenterRef.current) cancelAnimationFrame(rafCenterRef.current);
+        rafCenterRef.current = requestAnimationFrame(() => {
+          const c = map.getCenter();
+          if (!c) return;
 
-        const next = { lat: c.lat(), lng: c.lng() };
-        const prev = lastCenterRef.current;
+          const next = { lat: round6(c.lat()), lng: round6(c.lng()) };
+          const prev = lastEmittedCenterRef.current;
+          if (prev && prev.lat === next.lat && prev.lng === next.lng) return;
 
-        if (
-          prev &&
-          almostEqual(prev.lat, next.lat) &&
-          almostEqual(prev.lng, next.lng)
-        ) {
-          return;
-        }
+          lastEmittedCenterRef.current = next;
+          onCenterRef.current?.(next);
+        });
+      });
 
-        lastCenterRef.current = next;
-        onCenterRef.current?.(next);
+      // zoom_changed → emit (throttled, no loop)
+      map.addListener("zoom_changed", () => {
+        if (!activeRef.current) return;
+        if (syncingRef.current) return;
+
+        if (rafZoomRef.current) cancelAnimationFrame(rafZoomRef.current);
+        rafZoomRef.current = requestAnimationFrame(() => {
+          const z = map.getZoom();
+          if (typeof z !== "number") return;
+
+          if (lastEmittedZoomRef.current === z) return;
+          lastEmittedZoomRef.current = z;
+
+          onZoomRef.current?.(z);
+        });
       });
     }, 50);
 
-    return () => clearInterval(wait);
+    return () => {
+      clearInterval(wait);
+      if (rafCenterRef.current) cancelAnimationFrame(rafCenterRef.current);
+      if (rafZoomRef.current) cancelAnimationFrame(rafZoomRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -166,42 +176,50 @@ export default function GoogleMapClusterLayer({
     clustererRef.current = new MarkerClusterer({ map, markers });
   }, [points]);
 
-  /* 3️⃣ SYNC PROPS → MAP (ONLY WHEN ACTIVE) */
+  /* 3️⃣ WHEN ACTIVE: FORCE RESIZE + APPLY VIEW (fix blank on transition) */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active) return;
 
-    const nextZoom = clamp(zoom, 2, 20);
-    const nextCenter = center;
+    google.maps.event.trigger(map, "resize");
 
-    // If already at same values, don't touch map (avoids extra events)
-    const cur = map.getCenter();
-    const curCenter = cur ? { lat: cur.lat(), lng: cur.lng() } : null;
-    const curZoom = map.getZoom();
+    syncingRef.current = true;
+    map.setCenter(center);
+    map.setZoom(clamp(zoom, 2, 20));
+    syncingRef.current = false;
 
-    const centerSame =
-      curCenter &&
-      almostEqual(curCenter.lat, nextCenter.lat) &&
-      almostEqual(curCenter.lng, nextCenter.lng);
+    // prime refs after sync
+    const c = map.getCenter();
+    if (c) lastEmittedCenterRef.current = { lat: round6(c.lat()), lng: round6(c.lng()) };
+    const z = map.getZoom();
+    if (typeof z === "number") lastEmittedZoomRef.current = z;
+  }, [active]); // only on activation
 
-    const zoomSame = typeof curZoom === "number" && curZoom === nextZoom;
+  /* 4️⃣ SYNC PROPS → MAP (ONLY WHEN ACTIVE, ONLY IF DIFFERENT) */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !active) return;
 
-    if (centerSame && zoomSame) return;
+    const nextZ = clamp(zoom, 2, 20);
+    const curZ = map.getZoom();
 
-    // ✅ mute while applying programmatic updates
-    muteRef.current = true;
+    const curCenter = map.getCenter();
+    const cur =
+      curCenter ? { lat: round6(curCenter.lat()), lng: round6(curCenter.lng()) } : null;
+    const nextC = { lat: round6(center.lat), lng: round6(center.lng) };
 
-    if (!centerSame) map.setCenter(nextCenter);
-    if (!zoomSame) map.setZoom(nextZoom);
+    const needsC = !cur || cur.lat !== nextC.lat || cur.lng !== nextC.lng;
+    const needsZ = typeof curZ === "number" ? curZ !== nextZ : true;
 
-    // keep last refs in sync (so we don't re-emit immediately)
-    lastCenterRef.current = nextCenter;
-    lastZoomRef.current = nextZoom;
+    if (!needsC && !needsZ) return;
 
-    // unmute next microtask (after map processes updates)
-    queueMicrotask(() => {
-      muteRef.current = false;
-    });
+    syncingRef.current = true;
+    if (needsC) map.setCenter(center);
+    if (needsZ) map.setZoom(nextZ);
+    syncingRef.current = false;
+
+    lastEmittedCenterRef.current = nextC;
+    lastEmittedZoomRef.current = nextZ;
   }, [center, zoom, active]);
 
   return (

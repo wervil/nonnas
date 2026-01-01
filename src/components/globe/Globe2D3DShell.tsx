@@ -1,15 +1,13 @@
-// src/components/globe/Globe2D3DShell.tsx
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-// import dynamic from "next/dynamic";
+import dynamic from "next/dynamic";
 import GoogleMapClusterLayer, { type ClusterPoint } from "./GoogleClusterMap";
-import NaturalStyleGlobe from "./NaturalStyledGlobe";
 
-// const GithubStyleGlobe = dynamic(
-//   () => import("@/components/globe/GithubStyleGlobe"),
-//   { ssr: false }
-// );
+const NaturalStyleGlobe = dynamic(
+  () => import("@/components/globe/NaturalStyledGlobe"),
+  { ssr: false }
+);
 
 export default function Globe2D3DShell() {
   const points = useMemo<ClusterPoint[]>(
@@ -27,51 +25,42 @@ export default function Globe2D3DShell() {
   const [zoom, setZoom] = useState(6);
   const [mode, setMode] = useState<"3d" | "2d">("3d");
 
-  // ✅ hysteresis thresholds (spaced apart)
-  const TO_2D_AT_DISTANCE = 230; // 3D -> 2D when <= this distance
-  const TO_3D_AT_ZOOM = 2; // 2D -> 3D when zoomed out enough
+  // ✅ hysteresis
+  const TO_2D_AT = 235;          // enter 2D when distance <= 235
+  const TO_3D_AT_ZOOM = 3;       // enter 3D when zoom <= 3
 
-  // ✅ cooldown lock to prevent thrash
-  const lockUntilRef = useRef(0);
-  const LOCK_MS = 450;
+  // ✅ cooldown to prevent oscillation
+  const lastSwitchRef = useRef(0);
+  const SWITCH_COOLDOWN_MS = 500;
 
-  const canSwitch = () => Date.now() >= lockUntilRef.current;
-  const lock = () => {
-    lockUntilRef.current = Date.now() + LOCK_MS;
-  };
-
-  const switchTo2D = () => {
-    if (mode === "2d") return;
-    if (!canSwitch()) return;
-    lock();
-    setMode("2d");
-  };
-
-  const switchTo3D = () => {
-    if (mode === "3d") return;
-    if (!canSwitch()) return;
-    lock();
-    setMode("3d");
+  const canSwitch = () => {
+    const now = Date.now();
+    if (now - lastSwitchRef.current < SWITCH_COOLDOWN_MS) return false;
+    lastSwitchRef.current = now;
+    return true;
   };
 
   const onDistanceChange = (dist: number) => {
-    // only evaluate in 3D mode
     if (mode !== "3d") return;
-    if (dist <= TO_2D_AT_DISTANCE) switchTo2D();
+    if (dist <= TO_2D_AT && canSwitch()) {
+      setMode("2d");
+    }
   };
 
   const handleMapZoomChange = (z: number) => {
-    const zz = Math.max(2, Math.min(20, z));
-    setZoom(zz);
+    setZoom(z);
 
-    // only evaluate in 2D mode
+    // only switch 2D -> 3D from inside 2D mode
     if (mode !== "2d") return;
-    if (zz <= TO_3D_AT_ZOOM) switchTo3D();
+
+    if (z <= TO_3D_AT_ZOOM && canSwitch()) {
+      setMode("3d");
+    }
   };
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden">
-      {/* 3D (stays mounted) */}
+    <div className="relative w-full h-screen overflow-hidden bg-white">
+      {/* 3D */}
       <div
         className="absolute inset-0"
         style={{
@@ -80,14 +69,7 @@ export default function Globe2D3DShell() {
           transition: "opacity 250ms ease",
         }}
       >
-        {/* <GithubStyleGlobe
-          active={mode === "3d"}
-          onDistanceChange={onDistanceChange}
-        /> */}
-        <NaturalStyleGlobe 
-          active={mode === "3d"}
-          onDistanceChange={onDistanceChange}
-        />
+        <NaturalStyleGlobe active={mode === "3d"} onDistanceChange={onDistanceChange} />
       </div>
 
       {/* 2D */}
