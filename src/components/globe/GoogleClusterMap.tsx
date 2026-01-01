@@ -1,3 +1,4 @@
+// src/components/globe/GoogleClusterMap.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -12,6 +13,10 @@ export type ClusterPoint = {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function almostEqual(a: number, b: number, eps = 1e-7) {
+  return Math.abs(a - b) <= eps;
 }
 
 export default function GoogleMapClusterLayer({
@@ -34,6 +39,30 @@ export default function GoogleMapClusterLayer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const clustererRef = useRef<MarkerClusterer | null>(null);
+
+  // ✅ refs to avoid stale closures in listeners
+  const activeRef = useRef(active);
+  const onZoomRef = useRef(onZoomChange);
+  const onCenterRef = useRef(onCenterChange);
+
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+
+  useEffect(() => {
+    onZoomRef.current = onZoomChange;
+  }, [onZoomChange]);
+
+  useEffect(() => {
+    onCenterRef.current = onCenterChange;
+  }, [onCenterChange]);
+
+  // ✅ prevent feedback loop between props->map and listeners->props
+  const muteRef = useRef(false);
+
+  // track last emitted values to avoid duplicate setState
+  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastZoomRef = useRef<number | null>(null);
 
   /* 1️⃣ CREATE MAP — ONCE */
   useEffect(() => {
@@ -69,22 +98,49 @@ export default function GoogleMapClusterLayer({
 
       mapRef.current = map;
 
-      // ✅ emit zoom immediately (fixes getting stuck in 2D)
+      // initialize last known values
+      lastCenterRef.current = center;
+      lastZoomRef.current = zoom;
+
       map.addListener("zoom_changed", () => {
-        if (!active) return;
+        if (!activeRef.current) return;
+        if (muteRef.current) return;
+
         const z = map.getZoom();
-        if (typeof z === "number") onZoomChange?.(z);
+        if (typeof z !== "number") return;
+
+        const zClamped = clamp(z, 2, 20);
+        if (lastZoomRef.current === zClamped) return;
+
+        lastZoomRef.current = zClamped;
+        onZoomRef.current?.(zClamped);
       });
 
-      // ✅ emit center immediately
       map.addListener("center_changed", () => {
-        if (!active) return;
+        if (!activeRef.current) return;
+        if (muteRef.current) return;
+
         const c = map.getCenter();
-        if (c) onCenterChange?.({ lat: c.lat(), lng: c.lng() });
+        if (!c) return;
+
+        const next = { lat: c.lat(), lng: c.lng() };
+        const prev = lastCenterRef.current;
+
+        if (
+          prev &&
+          almostEqual(prev.lat, next.lat) &&
+          almostEqual(prev.lng, next.lng)
+        ) {
+          return;
+        }
+
+        lastCenterRef.current = next;
+        onCenterRef.current?.(next);
       });
     }, 50);
 
     return () => clearInterval(wait);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* 2️⃣ UPDATE MARKERS WHEN POINTS CHANGE */
@@ -107,10 +163,7 @@ export default function GoogleMapClusterLayer({
       });
     });
 
-    clustererRef.current = new MarkerClusterer({
-      map,
-      markers,
-    });
+    clustererRef.current = new MarkerClusterer({ map, markers });
   }, [points]);
 
   /* 3️⃣ SYNC PROPS → MAP (ONLY WHEN ACTIVE) */
@@ -118,8 +171,37 @@ export default function GoogleMapClusterLayer({
     const map = mapRef.current;
     if (!map || !active) return;
 
-    map.setCenter(center);
-    map.setZoom(clamp(zoom, 2, 20));
+    const nextZoom = clamp(zoom, 2, 20);
+    const nextCenter = center;
+
+    // If already at same values, don't touch map (avoids extra events)
+    const cur = map.getCenter();
+    const curCenter = cur ? { lat: cur.lat(), lng: cur.lng() } : null;
+    const curZoom = map.getZoom();
+
+    const centerSame =
+      curCenter &&
+      almostEqual(curCenter.lat, nextCenter.lat) &&
+      almostEqual(curCenter.lng, nextCenter.lng);
+
+    const zoomSame = typeof curZoom === "number" && curZoom === nextZoom;
+
+    if (centerSame && zoomSame) return;
+
+    // ✅ mute while applying programmatic updates
+    muteRef.current = true;
+
+    if (!centerSame) map.setCenter(nextCenter);
+    if (!zoomSame) map.setZoom(nextZoom);
+
+    // keep last refs in sync (so we don't re-emit immediately)
+    lastCenterRef.current = nextCenter;
+    lastZoomRef.current = nextZoom;
+
+    // unmute next microtask (after map processes updates)
+    queueMicrotask(() => {
+      muteRef.current = false;
+    });
   }, [center, zoom, active]);
 
   return (
