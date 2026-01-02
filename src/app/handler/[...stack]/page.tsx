@@ -2,6 +2,7 @@ import { StackHandler } from "@stackframe/stack";
 import { stackServerApp } from "../../../stack";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 type HandlerProps = {
   params: Promise<{ stack?: string[] }>;
@@ -18,30 +19,53 @@ export default async function Handler(props: HandlerProps) {
   // ✅ If user is blocked, show a hard-block screen (NO StackHandler)
   if (stack === "sign-in" && searchParams.error === "user_not_found") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-xl border bg-white p-6 text-center">
-          <h1 className="text-xl font-semibold">Account not found</h1>
-          <p className="mt-2 text-sm text-neutral-600">
-            This email is not registered. Please use an invite link or contact an admin.
-          </p>
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-sm">
 
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <Link
-              href="/"
-              className="rounded-md border px-4 py-2 text-sm hover:bg-neutral-50"
-            >
-              Go to Home
-            </Link>
-
-            <Link
-              href="/handler/sign-in"
-              className="rounded-md bg-gray-50 px-4 py-2 text-sm text-whiteho ver:bg-grey-100 border"
-            >
-              Try another account
-            </Link>
-          </div>
+        {/* Logo */}
+        <div className="mb-4 flex justify-center">
+          <Image
+            src="/logoMain.svg"      // or /logo.png
+            alt="App logo"
+            width={148}
+            height={88}
+            priority
+          />
         </div>
+        {/* <h1 className="text-xl font-semibold text-neutral-900">
+          Account not found
+        </h1> */}
+
+        <p className="mt-2 text-md text-neutral-600">
+        We are in beta, if you have already signed up with our beta program you may sign in now. If not feel free to close this window and browse the virtual book.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-3">
+          {/* Primary OAuth-style action */}
+          <Link
+            href="/handler/sign-in"
+            className="inline-flex items-center no-underline justify-center rounded-md hover:text-white visited:text-white bg-neutral-900 px-4 py-2.5 text-sm font-medium hover:bg-neutral-800 transition"
+            style={{color: 'white'}}
+          >
+            Continue with another account
+          </Link>
+
+          {/* Secondary action */}
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-md border px-4 py-2.5 no-underline  text-sm text-neutral-700 hover:bg-neutral-100 transition"
+            style={{color: 'lab(8 0 0)'}}
+          >
+            Back to home
+          </Link>
+        </div>
+
+        {/* Optional OAuth-style helper text */}
+        <p className="mt-6 text-xs text-neutral-500">
+          Need access? Ask an admin to send you an invite.
+        </p>
       </div>
+    </div>
     );
   }
 

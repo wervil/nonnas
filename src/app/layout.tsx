@@ -10,6 +10,8 @@ import { StackProvider, StackTheme } from "@stackframe/stack"
 import { stackServerApp } from "../stack"
 import { Footer } from "@/components/Footer"
 
+import { Toaster } from 'sonner'
+
 export const metadata: Metadata = {
   title: "Cook Book App",
   description: "Best recipes all over the world",
@@ -46,6 +48,7 @@ export default async function RootLayout({
             </StackTheme>
           </StackProvider>
         </NextIntlClientProvider>
+        <Toaster richColors position="bottom-right" />
       </body>
     </html>
   )

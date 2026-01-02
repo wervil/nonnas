@@ -1995,7 +1995,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@radix-ui/react-dialog@npm:1.1.15, @radix-ui/react-dialog@npm:^1.1.2, @radix-ui/react-dialog@npm:^1.1.6":
+"@radix-ui/react-dialog@npm:1.1.15, @radix-ui/react-dialog@npm:^1.1.15, @radix-ui/react-dialog@npm:^1.1.2, @radix-ui/react-dialog@npm:^1.1.6":
   version: 1.1.15
   resolution: "@radix-ui/react-dialog@npm:1.1.15"
   dependencies:
@@ -4546,6 +4546,7 @@ __metadata:
     "@lexical/list": "npm:^0.34.0"
     "@lexical/react": "npm:^0.34.0"
     "@neondatabase/serverless": "npm:^1.0.1"
+    "@radix-ui/react-dialog": "npm:^1.1.15"
     "@stackframe/stack": "npm:^2.8.12"
     "@tailwindcss/postcss": "npm:^4.1.10"
     "@types/dat.gui": "npm:^0.7.13"
@@ -4577,7 +4578,7 @@ __metadata:
     leaflet: "npm:^1.9.4"
     lexical: "npm:^0.34.0"
     lodash.throttle: "npm:^4.1.1"
-    lucide-react: "npm:^0.525.0"
+    lucide-react: "npm:^0.562.0"
     next: "npm:^15.3.4"
     next-intl: "npm:^4.3.1"
     pg: "npm:^8.11.0"
@@ -4589,12 +4590,15 @@ __metadata:
     react-leaflet: "npm:^5.0.0"
     react-pageflip: "npm:^2.0.3"
     react-select: "npm:^5.10.2"
+    sonner: "npm:^2.0.7"
     stripe: "npm:^18.2.1"
     swiper: "npm:^12.0.3"
+    tailwind-merge: "npm:^3.4.0"
     tailwindcss: "npm:^4.1.10"
     three: "npm:^0.182.0"
     three-globe: "npm:^2.45.0"
     tsx: "npm:^4.20.3"
+    tw-animate-css: "npm:^1.4.0"
     typescript: "npm:^5"
     zod: "npm:^3.25.67"
   languageName: unknown
@@ -7341,12 +7345,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:^0.525.0":
-  version: 0.525.0
-  resolution: "lucide-react@npm:0.525.0"
+"lucide-react@npm:^0.562.0":
+  version: 0.562.0
+  resolution: "lucide-react@npm:0.562.0"
   peerDependencies:
     react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/81c4438e2cf1c86ea2ebe0a97b378201512450894283cccce766a89bc6a4e47c8df1d9115d845d98f582bb0a10be31c454aa232520fea35018dac1cd8466ea9b
+  checksum: 10c0/c713a2490916e42c678b9df0d7309d8cdb715af1d7139c7eb49c45547901b276a7cf722548012a668dc0e337eeadf5141d5af8c8fcda6721fc58fb2d288efcba
   languageName: node
   linkType: hard
 
@@ -9010,6 +9014,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sonner@npm:^2.0.7":
+  version: 2.0.7
+  resolution: "sonner@npm:2.0.7"
+  peerDependencies:
+    react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+    react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+  checksum: 10c0/6966ab5e892ed6aab579a175e4a24f3b48747f0fc21cb68c3e33cb41caa7a0eebeb098c210545395e47a18d585eb8734ae7dd12d2bd18c8a3294a1ee73f997d9
+  languageName: node
+  linkType: hard
+
 "source-map-js@npm:^1.0.2, source-map-js@npm:^1.2.1":
   version: 1.2.1
   resolution: "source-map-js@npm:1.2.1"
@@ -9312,6 +9326,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tailwind-merge@npm:^3.4.0":
+  version: 3.4.0
+  resolution: "tailwind-merge@npm:3.4.0"
+  checksum: 10c0/eaf17bb695c51c7bb7a90366a9c62be295473ee97fcfd1da54287714d4a5788a88ff4ad1ab9e0128638257fda777d6c9ea88682e36195e31a7fa2cf43f45e310
+  languageName: node
+  linkType: hard
+
 "tailwindcss-animate@npm:^1.0.7":
   version: 1.0.7
   resolution: "tailwindcss-animate@npm:1.0.7"
@@ -9582,6 +9603,13 @@ __metadata:
   bin:
     tsx: dist/cli.mjs
   checksum: 10c0/70f9bf746be69281312a369c712902dbf9bcbdd9db9184a4859eb4859c36ef0c5a6d79b935c1ec429158ee73fd6584089400ae8790345dae34c5b0222bdb94f3
+  languageName: node
+  linkType: hard
+
+"tw-animate-css@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "tw-animate-css@npm:1.4.0"
+  checksum: 10c0/6cfbc19ccc73883ec80ef1f9147f43e736cb01ee99c8172968b37eb81b720523d30e38b1a96aef92db3c586d864204db5510b51744ddacbbf0ad8e3c7fb56ec7
   languageName: node
   linkType: hard
 
