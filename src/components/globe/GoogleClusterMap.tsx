@@ -38,7 +38,7 @@ export default function GoogleMapClusterLayer({
   const mapRef = useRef<google.maps.Map | null>(null);
   const clustererRef = useRef<MarkerClusterer | null>(null);
 
-  // latest props/callbacks without re-binding listeners
+  /* ───────── refs to avoid re-binding listeners ───────── */
   const activeRef = useRef(active);
   const onCenterRef = useRef(onCenterChange);
   const onZoomRef = useRef(onZoomChange);
@@ -46,26 +46,19 @@ export default function GoogleMapClusterLayer({
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
-
   useEffect(() => {
     onCenterRef.current = onCenterChange;
   }, [onCenterChange]);
-
   useEffect(() => {
     onZoomRef.current = onZoomChange;
   }, [onZoomChange]);
 
-  // prevent feedback loops
+  /* ───────── loop protection ───────── */
   const syncingRef = useRef(false);
+  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastZoomRef = useRef<number | null>(null);
 
-  // throttle emits
-  const rafCenterRef = useRef<number | null>(null);
-  const rafZoomRef = useRef<number | null>(null);
-
-  const lastEmittedCenterRef = useRef<{ lat: number; lng: number } | null>(null);
-  const lastEmittedZoomRef = useRef<number | null>(null);
-
-  /* 1️⃣ CREATE MAP — ONCE (wait for window.google) */
+  /* ───────── 1️⃣ CREATE MAP ONCE ───────── */
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -73,7 +66,6 @@ export default function GoogleMapClusterLayer({
       if (!window.google?.maps) return;
       if (mapRef.current) return;
 
-      // container must have size
       const rect = containerRef.current!.getBoundingClientRect();
       if (rect.width < 10 || rect.height < 10) return;
 
@@ -91,9 +83,18 @@ export default function GoogleMapClusterLayer({
         zoom,
         minZoom: 2,
         maxZoom: 20,
-        restriction: { latLngBounds: WORLD_BOUNDS, strictBounds: true },
+
+        // ✅ IMPORTANT: allow free panning
+        restriction: {
+          latLngBounds: WORLD_BOUNDS,
+          strictBounds: false,
+        },
+
         disableDefaultUI: true,
         gestureHandling: "greedy",
+        draggable: true,
+        scrollwheel: true,
+        keyboardShortcuts: false,
         clickableIcons: false,
         backgroundColor: "#0b1020",
       });
@@ -102,58 +103,46 @@ export default function GoogleMapClusterLayer({
 
       // prime refs
       const c0 = map.getCenter();
-      if (c0) {
-        lastEmittedCenterRef.current = { lat: round6(c0.lat()), lng: round6(c0.lng()) };
-      }
+      if (c0) lastCenterRef.current = { lat: round6(c0.lat()), lng: round6(c0.lng()) };
       const z0 = map.getZoom();
-      if (typeof z0 === "number") lastEmittedZoomRef.current = z0;
+      if (typeof z0 === "number") lastZoomRef.current = z0;
 
-      // center_changed → emit (throttled, no loop)
+      /* ── user drag → React state ── */
       map.addListener("center_changed", () => {
         if (!activeRef.current) return;
         if (syncingRef.current) return;
 
-        if (rafCenterRef.current) cancelAnimationFrame(rafCenterRef.current);
-        rafCenterRef.current = requestAnimationFrame(() => {
-          const c = map.getCenter();
-          if (!c) return;
+        const c = map.getCenter();
+        if (!c) return;
 
-          const next = { lat: round6(c.lat()), lng: round6(c.lng()) };
-          const prev = lastEmittedCenterRef.current;
-          if (prev && prev.lat === next.lat && prev.lng === next.lng) return;
+        const next = { lat: round6(c.lat()), lng: round6(c.lng()) };
+        const prev = lastCenterRef.current;
 
-          lastEmittedCenterRef.current = next;
-          onCenterRef.current?.(next);
-        });
+        if (prev && prev.lat === next.lat && prev.lng === next.lng) return;
+
+        lastCenterRef.current = next;
+        onCenterRef.current?.(next);
       });
 
-      // zoom_changed → emit (throttled, no loop)
+      /* ── user zoom → React state ── */
       map.addListener("zoom_changed", () => {
         if (!activeRef.current) return;
         if (syncingRef.current) return;
 
-        if (rafZoomRef.current) cancelAnimationFrame(rafZoomRef.current);
-        rafZoomRef.current = requestAnimationFrame(() => {
-          const z = map.getZoom();
-          if (typeof z !== "number") return;
+        const z = map.getZoom();
+        if (typeof z !== "number") return;
 
-          if (lastEmittedZoomRef.current === z) return;
-          lastEmittedZoomRef.current = z;
+        if (lastZoomRef.current === z) return;
+        lastZoomRef.current = z;
 
-          onZoomRef.current?.(z);
-        });
+        onZoomRef.current?.(z);
       });
     }, 50);
 
-    return () => {
-      clearInterval(wait);
-      if (rafCenterRef.current) cancelAnimationFrame(rafCenterRef.current);
-      if (rafZoomRef.current) cancelAnimationFrame(rafZoomRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => clearInterval(wait);
   }, []);
 
-  /* 2️⃣ UPDATE MARKERS WHEN POINTS CHANGE */
+  /* ───────── 2️⃣ UPDATE MARKERS ───────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -176,11 +165,12 @@ export default function GoogleMapClusterLayer({
     clustererRef.current = new MarkerClusterer({ map, markers });
   }, [points]);
 
-  /* 3️⃣ WHEN ACTIVE: FORCE RESIZE + APPLY VIEW (fix blank on transition) */
+  /* ───────── 3️⃣ ACTIVATE MAP (3D → 2D FIX) ───────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active) return;
 
+    // ✅ REQUIRED when map was hidden
     google.maps.event.trigger(map, "resize");
 
     syncingRef.current = true;
@@ -188,38 +178,37 @@ export default function GoogleMapClusterLayer({
     map.setZoom(clamp(zoom, 2, 20));
     syncingRef.current = false;
 
-    // prime refs after sync
     const c = map.getCenter();
-    if (c) lastEmittedCenterRef.current = { lat: round6(c.lat()), lng: round6(c.lng()) };
+    if (c) lastCenterRef.current = { lat: round6(c.lat()), lng: round6(c.lng()) };
     const z = map.getZoom();
-    if (typeof z === "number") lastEmittedZoomRef.current = z;
-  }, [active]); // only on activation
+    if (typeof z === "number") lastZoomRef.current = z;
+  }, [active]);
 
-  /* 4️⃣ SYNC PROPS → MAP (ONLY WHEN ACTIVE, ONLY IF DIFFERENT) */
+  /* ───────── 4️⃣ EXTERNAL STATE → MAP (NO SNAP-BACK) ───────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active) return;
 
-    const nextZ = clamp(zoom, 2, 20);
-    const curZ = map.getZoom();
-
     const curCenter = map.getCenter();
     const cur =
       curCenter ? { lat: round6(curCenter.lat()), lng: round6(curCenter.lng()) } : null;
-    const nextC = { lat: round6(center.lat), lng: round6(center.lng) };
+    const next = { lat: round6(center.lat), lng: round6(center.lng) };
 
-    const needsC = !cur || cur.lat !== nextC.lat || cur.lng !== nextC.lng;
-    const needsZ = typeof curZ === "number" ? curZ !== nextZ : true;
+    const curZoom = map.getZoom();
+    const nextZoom = clamp(zoom, 2, 20);
 
-    if (!needsC && !needsZ) return;
+    const needsCenter = !cur || cur.lat !== next.lat || cur.lng !== next.lng;
+    const needsZoom = typeof curZoom === "number" ? curZoom !== nextZoom : true;
+
+    if (!needsCenter && !needsZoom) return;
 
     syncingRef.current = true;
-    if (needsC) map.setCenter(center);
-    if (needsZ) map.setZoom(nextZ);
+    if (needsCenter) map.setCenter(center);
+    if (needsZoom) map.setZoom(nextZoom);
     syncingRef.current = false;
 
-    lastEmittedCenterRef.current = nextC;
-    lastEmittedZoomRef.current = nextZ;
+    lastCenterRef.current = next;
+    lastZoomRef.current = nextZoom;
   }, [center, zoom, active]);
 
   return (
