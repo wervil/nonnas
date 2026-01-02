@@ -10,6 +10,18 @@ import { countriesData } from '@/utils/countries'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@stackframe/stack'
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter 
+} from '@/components/ui/dialog';
+
+
+import { toast } from "sonner";
+
 type StackUserRow = {
   id: string
   displayName: string | null
@@ -43,6 +55,9 @@ export default function Dashboard() {
   const [selectedCountry, setSelectedCountry] = useState('')
   const [copied, setCopied] = useState(false)
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null)
+
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
+
 
   const l = useTranslations('labels')
   const d = useTranslations('descriptions')
@@ -140,6 +155,39 @@ export default function Dashboard() {
     }
   }
 
+  const deleteUser = async () => {
+    if (!deleteUserId) return
+  
+    try {
+      setRoleUpdatingId(deleteUserId)
+  
+      const res = await fetch('/api/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteUserId }),
+      })
+  
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(text || 'Failed to delete user')
+      }
+  
+      toast.success('User deleted successfully')
+  
+      const u = await fetchStackUsers()
+      setUsers(u)
+    } catch (e) {
+      console.error(e)
+      toast.error('Something went wrong while deleting the user')
+    } finally {
+      setRoleUpdatingId(null)
+      setDeleteUserId(null) // close dialog
+    }
+  }
+  
+  
+
+
   useEffect(() => {
     loadTabData()
     // eslint-disable-next-line
@@ -234,79 +282,127 @@ export default function Dashboard() {
         <div>{b('loading')}</div>
       ) : tab === 'users' ? (
         <div className="rounded-lg border overflow-hidden">
-          <div className="grid grid-cols-5 gap-2 p-3 font-semibold bg-gray-50">
+          <div className="grid grid-cols-6 gap-2 p-3 font-semibold bg-gray-50">
             <div>Name</div>
             <div>Email</div>
             <div>Role</div>
             <div>Signed up</div>
             <div className="text-right">Action</div>
+            <div className="text-right">Delete</div>
           </div>
 
           {sortedUsers.map((u) => {
-            const isSuper =
-              (u.primaryEmail || '').toLowerCase() === SUPER_ADMIN_EMAIL
+  const isSuper =
+    (u.primaryEmail || '').toLowerCase() === SUPER_ADMIN_EMAIL
 
-            const isAdmin = u.role === 'team_member' // your current API logic
-            const badge = isSuper ? 'Super Admin' : isAdmin ? 'Admin' : 'Client'
+  const isAdmin = u.role === 'team_member'
+  const badge = isSuper ? 'Super Admin' : isAdmin ? 'Admin' : 'Client'
 
-            return (
-              <div
-                key={u.id}
-                className={`grid grid-cols-5 gap-2 p-3 border-t items-center ${
-                  isSuper ? 'bg-yellow-50' : ''
-                }`}
-              >
-                <div>{u.displayName || '—'}</div>
+  return (
+    <div
+      key={u.id}
+      className={`grid grid-cols-6 gap-2 p-3 border-t items-center ${
+        isSuper ? 'bg-yellow-50' : ''
+      }`}
+    >
+      <div>{u.displayName || '—'}</div>
+      <div className="truncate">{u.primaryEmail || '—'}</div>
 
-                <div className="truncate">{u.primaryEmail || '—'}</div>
+      <div>
+        {isSuper ? (
+          <span className="text-xs px-2 py-0.5 rounded bg-yellow-400 text-black font-semibold">
+            {badge}
+          </span>
+        ) : isAdmin ? (
+          <span className="text-xs px-2 py-0.5 rounded bg-green-400 text-black font-semibold">
+            {badge}
+          </span>
+        ) : (
+          <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-black font-semibold">
+            {badge}
+          </span>
+        )}
+      </div>
 
-                <div>
-                  {isSuper ? (
-                    <span className="text-xs px-2 py-0.5 rounded bg-yellow-400 text-black font-semibold">
-                      {badge}
-                    </span>
-                  ) : isAdmin ? (
-                    <span className="text-xs px-2 py-0.5 rounded bg-green-400 text-black font-semibold">
-                      {badge}
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-black font-semibold">
-                      {badge}
-                    </span>
-                  )}
-                </div>
+      <div>
+        {u.signedUpAt ? new Date(u.signedUpAt).toLocaleString() : '—'}
+      </div>
 
-                <div>
-                  {u.signedUpAt
-                    ? new Date(u.signedUpAt).toLocaleString()
-                    : '—'}
-                </div>
+      {/* Role toggle */}
+      <div className="flex justify-end">
+        {isSuper ? (
+          <span className="text-xs text-gray-500">—</span>
+        ) : (
+          <Button
+            onClick={() =>
+              updateUserRole(u.id, isAdmin ? 'client' : 'team_member')
+            }
+            disabled={roleUpdatingId === u.id}
+          >
+            {roleUpdatingId === u.id
+              ? 'Updating...'
+              : isAdmin
+              ? 'Make Client'
+              : 'Make Admin'}
+          </Button>
+        )}
+      </div>
 
-                <div className="flex justify-end">
-                  {isSuper ? (
-                    <span className="text-xs text-gray-500">—</span>
-                  ) : (
-                    <Button
-                      onClick={() =>
-                        updateUserRole(u.id, isAdmin ? 'client' : 'team_member')
-                      }
-                      disabled={roleUpdatingId === u.id}
-                    >
-                      {roleUpdatingId === u.id
-                        ? 'Updating...'
-                        : isAdmin
-                        ? 'Make Client'
-                        : 'Make Admin'}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+      {/* Delete (super admin only) */}
+      <div className="flex justify-end">
+        {!isSuperAdmin || isSuper ? (
+          <span className="text-xs text-gray-500">—</span>
+        ) : (
+          <Button
+              className='bg-red-800'
+              onClick={() => setDeleteUserId(u.id)}
+              disabled={roleUpdatingId === u.id}
+            >
+              Delete
+            </Button>
+
+        )}
+      </div>
+    </div>
+  )
+})}
+
         </div>
       ) : (
         <RecipesList recipes={recipes} togglePublished={() => {}} />
       )}
+
+<Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Delete user?</DialogTitle>
+      <DialogDescription>
+        This action is permanent and cannot be undone.
+      </DialogDescription>
+    </DialogHeader>
+
+    <DialogFooter className="gap-2">
+      <Button
+        
+        onClick={() => {
+          setDeleteUserId(null)
+          toast('Deletion cancelled')
+        }}
+      >
+        Cancel
+      </Button>
+
+      <Button
+        className='bg-red-800'
+        onClick={deleteUser}
+        disabled={!!roleUpdatingId}
+      >
+        {roleUpdatingId ? 'Deleting...' : 'Delete'}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
     </div>
   )
 }
