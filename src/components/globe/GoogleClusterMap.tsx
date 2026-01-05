@@ -58,6 +58,15 @@ export default function GoogleMapClusterLayer({
   const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
   const lastZoomRef = useRef<number | null>(null);
 
+  // ✅ Default "show USA" view when map becomes active (during transition)
+  const USA_VIEW = {
+    center: { lat: 39.8283, lng: -98.5795 }, // continental US centroid-ish
+    zoom: 4,
+  };
+
+  // ✅ block external center/zoom sync briefly after activation (prevents snap-back)
+  const lockUntilRef = useRef<number>(0);
+
   /* ───────── 1️⃣ CREATE MAP ONCE ───────── */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -103,7 +112,11 @@ export default function GoogleMapClusterLayer({
 
       // prime refs
       const c0 = map.getCenter();
-      if (c0) lastCenterRef.current = { lat: round6(c0.lat()), lng: round6(c0.lng()) };
+      if (c0)
+        lastCenterRef.current = {
+          lat: round6(c0.lat()),
+          lng: round6(c0.lng()),
+        };
       const z0 = map.getZoom();
       if (typeof z0 === "number") lastZoomRef.current = z0;
 
@@ -165,7 +178,7 @@ export default function GoogleMapClusterLayer({
     clustererRef.current = new MarkerClusterer({ map, markers });
   }, [points]);
 
-  /* ───────── 3️⃣ ACTIVATE MAP (3D → 2D FIX) ───────── */
+  /* ───────── 3️⃣ ACTIVATE MAP (3D → 2D + force USA view) ───────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active) return;
@@ -173,9 +186,12 @@ export default function GoogleMapClusterLayer({
     // ✅ REQUIRED when map was hidden
     google.maps.event.trigger(map, "resize");
 
+    // ✅ lock external sync briefly to prevent snap-back from parent state
+    lockUntilRef.current = Date.now() + 700; // tweak 400–1200ms if needed
+
     syncingRef.current = true;
-    map.setCenter(center);
-    map.setZoom(clamp(zoom, 2, 20));
+    map.setCenter(USA_VIEW.center);
+    map.setZoom(clamp(USA_VIEW.zoom, 2, 20));
     syncingRef.current = false;
 
     const c = map.getCenter();
@@ -189,9 +205,14 @@ export default function GoogleMapClusterLayer({
     const map = mapRef.current;
     if (!map || !active) return;
 
+    // ✅ ignore external props briefly after activation
+    if (Date.now() < lockUntilRef.current) return;
+
     const curCenter = map.getCenter();
-    const cur =
-      curCenter ? { lat: round6(curCenter.lat()), lng: round6(curCenter.lng()) } : null;
+    const cur = curCenter
+      ? { lat: round6(curCenter.lat()), lng: round6(curCenter.lng()) }
+      : null;
+
     const next = { lat: round6(center.lat), lng: round6(center.lng) };
 
     const curZoom = map.getZoom();
