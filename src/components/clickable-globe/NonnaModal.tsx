@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { Nonna } from "./sharedTypes";
 
@@ -17,6 +18,15 @@ export default function NonnaModal({
   onClose: () => void;
   themeColor?: string;
 }) {
+  const router = useRouter();
+
+  const handleViewRecipe = useCallback((recipeId: string | number) => {
+    // Close the modal first
+    onClose();
+    // Navigate to home page with recipe ID to open flipbook at that recipe's page
+    router.push(`/?recipe=${recipeId}`);
+  }, [onClose, router]);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -144,12 +154,16 @@ export default function NonnaModal({
 
                   {/* View recipe link */}
                   {nonna.id && (
-                    <div 
-                      className="absolute bottom-0 right-0 px-3 py-1 text-xs font-medium text-white rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewRecipe(nonna.id);
+                      }}
+                      className="absolute bottom-0 right-0 px-3 py-1 text-xs font-medium text-white rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:brightness-110"
                       style={{ backgroundColor: themeColor }}
                     >
                       View Recipe →
-                    </div>
+                    </button>
                   )}
                 </div>
               ))}

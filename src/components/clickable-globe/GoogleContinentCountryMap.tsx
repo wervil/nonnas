@@ -426,14 +426,7 @@ export default function GoogleContinentCountryMap({
           gestureHandling: "greedy", // Allow all gestures (pan, pinch zoom)
           keyboardShortcuts: true,
           draggable: true, // Enable drag/pan
-          // Natural map colors but hide all labels
-          styles: [
-            {
-              featureType: "all",
-              elementType: "labels",
-              stylers: [{ visibility: "off" }],
-            },
-          ],
+          // Show natural map with all labels by default
         });
 
         mapRef.current = map;
@@ -688,10 +681,40 @@ export default function GoogleContinentCountryMap({
     }
   }, [drill, selectedCountry, mapReady, countryData, stateData, createCountryMarkers, createStateMarkers, theme]);
 
-  // Update data layer style when selection changes
+  // Update data layer style and map labels when selection changes
   useEffect(() => {
     const dataLayer = dataLayerRef.current;
-    if (!dataLayer || !mapReady) return;
+    const map = mapRef.current;
+    if (!dataLayer || !map || !mapReady) return;
+
+    // Update map styles to hide country labels when a country is selected
+    if (drill === "country" && selectedCountry) {
+      // Hide country labels but keep state/city/locality labels visible
+      map.setOptions({
+        styles: [
+          {
+            featureType: "administrative.country",
+            elementType: "labels",
+            stylers: [{ visibility: "off" }],
+          },
+          {
+            featureType: "administrative.province", // States/provinces
+            elementType: "labels",
+            stylers: [{ visibility: "on" }],
+          },
+          {
+            featureType: "administrative.locality", // Cities
+            elementType: "labels",
+            stylers: [{ visibility: "on" }],
+          },
+        ],
+      });
+    } else {
+      // Show all labels when viewing continent/region level
+      map.setOptions({
+        styles: [],
+      });
+    }
 
     dataLayer.setStyle((feature) => {
       const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";

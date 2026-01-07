@@ -10,7 +10,8 @@ import { useCountries } from '@/hooks/useCountries'
 import { countriesReverseMap } from '@/utils/countries'
 import { Select } from '@/components/Select'
 import { Typography } from '@/components/ui/Typography'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 // import WorldGrandmasView from '@/components/globe/GlobeComponent'
 // import HomeShell from '@/components/globe/HomeShell'
 // import GithubStyleGlobe from '@/components/globe/GithubStyleGlobe'
@@ -33,6 +34,22 @@ export default function Recipes() {
   const l = useTranslations('labels')
   const countries = useCountries()
   const path = usePathname()
+  const searchParams = useSearchParams()
+  
+  // Get recipe ID from URL parameter (from map "View Recipe" button)
+  const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null)
+  
+  useEffect(() => {
+    const recipeParam = searchParams.get('recipe')
+    if (recipeParam) {
+      const recipeId = parseInt(recipeParam, 10)
+      if (!isNaN(recipeId)) {
+        setInitialRecipeId(recipeId)
+        // Clear the URL parameter after reading it (optional - keeps URL clean)
+        window.history.replaceState({}, '', '/')
+      }
+    }
+  }, [searchParams])
 
   const countriesOptions = [
     { value: '', label: n('all') },
@@ -190,7 +207,11 @@ export default function Recipes() {
           {loading ? (
             <div></div>
           ) : (
-            <Book recipes={recipes} tableOfContents={tableOfContents} />
+            <Book 
+              recipes={recipes} 
+              tableOfContents={tableOfContents} 
+              initialRecipeId={initialRecipeId}
+            />
           )}
         </main>
       </div>

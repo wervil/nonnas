@@ -4,7 +4,7 @@ import './Book.css'
 import HTMLFlipBook from 'react-pageflip'
 
 import { Recipe } from '@/db/schema'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import { convertRecipesToPages } from '@/utils/convertRecipesToPages'
 import { useTranslations } from 'next-intl'
 import { ImagesModal } from '../ui/ImagesModal'
@@ -15,12 +15,21 @@ import { Typography } from '../ui/Typography'
 type Props = {
   recipes: Recipe[]
   tableOfContents: Record<string, Recipe[]>
+  initialRecipeId?: number | null
+}
+
+export type BookHandle = {
+  goToPage: (pageNumber: number) => void
+  goToRecipe: (recipeId: number) => void
 }
 
 const HEADER_HEIGHT = 100
 const TOC_ITEM_HEIGHT = 40
 
-export const Book = ({ recipes, tableOfContents }: Props) => {
+// Number of pages before recipes start (cover + TOC pages)
+const PAGES_BEFORE_RECIPES = 1 // Just cover page, TOC is commented out
+
+export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, initialRecipeId }, ref) => {
   const l = useTranslations('labels')
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [contentHeight, setContentHeight] = useState(
@@ -117,11 +126,41 @@ export const Book = ({ recipes, tableOfContents }: Props) => {
     flipbookRef.current?.pageFlip()?.flipPrev()
   }
 
-  // const goToPage = (pageNumber: number) => {
-  //   if (flipbookRef.current) {
-  //     flipbookRef.current.pageFlip()?.flip(pageNumber)
-  //   }
-  // }
+  const goToPage = (pageNumber: number) => {
+    if (flipbookRef.current) {
+      flipbookRef.current.pageFlip()?.flip(pageNumber)
+    }
+  }
+
+  // Find the page number for a specific recipe ID
+  const getPageNumberForRecipe = (recipeId: number): number => {
+    const recipeIndex = recipes.findIndex((r) => r.id === recipeId)
+    if (recipeIndex === -1) return 0
+    // Each recipe takes 2 pages, and there's a cover page at the start
+    return PAGES_BEFORE_RECIPES + (recipeIndex * 2)
+  }
+
+  const goToRecipe = (recipeId: number) => {
+    const pageNumber = getPageNumberForRecipe(recipeId)
+    goToPage(pageNumber)
+  }
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    goToPage,
+    goToRecipe,
+  }))
+
+  // Handle initial recipe navigation
+  useEffect(() => {
+    if (initialRecipeId && recipes.length > 0) {
+      // Small delay to ensure flipbook is fully initialized
+      const timer = setTimeout(() => {
+        goToRecipe(initialRecipeId)
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [initialRecipeId, recipes])
 
   return (
     <>
@@ -227,4 +266,6 @@ export const Book = ({ recipes, tableOfContents }: Props) => {
       <ImagesModal images={images} onClose={() => setImages(null)} />
     </>
   )
-}
+})
+
+Book.displayName = 'Book'
