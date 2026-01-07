@@ -17,6 +17,12 @@ function round6(n: number) {
   return Math.round(n * 1e6) / 1e6;
 }
 
+// Default "show USA" view when map becomes active (during transition)
+const USA_VIEW = {
+  center: { lat: 39.8283, lng: -98.5795 }, // continental US centroid-ish
+  zoom: 4,
+};
+
 export default function GoogleMapClusterLayer({
   points,
   center,
@@ -57,12 +63,6 @@ export default function GoogleMapClusterLayer({
   const syncingRef = useRef(false);
   const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
   const lastZoomRef = useRef<number | null>(null);
-
-  // ✅ Default "show USA" view when map becomes active (during transition)
-  const USA_VIEW = {
-    center: { lat: 39.8283, lng: -98.5795 }, // continental US centroid-ish
-    zoom: 4,
-  };
 
   // ✅ block external center/zoom sync briefly after activation (prevents snap-back)
   const lockUntilRef = useRef<number>(0);
@@ -153,6 +153,7 @@ export default function GoogleMapClusterLayer({
     }, 50);
 
     return () => clearInterval(wait);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally init once with initial props
   }, []);
 
   /* ───────── 2️⃣ UPDATE MARKERS ───────── */
