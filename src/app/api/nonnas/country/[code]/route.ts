@@ -23,6 +23,20 @@ export type NonnasByState = {
   }[];
 };
 
+// Generate a deterministic "random" offset based on a string (to avoid marker position changes on refresh)
+function hashStringToOffset(str: string): { latOffset: number; lngOffset: number } {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  // Use different bits for lat and lng to get different offsets
+  const latOffset = ((hash & 0xFFFF) / 0xFFFF - 0.5) * 4; // -2 to +2
+  const lngOffset = (((hash >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 4; // -2 to +2
+  return { latOffset, lngOffset };
+}
+
 // State/region coordinates (approximate centers)
 const stateCoordinates: Record<string, Record<string, { lat: number; lng: number }>> = {
   US: {
@@ -120,6 +134,51 @@ const stateCoordinates: Record<string, Record<string, { lat: number; lng: number
     "bordeaux": { lat: 44.8378, lng: -0.5792 },
     "lyon": { lat: 45.7640, lng: 4.8357 },
   },
+  VE: {
+    "bolívar": { lat: 7.0000, lng: -63.5000 },
+    "bolivar": { lat: 7.0000, lng: -63.5000 },
+    "caracas": { lat: 10.4806, lng: -66.9036 },
+    "zulia": { lat: 10.0000, lng: -71.8000 },
+    "miranda": { lat: 10.3000, lng: -66.5000 },
+    "aragua": { lat: 10.2500, lng: -67.5000 },
+    "carabobo": { lat: 10.2000, lng: -68.0000 },
+    "lara": { lat: 10.0500, lng: -69.8500 },
+  },
+  CO: {
+    "bogotá": { lat: 4.7110, lng: -74.0721 },
+    "bogota": { lat: 4.7110, lng: -74.0721 },
+    "antioquia": { lat: 6.2518, lng: -75.5636 },
+    "valle del cauca": { lat: 3.4516, lng: -76.5320 },
+    "atlántico": { lat: 10.9685, lng: -74.7813 },
+    "santander": { lat: 7.1254, lng: -73.1198 },
+  },
+  AR: {
+    "buenos aires": { lat: -34.6037, lng: -58.3816 },
+    "córdoba": { lat: -31.4201, lng: -64.1888 },
+    "cordoba": { lat: -31.4201, lng: -64.1888 },
+    "santa fe": { lat: -31.6333, lng: -60.7000 },
+    "mendoza": { lat: -32.8895, lng: -68.8458 },
+  },
+  BR: {
+    "são paulo": { lat: -23.5505, lng: -46.6333 },
+    "sao paulo": { lat: -23.5505, lng: -46.6333 },
+    "rio de janeiro": { lat: -22.9068, lng: -43.1729 },
+    "minas gerais": { lat: -19.8157, lng: -43.9542 },
+    "bahia": { lat: -12.9714, lng: -38.5014 },
+    "paraná": { lat: -25.2521, lng: -52.0215 },
+  },
+  PE: {
+    "lima": { lat: -12.0464, lng: -77.0428 },
+    "arequipa": { lat: -16.4090, lng: -71.5375 },
+    "cusco": { lat: -13.5320, lng: -71.9675 },
+    "la libertad": { lat: -8.1091, lng: -79.0215 },
+  },
+  CL: {
+    "santiago": { lat: -33.4489, lng: -70.6693 },
+    "valparaíso": { lat: -33.0472, lng: -71.6127 },
+    "valparaiso": { lat: -33.0472, lng: -71.6127 },
+    "biobío": { lat: -37.4689, lng: -72.3527 },
+  },
 };
 
 /**
@@ -200,9 +259,19 @@ export async function GET(
       const normalizedState = stateName.toLowerCase();
       const coords = stateCoords[normalizedState];
 
-      // If we don't have specific state coords, use country center with slight offset
-      const lat = coords?.lat ?? countryInfo.lat + (Math.random() - 0.5) * 5;
-      const lng = coords?.lng ?? countryInfo.lng + (Math.random() - 0.5) * 5;
+      let lat: number;
+      let lng: number;
+
+      if (coords) {
+        // Use predefined coordinates
+        lat = coords.lat;
+        lng = coords.lng;
+      } else {
+        // Use deterministic offset based on state name (consistent across requests)
+        const offsets = hashStringToOffset(`${code.toUpperCase()}-${stateName}`);
+        lat = countryInfo.lat + offsets.latOffset;
+        lng = countryInfo.lng + offsets.lngOffset;
+      }
 
       states.push({
         stateName,
