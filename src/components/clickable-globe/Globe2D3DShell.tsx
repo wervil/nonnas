@@ -1,9 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ClusterPoint } from "./sharedTypes";
 import GoogleContinentCountryMap from "./GoogleContinentCountryMap";
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
 const NaturalStyledGlobe = dynamic(() => import("./NaturalStyledGlobe"), {
@@ -20,7 +19,7 @@ const NaturalStyledGlobe = dynamic(() => import("./NaturalStyledGlobe"), {
 
 type Mode = "globe" | "map";
 
-export default function Globe2D3DShell({ points }: { points: ClusterPoint[] }) {
+export default function Globe2D3DShell() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("globe");
   const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
@@ -34,8 +33,6 @@ export default function Globe2D3DShell({ points }: { points: ClusterPoint[] }) {
       setMode("map");
     }
   }, [searchParams]);
-
-  const memoPoints = useMemo(() => points, [points]);
 
   const handleContinentClick = useCallback((continent: string) => {
     setIsTransitioning(true);
@@ -95,7 +92,6 @@ export default function Globe2D3DShell({ points }: { points: ClusterPoint[] }) {
           <GoogleContinentCountryMap
             active={mode === "map" && !isTransitioning}
             selectedContinent={selectedContinent}
-            points={memoPoints}
             onBackToGlobe={handleBackToGlobe}
           />
         )}

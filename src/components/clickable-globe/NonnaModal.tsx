@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
+import Image from "next/image";
 import type { Nonna } from "./sharedTypes";
 
 export default function NonnaModal({
@@ -8,11 +9,13 @@ export default function NonnaModal({
   title,
   nonnas,
   onClose,
+  themeColor = "#ef4444",
 }: {
   open: boolean;
   title: string;
   nonnas: Nonna[];
   onClose: () => void;
+  themeColor?: string;
 }) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -78,50 +81,76 @@ export default function NonnaModal({
               <p className="text-gray-500">No nonnas found in this area.</p>
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid gap-4">
               {nonnas.map((nonna, idx) => (
                 <div
                   key={nonna.id}
-                  className="group relative bg-white rounded-xl border border-gray-200 p-4 hover:border-amber-300 hover:shadow-md transition-all duration-200"
+                  className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-amber-300 hover:shadow-lg transition-all duration-200"
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Avatar */}
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-xl border-2 border-amber-200/50">
-                      👵
+                  <div className="flex">
+                    {/* Photo */}
+                    <div className="relative flex-shrink-0 w-24 h-24 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center overflow-hidden">
+                      {nonna.photo && nonna.photo.length > 0 ? (
+                        <Image 
+                          src={nonna.photo[0]} 
+                          alt={nonna.name} 
+                          fill
+                          className="object-cover"
+                          sizes="96px"
+                        />
+                      ) : (
+                        <span className="text-3xl">👵</span>
+                      )}
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-semibold text-gray-900 truncate">{nonna.name}</h3>
-                        {typeof nonna.age === "number" && (
-                          <span className="flex-shrink-0 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                            {nonna.age} years
+                    <div className="flex-1 p-4 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-bold text-gray-900">{nonna.name}</h3>
+                          {nonna.recipeTitle && (
+                            <p className="text-sm font-medium mt-0.5" style={{ color: themeColor }}>
+                              {nonna.recipeTitle}
+                            </p>
+                          )}
+                        </div>
+                        {nonna.origin && (
+                          <span className="flex-shrink-0 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                            📍 {nonna.origin}
                           </span>
                         )}
                       </div>
 
-                      {nonna.origin && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-sm text-gray-600">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span>{nonna.origin}</span>
-                        </div>
+                      {nonna.history && (
+                        <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                          {nonna.history}
+                        </p>
                       )}
 
-                      {nonna.tagline && (
+                      {nonna.tagline && !nonna.history && (
                         <p className="mt-2 text-sm text-gray-500 italic line-clamp-2">
                           &ldquo;{nonna.tagline}&rdquo;
+                        </p>
+                      )}
+
+                      {nonna.traditions && (
+                        <p className="mt-1 text-xs text-gray-400 line-clamp-1">
+                          🎄 {nonna.traditions}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {/* Decorative corner */}
-                  <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-amber-50 to-transparent rounded-bl-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {/* View recipe link */}
+                  {nonna.id && (
+                    <div 
+                      className="absolute bottom-0 right-0 px-3 py-1 text-xs font-medium text-white rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      View Recipe →
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

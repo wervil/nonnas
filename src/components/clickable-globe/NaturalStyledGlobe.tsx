@@ -20,36 +20,106 @@ const GLOBE_RADIUS = 100;
 const CAMERA_DISTANCE = 320;
 const ROTATION_SENSITIVITY = 0.004;
 const MAX_TILT = 1.2;
-const HIGHLIGHT_COLOR = "rgba(59, 130, 246, 0.5)";
-const BORDER_COLOR = "rgba(30, 64, 175, 0.6)";
+const HIGHLIGHT_COLOR = "rgba(245, 158, 11, 0.6)"; // Warm amber highlight
+const BORDER_COLOR = "rgba(71, 85, 105, 0.4)"; // Subtle gray border
 
-// Continent colors for visual distinction
-const CONTINENT_COLORS: Record<string, string> = {
-  Africa: "rgba(34, 197, 94, 0.15)",
-  Asia: "rgba(234, 179, 8, 0.15)",
-  Europe: "rgba(59, 130, 246, 0.15)",
-  "North America": "rgba(239, 68, 68, 0.15)",
-  "South America": "rgba(168, 85, 247, 0.15)",
-  Oceania: "rgba(236, 72, 153, 0.15)",
-  Antarctica: "rgba(148, 163, 184, 0.15)",
+// Bright, friendly region colors (pastel tones)
+const REGION_COLORS: Record<string, string> = {
+  // Africa
+  Africa: "rgba(134, 239, 172, 0.4)", // Light green
+  // Asia sub-regions
+  "Middle East": "rgba(253, 224, 171, 0.4)", // Warm sand
+  "South Asia": "rgba(254, 215, 170, 0.4)", // Peach
+  "East Asia": "rgba(254, 249, 195, 0.4)", // Light yellow
+  "Southeast Asia": "rgba(167, 243, 208, 0.4)", // Mint
+  "Central Asia": "rgba(254, 240, 138, 0.4)", // Pale gold
+  // Europe
+  Europe: "rgba(191, 219, 254, 0.4)", // Light blue
+  // Americas
+  "North America": "rgba(254, 202, 202, 0.4)", // Light coral
+  "South America": "rgba(221, 214, 254, 0.4)", // Light purple
+  // Oceania & Pacific
+  Oceania: "rgba(251, 207, 232, 0.4)", // Light pink
+  "Pacific Islands": "rgba(165, 243, 252, 0.4)", // Light cyan
+  // Antarctica
+  Antarctica: "rgba(226, 232, 240, 0.4)", // Light slate
 };
 
-// Continent center coordinates for labels (adjusted for three-globe coordinate system)
-const CONTINENT_LABELS: Array<{ 
-  continent: string; 
+// Region labels with their center coordinates
+// Breaking down large continents into clickable sub-regions
+const REGION_LABELS: Array<{ 
+  region: string; 
   lat: number; 
   lng: number; 
   name: string;
   scale: number;
 }> = [
-  { continent: "Africa", lat: 2, lng: 18, name: "AFRICA", scale: 1.0 },
-  { continent: "Asia", lat: 42, lng: 85, name: "ASIA", scale: 1.2 },
-  { continent: "Europe", lat: 52, lng: 12, name: "EUROPE", scale: 0.7 },
-  { continent: "North America", lat: 45, lng: -105, name: "N. AMERICA", scale: 0.9 },
-  { continent: "South America", lat: -12, lng: -55, name: "S. AMERICA", scale: 0.85 },
-  { continent: "Oceania", lat: -24, lng: 134, name: "OCEANIA", scale: 0.7 },
-  { continent: "Antarctica", lat: -78, lng: 0, name: "ANTARCTICA", scale: 0.6 },
+  // Africa
+  { region: "Africa", lat: 2, lng: 20, name: "AFRICA", scale: 1.0 },
+  
+  // Asia broken into sub-regions
+  { region: "Middle East", lat: 28, lng: 45, name: "MIDDLE EAST", scale: 0.65 },
+  { region: "South Asia", lat: 22, lng: 78, name: "SOUTH ASIA", scale: 0.65 },
+  { region: "East Asia", lat: 38, lng: 115, name: "EAST ASIA", scale: 0.7 },
+  { region: "Southeast Asia", lat: 8, lng: 115, name: "SE ASIA", scale: 0.6 },
+  { region: "Central Asia", lat: 45, lng: 68, name: "CENTRAL ASIA", scale: 0.55 },
+  
+  // Europe
+  { region: "Europe", lat: 52, lng: 10, name: "EUROPE", scale: 0.7 },
+  
+  // Americas
+  { region: "North America", lat: 48, lng: -105, name: "N. AMERICA", scale: 0.85 },
+  { region: "South America", lat: -15, lng: -58, name: "S. AMERICA", scale: 0.85 },
+  
+  // Oceania & Pacific
+  { region: "Oceania", lat: -25, lng: 135, name: "OCEANIA", scale: 0.7 },
+  { region: "Pacific Islands", lat: 5, lng: 160, name: "PACIFIC", scale: 0.5 },
+  
+  // Antarctica (optional, might not have nonnas)
+  { region: "Antarctica", lat: -82, lng: 0, name: "ANTARCTICA", scale: 0.5 },
 ];
+
+// Map country to sub-region for Asia breakdown
+const COUNTRY_TO_REGION: Record<string, string> = {
+  // Middle East
+  "Saudi Arabia": "Middle East", "United Arab Emirates": "Middle East", "Iran": "Middle East",
+  "Iraq": "Middle East", "Israel": "Middle East", "Jordan": "Middle East", "Lebanon": "Middle East",
+  "Syria": "Middle East", "Yemen": "Middle East", "Oman": "Middle East", "Qatar": "Middle East",
+  "Bahrain": "Middle East", "Kuwait": "Middle East", "Turkey": "Middle East",
+  
+  // South Asia
+  "India": "South Asia", "Pakistan": "South Asia", "Bangladesh": "South Asia",
+  "Sri Lanka": "South Asia", "Nepal": "South Asia", "Bhutan": "South Asia",
+  "Maldives": "South Asia", "Afghanistan": "South Asia",
+  
+  // East Asia
+  "China": "East Asia", "Japan": "East Asia", "South Korea": "East Asia",
+  "North Korea": "East Asia", "Mongolia": "East Asia", "Taiwan": "East Asia",
+  
+  // Southeast Asia
+  "Thailand": "Southeast Asia", "Vietnam": "Southeast Asia", "Indonesia": "Southeast Asia",
+  "Philippines": "Southeast Asia", "Malaysia": "Southeast Asia", "Singapore": "Southeast Asia",
+  "Myanmar": "Southeast Asia", "Cambodia": "Southeast Asia", "Laos": "Southeast Asia",
+  "Brunei": "Southeast Asia", "Timor-Leste": "Southeast Asia",
+  
+  // Central Asia
+  "Kazakhstan": "Central Asia", "Uzbekistan": "Central Asia", "Turkmenistan": "Central Asia",
+  "Kyrgyzstan": "Central Asia", "Tajikistan": "Central Asia",
+  
+  // Pacific Islands
+  "Fiji": "Pacific Islands", "Papua New Guinea": "Pacific Islands", "Samoa": "Pacific Islands",
+  "Tonga": "Pacific Islands", "Vanuatu": "Pacific Islands", "Solomon Islands": "Pacific Islands",
+};
+
+// Legacy mapping for backward compatibility
+const CONTINENT_COLORS = REGION_COLORS;
+const CONTINENT_LABELS = REGION_LABELS.map(r => ({
+  continent: r.region,
+  lat: r.lat,
+  lng: r.lng,
+  name: r.name,
+  scale: r.scale,
+}));
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -71,47 +141,53 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
   return new THREE.Vector3(x, y, z);
 }
 
-// Create text texture for sprite
+// Create text texture for sprite (corporate, friendly style)
 function createTextTexture(text: string, fontSize: number = 72): THREE.Texture {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d")!;
   
   // Set canvas size based on text (higher resolution)
-  context.font = `bold ${fontSize}px Arial, sans-serif`;
+  context.font = `700 ${fontSize}px "Segoe UI", system-ui, sans-serif`;
   const metrics = context.measureText(text);
   const textWidth = metrics.width;
   const textHeight = fontSize * 1.4;
   
-  canvas.width = Math.ceil(textWidth + 40);
-  canvas.height = Math.ceil(textHeight + 20);
+  canvas.width = Math.ceil(textWidth + 50);
+  canvas.height = Math.ceil(textHeight + 30);
   
   // Clear canvas
   context.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Text styling
-  context.font = `bold ${fontSize}px Arial, sans-serif`;
+  // Text styling - darker, more corporate look for light background
+  context.font = `700 ${fontSize}px "Segoe UI", system-ui, sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "middle";
   
-  // Draw strong shadow/outline for visibility
-  context.shadowColor = "rgba(0, 0, 0, 0.8)";
-  context.shadowBlur = 8;
-  context.shadowOffsetX = 2;
+  // Draw subtle shadow for depth
+  context.shadowColor = "rgba(0, 0, 0, 0.3)";
+  context.shadowBlur = 4;
+  context.shadowOffsetX = 1;
   context.shadowOffsetY = 2;
   
-  // Draw outline
-  context.strokeStyle = "rgba(0, 0, 0, 0.9)";
-  context.lineWidth = 6;
-  context.strokeText(text, canvas.width / 2, canvas.height / 2);
+  // Draw white background pill for better readability
+  const pillWidth = textWidth + 30;
+  const pillHeight = fontSize + 10;
+  const pillX = (canvas.width - pillWidth) / 2;
+  const pillY = (canvas.height - pillHeight) / 2;
   
-  // Reset shadow for main text
+  context.fillStyle = "rgba(255, 255, 255, 0.85)";
+  context.beginPath();
+  context.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
+  context.fill();
+  
+  // Reset shadow
   context.shadowColor = "transparent";
   context.shadowBlur = 0;
   context.shadowOffsetX = 0;
   context.shadowOffsetY = 0;
   
-  // Draw main text - solid white
-  context.fillStyle = "#FFFFFF";
+  // Draw main text - dark slate color for corporate look
+  context.fillStyle = "#1e293b"; // slate-800
   context.fillText(text, canvas.width / 2, canvas.height / 2);
   
   const texture = new THREE.CanvasTexture(canvas);
@@ -264,7 +340,39 @@ export default function NaturalStyledGlobe({
     return () => { cancelled = true; };
   }, []);
 
-  // Helper to find continent from lat/lng
+  // Helper to determine Asia sub-region from country or coordinates
+  const getAsiaSubRegion = useCallback((countryName: string | undefined, lat: number, lng: number): string => {
+    // Check if we have a country-to-region mapping
+    if (countryName && COUNTRY_TO_REGION[countryName]) {
+      return COUNTRY_TO_REGION[countryName];
+    }
+    
+    // Fallback to coordinate-based detection
+    // Middle East: roughly 25-45°N, 25-65°E
+    if (lat >= 12 && lat <= 45 && lng >= 25 && lng <= 65) {
+      return "Middle East";
+    }
+    // South Asia: roughly 5-35°N, 65-95°E
+    if (lat >= 5 && lat <= 38 && lng >= 65 && lng <= 95) {
+      return "South Asia";
+    }
+    // Southeast Asia: roughly -10-25°N, 95-145°E
+    if (lat >= -12 && lat <= 25 && lng >= 95 && lng <= 145) {
+      return "Southeast Asia";
+    }
+    // Central Asia: roughly 35-55°N, 45-90°E
+    if (lat >= 35 && lat <= 55 && lng >= 45 && lng <= 90) {
+      return "Central Asia";
+    }
+    // East Asia: roughly 20-55°N, 100-150°E
+    if (lat >= 18 && lat <= 55 && lng >= 100 && lng <= 150) {
+      return "East Asia";
+    }
+    
+    return "East Asia"; // Default for unmatched Asia regions
+  }, []);
+
+  // Helper to find region from lat/lng (with Asia sub-regions)
   const findContinentAtLatLng = useCallback((lat: number, lng: number): string | null => {
     const geo = geoRef.current;
     if (!geo) return null;
@@ -272,10 +380,31 @@ export default function NaturalStyledGlobe({
     for (const f of geo.features) {
       const cont = f.properties?.CONTINENT as string | undefined;
       if (!cont) continue;
-      if (pointInFeature({ lat, lng }, f)) return cont;
+      
+      if (pointInFeature({ lat, lng }, f)) {
+        // If it's Asia, determine the sub-region
+        if (cont === "Asia") {
+          const countryName = f.properties?.NAME as string | undefined;
+          return getAsiaSubRegion(countryName, lat, lng);
+        }
+        
+        // Check for Pacific Islands (part of Oceania but separate clickable region)
+        if (cont === "Oceania") {
+          const countryName = f.properties?.NAME as string | undefined;
+          if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") {
+            return "Pacific Islands";
+          }
+          // Pacific islands are generally east of 150°E
+          if (lng > 150 || lng < -150) {
+            return "Pacific Islands";
+          }
+        }
+        
+        return cont;
+      }
     }
     return null;
-  }, []);
+  }, [getAsiaSubRegion]);
 
   // Convert 3D point to lat/lng
   const worldToLatLng = useCallback((point: THREE.Vector3): LatLng => {
@@ -330,22 +459,50 @@ export default function NaturalStyledGlobe({
     return { continent, point: hit.point };
   }, [worldToLatLng, findContinentAtLatLng]);
 
+  // Get region for a feature (handles Asia sub-regions)
+  const getFeatureRegion = useCallback((f: GeoFeature): string | null => {
+    const cont = f.properties?.CONTINENT as string | undefined;
+    if (!cont) return null;
+    
+    if (cont === "Asia") {
+      const countryName = f.properties?.NAME as string | undefined;
+      // Get centroid approximation for coordinate-based detection
+      const coords = (f.geometry.type === "Polygon" 
+        ? f.geometry.coordinates[0] 
+        : f.geometry.coordinates[0]?.[0]) as number[][] | undefined;
+      if (coords && coords.length > 0) {
+        const avgLng = coords.reduce((sum, c) => sum + (c[0] as number), 0) / coords.length;
+        const avgLat = coords.reduce((sum, c) => sum + (c[1] as number), 0) / coords.length;
+        return getAsiaSubRegion(countryName, avgLat, avgLng);
+      }
+    }
+    
+    if (cont === "Oceania") {
+      const countryName = f.properties?.NAME as string | undefined;
+      if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") {
+        return "Pacific Islands";
+      }
+    }
+    
+    return cont;
+  }, [getAsiaSubRegion]);
+
   // Update polygon colors
-  const updatePolygonColors = useCallback((highlightedContinent: string | null) => {
+  const updatePolygonColors = useCallback((highlightedRegion: string | null) => {
     const globe = globeRef.current;
     if (!globe) return;
 
     globe.polygonCapColor((obj: object) => {
       const f = obj as unknown as GeoFeature;
-      const cont = f.properties?.CONTINENT as string | undefined;
-      if (!cont) return "rgba(0,0,0,0)";
+      const region = getFeatureRegion(f);
+      if (!region) return "rgba(0,0,0,0)";
       
-      if (highlightedContinent === cont) {
+      if (highlightedRegion === region) {
         return HIGHLIGHT_COLOR;
       }
-      return CONTINENT_COLORS[cont] || "rgba(0,0,0,0)";
+      return REGION_COLORS[region] || CONTINENT_COLORS[region] || "rgba(134, 239, 172, 0.3)";
     });
-  }, []);
+  }, [getFeatureRegion]);
 
   // Main initialization
   useEffect(() => {
@@ -404,12 +561,45 @@ export default function NaturalStyledGlobe({
         mount.appendChild(renderer.domElement);
         rendererRef.current = renderer;
 
-        // Globe
+        // Create a stylized, light globe texture (corporate, friendly look)
+        const globeCanvas = document.createElement("canvas");
+        globeCanvas.width = 2048;
+        globeCanvas.height = 1024;
+        const ctx = globeCanvas.getContext("2d")!;
+        
+        // Light ocean gradient (friendly blue-green)
+        const oceanGradient = ctx.createLinearGradient(0, 0, 0, globeCanvas.height);
+        oceanGradient.addColorStop(0, "#e0f2fe"); // Very light blue at top
+        oceanGradient.addColorStop(0.3, "#7dd3fc"); // Light sky blue
+        oceanGradient.addColorStop(0.5, "#38bdf8"); // Bright cyan
+        oceanGradient.addColorStop(0.7, "#7dd3fc"); // Light sky blue
+        oceanGradient.addColorStop(1, "#e0f2fe"); // Very light blue at bottom
+        ctx.fillStyle = oceanGradient;
+        ctx.fillRect(0, 0, globeCanvas.width, globeCanvas.height);
+        
+        // Add subtle wave pattern for texture
+        ctx.globalAlpha = 0.1;
+        for (let y = 0; y < globeCanvas.height; y += 30) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          for (let x = 0; x < globeCanvas.width; x += 10) {
+            ctx.lineTo(x, y + Math.sin(x * 0.02) * 5);
+          }
+          ctx.strokeStyle = "#0ea5e9";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        
+        const globeTexture = new THREE.CanvasTexture(globeCanvas);
+        globeTexture.needsUpdate = true;
+
+        // Globe with stylized light appearance
         const globe = new ThreeGlobe()
-          .globeImageUrl("/textures/earth_day.jpg")
+          .globeImageUrl(globeCanvas.toDataURL())
           .showAtmosphere(true)
-          .atmosphereColor("#87CEEB")
-          .atmosphereAltitude(0.15);
+          .atmosphereColor("#bae6fd") // Light sky blue atmosphere
+          .atmosphereAltitude(0.12);
 
         scene.add(globe);
         globeRef.current = globe;
@@ -480,10 +670,19 @@ export default function NaturalStyledGlobe({
           globe.rotation.x = rotationRef.current.x;
           globe.rotation.y = rotationRef.current.y;
 
-          // Update label visibility based on which side of globe they're on
+          // Update label visibility - only show label for hovered region
           const cameraDirection = new THREE.Vector3(0, 0, 1); // Camera looks at -Z
+          const hoveredRegion = currentHoverRef.current;
           
           for (const sprite of labelSprites) {
+            const spriteRegion = sprite.userData.continent as string;
+            
+            // Only show label if this region is being hovered
+            if (spriteRegion !== hoveredRegion) {
+              sprite.visible = false;
+              continue;
+            }
+            
             // Get sprite world position
             const worldPos = new THREE.Vector3();
             sprite.getWorldPosition(worldPos);
@@ -492,12 +691,11 @@ export default function NaturalStyledGlobe({
             const dirToCamera = worldPos.clone().normalize();
             const dotProduct = dirToCamera.dot(cameraDirection);
             
-            // Show only if on the front side of the globe
+            // Show only if on the front side of the globe AND hovered
             if (dotProduct > -0.15) {
               sprite.visible = true;
-              // Fade based on angle (smoother transition)
-              const opacity = Math.min(1, (dotProduct + 0.15) * 2);
-              (sprite.material as THREE.SpriteMaterial).opacity = opacity;
+              // Full opacity when hovered
+              (sprite.material as THREE.SpriteMaterial).opacity = 1;
             } else {
               sprite.visible = false;
             }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import type { ClusterPoint, Nonna } from "./sharedTypes";
+import type { Nonna, GlobeApiResponse, CountryApiResponse } from "./sharedTypes";
 import NonnaModal from "./NonnaModal";
 
 type Admin0FeatureProps = {
@@ -17,29 +17,74 @@ type Admin0FC = GeoJSON.FeatureCollection<GeoJSON.Geometry, Admin0FeatureProps>;
 
 type Drill = "continent" | "country";
 
-// Continent theme colors
-const CONTINENT_THEMES: Record<string, { primary: string; secondary: string; highlight: string }> = {
+// Region theme colors (includes Asia sub-regions)
+const REGION_THEMES: Record<string, { primary: string; secondary: string; highlight: string }> = {
+  // Africa
   Africa: { primary: "#22c55e", secondary: "#dcfce7", highlight: "#4ade80" },
-  Asia: { primary: "#eab308", secondary: "#fef9c3", highlight: "#facc15" },
+  
+  // Asia sub-regions
+  "Middle East": { primary: "#f59e0b", secondary: "#fef3c7", highlight: "#fbbf24" },
+  "South Asia": { primary: "#f97316", secondary: "#ffedd5", highlight: "#fb923c" },
+  "East Asia": { primary: "#eab308", secondary: "#fef9c3", highlight: "#facc15" },
+  "Southeast Asia": { primary: "#10b981", secondary: "#d1fae5", highlight: "#34d399" },
+  "Central Asia": { primary: "#ca8a04", secondary: "#fef9c3", highlight: "#eab308" },
+  Asia: { primary: "#eab308", secondary: "#fef9c3", highlight: "#facc15" }, // Fallback
+  
+  // Europe
   Europe: { primary: "#3b82f6", secondary: "#dbeafe", highlight: "#60a5fa" },
+  
+  // Americas
   "North America": { primary: "#ef4444", secondary: "#fee2e2", highlight: "#f87171" },
   "South America": { primary: "#a855f7", secondary: "#f3e8ff", highlight: "#c084fc" },
+  
+  // Oceania & Pacific
   Oceania: { primary: "#ec4899", secondary: "#fce7f3", highlight: "#f472b6" },
+  "Pacific Islands": { primary: "#06b6d4", secondary: "#cffafe", highlight: "#22d3ee" },
+  
+  // Antarctica
   Antarctica: { primary: "#64748b", secondary: "#f1f5f9", highlight: "#94a3b8" },
 };
 
-// Calculate centroid from array of points
-function centroidLatLng(points: Array<{ lat: number; lng: number }>) {
-  const n = points.length;
-  if (n === 0) return { lat: 0, lng: 0 };
-  let lat = 0;
-  let lng = 0;
-  for (const p of points) {
-    lat += p.lat;
-    lng += p.lng;
-  }
-  return { lat: lat / n, lng: lng / n };
-}
+// Backward compatibility (used by external references)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const CONTINENT_THEMES = REGION_THEMES;
+
+// Map sub-regions to their parent continents for GeoJSON filtering
+const REGION_TO_CONTINENT: Record<string, string> = {
+  "Middle East": "Asia",
+  "South Asia": "Asia",
+  "East Asia": "Asia",
+  "Southeast Asia": "Asia",
+  "Central Asia": "Asia",
+  "Pacific Islands": "Oceania",
+};
+
+// Countries in each sub-region (for filtering)
+const REGION_COUNTRIES: Record<string, string[]> = {
+  "Middle East": [
+    "Turkey", "Iran", "Iraq", "Saudi Arabia", "Yemen", "Syria", "Jordan",
+    "United Arab Emirates", "Israel", "Lebanon", "Oman", "Kuwait", "Qatar",
+    "Bahrain", "Cyprus", "Palestine",
+  ],
+  "South Asia": [
+    "India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Bhutan",
+    "Maldives", "Afghanistan",
+  ],
+  "East Asia": [
+    "China", "Japan", "South Korea", "North Korea", "Taiwan", "Mongolia",
+  ],
+  "Southeast Asia": [
+    "Thailand", "Vietnam", "Indonesia", "Philippines", "Malaysia", "Singapore",
+    "Myanmar", "Cambodia", "Laos", "Brunei", "Timor-Leste",
+  ],
+  "Central Asia": [
+    "Kazakhstan", "Uzbekistan", "Turkmenistan", "Kyrgyzstan", "Tajikistan",
+  ],
+  "Pacific Islands": [
+    "Fiji", "Papua New Guinea", "Solomon Islands", "Vanuatu", "New Caledonia",
+    "Samoa", "Tonga", "Micronesia", "Marshall Islands", "Palau", "Kiribati",
+  ],
+};
 
 // Load Google Maps API dynamically
 let googleMapsPromise: Promise<void> | null = null;
@@ -74,15 +119,30 @@ function loadGoogleMapsAPI(apiKey: string): Promise<void> {
   return googleMapsPromise;
 }
 
+type CountryData = {
+  id: string;
+  lat: number;
+  lng: number;
+  countryCode: string;
+  countryName: string;
+  nonnaCount: number;
+};
+
+type StateData = {
+  stateName: string;
+  lat: number;
+  lng: number;
+  nonnaCount: number;
+  nonnas: Nonna[];
+};
+
 export default function GoogleContinentCountryMap({
   active,
   selectedContinent,
-  points,
   onBackToGlobe,
 }: {
   active: boolean;
   selectedContinent: string;
-  points: ClusterPoint[];
   onBackToGlobe: () => void;
 }) {
   const searchParams = useSearchParams();
@@ -103,7 +163,54 @@ export default function GoogleContinentCountryMap({
     nonnas: [],
   });
 
-  const theme = CONTINENT_THEMES[selectedContinent] || CONTINENT_THEMES.Europe;
+  // API data state
+  const [countryData, setCountryData] = useState<CountryData[]>([]);
+  const [stateData, setStateData] = useState<StateData[]>([]);
+
+  const theme = REGION_THEMES[selectedContinent] || REGION_THEMES.Europe;
+  
+  // Get the parent continent for GeoJSON filtering
+  const parentContinent = REGION_TO_CONTINENT[selectedContinent] || selectedContinent;
+  
+  // Get the list of countries for this region (if it's a sub-region)
+  const regionCountries = REGION_COUNTRIES[selectedContinent];
+
+  // Fetch countries data for the continent/region
+  const fetchCountryData = useCallback(async () => {
+    try {
+      // Use the region parameter for sub-regions, continent for main continents
+      const queryParam = regionCountries 
+        ? `region=${encodeURIComponent(selectedContinent)}`
+        : `continent=${encodeURIComponent(selectedContinent)}`;
+      const response = await fetch(`/api/nonnas/globe?${queryParam}`);
+      const data: GlobeApiResponse = await response.json();
+      
+      if (data.success && data.data) {
+        setCountryData(data.data.countries);
+      }
+    } catch (error) {
+      console.error("Error fetching country data:", error);
+    }
+  }, [selectedContinent, regionCountries]);
+
+  // Fetch state data for a country
+  const fetchStateData = useCallback(async (countryCode: string, countryName: string) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/nonnas/country/${countryCode}?name=${encodeURIComponent(countryName)}`
+      );
+      const data: CountryApiResponse = await response.json();
+      
+      if (data.success && data.data) {
+        setStateData(data.data.states);
+      }
+    } catch (error) {
+      console.error("Error fetching state data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // Check URL for country parameter (for testing)
   useEffect(() => {
@@ -114,14 +221,16 @@ export default function GoogleContinentCountryMap({
       initialCountrySetRef.current = true;
       setSelectedCountry({ code: countryCode, name: countryName });
       setDrill("country");
+      fetchStateData(countryCode, countryName);
     }
-  }, [searchParams]);
+  }, [searchParams, fetchStateData]);
 
-  const continentPoints = useMemo(() => {
-    const hasContinent = points.some((p) => typeof p.continent === "string" && p.continent.length > 0);
-    if (hasContinent) return points.filter((p) => p.continent === selectedContinent);
-    return points;
-  }, [points, selectedContinent]);
+  // Fetch country data on mount
+  useEffect(() => {
+    if (active) {
+      fetchCountryData();
+    }
+  }, [active, fetchCountryData]);
 
   const clearMarkers = useCallback(() => {
     for (const m of markersRef.current) {
@@ -130,34 +239,18 @@ export default function GoogleContinentCountryMap({
     markersRef.current = [];
   }, []);
 
+  // Create country markers from API data
   const createCountryMarkers = useCallback((map: google.maps.Map, themeColors: typeof theme) => {
     clearMarkers();
 
-    const byCountry = new Map<string, { code: string; name: string; pts: ClusterPoint[]; nonnas: Nonna[] }>();
+    for (const country of countryData) {
+      if (country.nonnaCount === 0) continue;
 
-    for (const p of continentPoints) {
-      const key = `${p.countryCode}||${p.countryName}`;
-      const existing = byCountry.get(key);
-      if (existing) {
-        existing.pts.push(p);
-        existing.nonnas.push(...p.nonnas);
-      } else {
-        byCountry.set(key, { code: p.countryCode, name: p.countryName, pts: [p], nonnas: [...p.nonnas] });
-      }
-    }
-
-    for (const entry of byCountry.values()) {
-      if (entry.nonnas.length === 0) continue;
-
-      const center = centroidLatLng(entry.pts);
-      const count = entry.nonnas.length;
-      
-      // Create simple circle marker with count
-      const size = Math.min(50, Math.max(32, 24 + count * 2));
+      const size = Math.min(50, Math.max(32, 24 + country.nonnaCount * 2));
       
       const marker = new google.maps.Marker({
         map,
-        position: center,
+        position: { lat: country.lat, lng: country.lng },
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: size / 2,
@@ -168,48 +261,28 @@ export default function GoogleContinentCountryMap({
           strokeWeight: 3,
         },
         label: {
-          text: String(count),
+          text: String(country.nonnaCount),
           color: "#ffffff",
-          fontSize: count > 99 ? "11px" : "14px",
+          fontSize: country.nonnaCount > 99 ? "11px" : "14px",
           fontWeight: "700",
         },
-        title: `${entry.name}: ${count} nonna(s) - Click country to see regions`,
-        zIndex: count,
+        title: `${country.countryName}: ${country.nonnaCount} nonna(s) - Click country to see regions`,
+        zIndex: country.nonnaCount,
       });
-
-      // Country markers don't open modal - clicking the country polygon does drill-down
-      // This marker is just visual indicator of nonna count
 
       markersRef.current.push(marker);
     }
-  }, [continentPoints, clearMarkers]);
+  }, [countryData, clearMarkers]);
 
+  // Create state markers from API data
   const createStateMarkers = useCallback((map: google.maps.Map, country: { code: string; name: string }, themeColors: typeof theme) => {
     clearMarkers();
 
-    const countryPts = continentPoints.filter((p) => p.countryCode === country.code);
+    for (const state of stateData) {
+      if (state.nonnaCount === 0) continue;
 
-    const byState = new Map<string, { state: string; pts: ClusterPoint[]; nonnas: Nonna[] }>();
-    
-    for (const p of countryPts) {
-      const state = p.stateName?.trim() || "Unknown Region";
-      const existing = byState.get(state);
-      if (existing) {
-        existing.pts.push(p);
-        existing.nonnas.push(...p.nonnas);
-      } else {
-        byState.set(state, { state, pts: [p], nonnas: [...p.nonnas] });
-      }
-    }
-
-    for (const entry of byState.values()) {
-      if (entry.nonnas.length === 0) continue;
-
-      const center = centroidLatLng(entry.pts);
-      
-      // Create SVG icon with state name and count
-      const stateName = entry.state;
-      const count = entry.nonnas.length;
+      const stateName = state.stateName;
+      const count = state.nonnaCount;
       const textWidth = Math.max(80, stateName.length * 8 + 30);
       const iconHeight = 50;
       
@@ -240,27 +313,27 @@ export default function GoogleContinentCountryMap({
       
       const marker = new google.maps.Marker({
         map,
-        position: center,
+        position: { lat: state.lat, lng: state.lng },
         icon: {
           url: `data:image/svg+xml,${encodedSvg}`,
           scaledSize: new google.maps.Size(textWidth, iconHeight),
           anchor: new google.maps.Point(textWidth / 2, iconHeight / 2),
         },
-        title: `${entry.state}: ${entry.nonnas.length} nonna(s)`,
-        zIndex: entry.nonnas.length + 100,
+        title: `${state.stateName}: ${state.nonnaCount} nonna(s)`,
+        zIndex: state.nonnaCount + 100,
       });
 
       marker.addListener("click", () => {
         setModal({
           open: true,
-          title: `${country.name} • ${entry.state} • ${entry.nonnas.length} Nonna(s)`,
-          nonnas: entry.nonnas,
+          title: `${country.name} • ${state.stateName} • ${state.nonnaCount} Nonna(s)`,
+          nonnas: state.nonnas,
         });
       });
 
       markersRef.current.push(marker);
     }
-  }, [continentPoints, clearMarkers]);
+  }, [stateData, clearMarkers]);
 
   // Initialize map
   useEffect(() => {
@@ -313,13 +386,27 @@ export default function GoogleContinentCountryMap({
 
         dataLayer.addGeoJson(fc as unknown as GeoJSON.FeatureCollection);
 
-        // Calculate bounds from actual continent features
+        // Helper to check if a feature belongs to this region/continent
+        const isFeatureInRegion = (feature: google.maps.Data.Feature): boolean => {
+          const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";
+          const countryName = (feature.getProperty("ADMIN") as string | undefined) ??
+            (feature.getProperty("NAME") as string | undefined) ?? "";
+          
+          // If it's a sub-region, check if the country is in that region
+          if (regionCountries) {
+            return cont === parentContinent && regionCountries.includes(countryName);
+          }
+          
+          // Otherwise, just check the continent
+          return cont === selectedContinent;
+        };
+
+        // Calculate bounds from actual region features
         const continentBounds = new google.maps.LatLngBounds();
         let hasFeatures = false;
 
         dataLayer.forEach((feature) => {
-          const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";
-          if (cont === selectedContinent) {
+          if (isFeatureInRegion(feature)) {
             hasFeatures = true;
             feature.getGeometry()?.forEachLatLng((latLng) => {
               continentBounds.extend(latLng);
@@ -329,12 +416,11 @@ export default function GoogleContinentCountryMap({
 
         continentBoundsRef.current = continentBounds;
 
-        // Style countries - hide non-continent countries
+        // Style countries - hide non-region countries
         dataLayer.setStyle((feature) => {
-          const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";
-          const isInContinent = cont === selectedContinent;
+          const isInRegion = isFeatureInRegion(feature);
 
-          if (!isInContinent) {
+          if (!isInRegion) {
             return { visible: false };
           }
 
@@ -351,9 +437,8 @@ export default function GoogleContinentCountryMap({
         });
 
         // Country click handler
-        dataLayer.addListener("click", (e: google.maps.Data.MouseEvent) => {
-          const cont = (e.feature.getProperty("CONTINENT") as string | undefined) ?? "";
-          if (cont !== selectedContinent) return;
+        dataLayer.addListener("click", async (e: google.maps.Data.MouseEvent) => {
+          if (!isFeatureInRegion(e.feature)) return;
 
           const iso2 = (e.feature.getProperty("ISO_A2") as string | undefined) ?? "";
           const countryName = (e.feature.getProperty("ADMIN") as string | undefined) ??
@@ -364,11 +449,13 @@ export default function GoogleContinentCountryMap({
           setSelectedCountry({ code: iso2, name: countryName });
           setDrill("country");
 
+          // Fetch state data for the country
+          await fetchStateData(iso2, countryName);
+
           // Fit bounds to country with padding
           const countryBounds = new google.maps.LatLngBounds();
           e.feature.getGeometry()?.forEachLatLng((latLng) => countryBounds.extend(latLng));
           
-          // Use setTimeout to ensure the bounds are applied after state updates
           setTimeout(() => {
             map.fitBounds(countryBounds, {
               top: 100,
@@ -381,8 +468,7 @@ export default function GoogleContinentCountryMap({
 
         // Hover effects
         dataLayer.addListener("mouseover", (e: google.maps.Data.MouseEvent) => {
-          const cont = (e.feature.getProperty("CONTINENT") as string | undefined) ?? "";
-          if (cont !== selectedContinent) return;
+          if (!isFeatureInRegion(e.feature)) return;
           
           dataLayer.overrideStyle(e.feature, {
             fillOpacity: 0.7,
@@ -420,13 +506,9 @@ export default function GoogleContinentCountryMap({
               });
             }, 100);
           }
-
-          // Create state markers for the initial country
-          createStateMarkers(map, { code: urlCountryCode, name: urlCountryName }, theme);
         } else {
           // Fit to continent bounds with padding
           if (hasFeatures) {
-            // Small delay to ensure map is fully initialized
             setTimeout(() => {
               map.fitBounds(continentBounds, {
                 top: 100,
@@ -436,8 +518,6 @@ export default function GoogleContinentCountryMap({
               });
             }, 100);
           }
-
-          createCountryMarkers(map, theme);
         }
 
         setMapReady(true);
@@ -457,19 +537,19 @@ export default function GoogleContinentCountryMap({
       dataLayerRef.current = null;
       continentBoundsRef.current = null;
     };
-  }, [active, selectedContinent, theme, createCountryMarkers, createStateMarkers, clearMarkers, searchParams]);
+  }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, searchParams, fetchStateData]);
 
-  // Update markers when drill level changes
+  // Update markers when drill level or data changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    if (drill === "continent") {
+    if (drill === "continent" && countryData.length > 0) {
       createCountryMarkers(map, theme);
-    } else if (drill === "country" && selectedCountry) {
+    } else if (drill === "country" && selectedCountry && stateData.length > 0) {
       createStateMarkers(map, selectedCountry, theme);
     }
-  }, [drill, selectedCountry, mapReady, createCountryMarkers, createStateMarkers, theme]);
+  }, [drill, selectedCountry, mapReady, countryData, stateData, createCountryMarkers, createStateMarkers, theme]);
 
   // Update data layer style when selection changes
   useEffect(() => {
@@ -478,12 +558,21 @@ export default function GoogleContinentCountryMap({
 
     dataLayer.setStyle((feature) => {
       const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";
+      const countryName = (feature.getProperty("ADMIN") as string | undefined) ??
+        (feature.getProperty("NAME") as string | undefined) ?? "";
       const iso2 = (feature.getProperty("ISO_A2") as string | undefined) ?? "";
 
-      const isInContinent = cont === selectedContinent;
+      // Check if feature belongs to this region
+      let isInRegion = false;
+      if (regionCountries) {
+        isInRegion = cont === parentContinent && regionCountries.includes(countryName);
+      } else {
+        isInRegion = cont === selectedContinent;
+      }
+      
       const isSelected = drill === "country" && selectedCountry?.code === iso2;
 
-      if (!isInContinent) {
+      if (!isInRegion) {
         return { visible: false };
       }
 
@@ -498,13 +587,14 @@ export default function GoogleContinentCountryMap({
         cursor: "pointer",
       };
     });
-  }, [drill, selectedCountry, selectedContinent, theme, mapReady]);
+  }, [drill, selectedCountry, selectedContinent, parentContinent, regionCountries, theme, mapReady]);
 
   // Back button handler
   const handleBack = useCallback(() => {
     if (drill === "country") {
       setDrill("continent");
       setSelectedCountry(null);
+      setStateData([]);
 
       const map = mapRef.current;
       const bounds = continentBoundsRef.current;
@@ -520,7 +610,7 @@ export default function GoogleContinentCountryMap({
         }, 50);
       }
 
-      if (map) {
+      if (map && countryData.length > 0) {
         createCountryMarkers(map, theme);
       }
       return;
@@ -530,30 +620,23 @@ export default function GoogleContinentCountryMap({
     mapRef.current = null;
     dataLayerRef.current = null;
     continentBoundsRef.current = null;
-    setMapReady(false);
+    setDrill("continent");
+    setSelectedCountry(null);
+    setStateData([]);
     onBackToGlobe();
-  }, [drill, onBackToGlobe, clearMarkers, createCountryMarkers, theme]);
+  }, [drill, clearMarkers, onBackToGlobe, countryData, createCountryMarkers, theme]);
+
+  const viewLabel = drill === "continent"
+    ? `${selectedContinent} • Countries`
+    : `${selectedCountry?.name || ""} • Regions`;
 
   return (
-    <div className="w-full h-full relative bg-sky-100">
-      {/* Loading overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/90 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3">
-            <div
-              className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-              style={{ borderColor: `${theme.primary} transparent ${theme.primary} ${theme.primary}` }}
-            />
-            <span className="text-gray-600 text-sm">Loading map...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation header */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
+    <div className="relative w-full h-full">
+      {/* Top bar */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
         <button
           onClick={handleBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105"
           style={{ backgroundColor: theme.primary }}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,48 +645,56 @@ export default function GoogleContinentCountryMap({
           {drill === "country" ? "Back to Countries" : "Back to Globe"}
         </button>
 
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl px-4 py-2.5 shadow-lg border border-gray-200">
+        <div className="bg-white rounded-lg px-4 py-2 shadow-lg">
           <div className="text-xs text-gray-500 uppercase tracking-wide">Viewing</div>
-          <div className="text-sm font-semibold text-gray-900">
-            {drill === "continent" ? (
-              <span>{selectedContinent} • Countries</span>
-            ) : (
-              <span>{selectedCountry?.name} • Regions</span>
-            )}
-          </div>
+          <div className="font-semibold text-gray-800">{viewLabel}</div>
         </div>
       </div>
 
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-20 bg-white/80 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div 
+              className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: `${theme.primary} transparent transparent transparent` }}
+            />
+            <span className="text-gray-600">Loading map...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Map container */}
+      <div ref={mapDivRef} className="w-full h-full" />
+
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-xl px-4 py-3 shadow-lg border border-gray-200">
-        <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Legend</div>
-        <div className="flex items-center gap-2 text-sm">
-          <div
+      <div className="absolute bottom-4 right-4 z-10 bg-white rounded-lg p-3 shadow-lg">
+        <div className="text-xs font-semibold text-gray-600 mb-2">LEGEND</div>
+        <div className="flex items-center gap-2 mb-1">
+          <div 
             className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
             style={{ backgroundColor: theme.primary }}
           >
             N
           </div>
-          <span className="text-gray-700">Click cluster to view Nonnas</span>
+          <span className="text-sm text-gray-700">Click cluster to view Nonnas</span>
         </div>
-        <div className="flex items-center gap-2 text-sm mt-1.5">
-          <div
+        <div className="flex items-center gap-2">
+          <div 
             className="w-6 h-6 rounded border-2"
-            style={{ backgroundColor: theme.secondary, borderColor: theme.primary }}
+            style={{ borderColor: theme.primary, backgroundColor: theme.secondary }}
           />
-          <span className="text-gray-700">Click country to drill down</span>
+          <span className="text-sm text-gray-700">Click country to drill down</span>
         </div>
       </div>
 
-      {/* Map container */}
-      <div ref={mapDivRef} className="w-full h-full" />
-
-      {/* Modal for Nonna details */}
+      {/* Modal */}
       <NonnaModal
         open={modal.open}
         title={modal.title}
         nonnas={modal.nonnas}
-        onClose={() => setModal((m) => ({ ...m, open: false }))}
+        onClose={() => setModal({ open: false, title: "", nonnas: [] })}
+        themeColor={theme.primary}
       />
     </div>
   );
