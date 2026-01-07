@@ -716,6 +716,15 @@ export default function GoogleContinentCountryMap({
       });
     }
 
+    // Force map refresh to prevent ghost overlays
+    setTimeout(() => {
+      google.maps.event.trigger(map, "resize");
+      const bounds = continentBoundsRef.current;
+      if (bounds && !bounds.isEmpty()) {
+        map.fitBounds(bounds);
+      }
+    }, 50);
+
     dataLayer.setStyle((feature) => {
       const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";
       const countryName = (feature.getProperty("ADMIN") as string | undefined) ??

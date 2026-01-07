@@ -492,17 +492,21 @@ export default function NaturalStyledGlobe({
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera;
 
-        // Lighting - adjusted for dark theme
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // Lighting - enhanced for photorealistic appearance
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Brighter ambient light
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Main sunlight
         directionalLight.position.set(-200, 150, 400);
         scene.add(directionalLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4); // Softer fill light
         fillLight.position.set(200, -100, -200);
         scene.add(fillLight);
+
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3); // Back rim light
+        backLight.position.set(0, -200, -300);
+        scene.add(backLight);
 
         // Renderer
         const renderer = new THREE.WebGLRenderer({
@@ -516,12 +520,12 @@ export default function NaturalStyledGlobe({
         mount.appendChild(renderer.domElement);
         rendererRef.current = renderer;
 
-        // Globe with Deluxe Earth texture (dark theme)
+        // Globe with realistic Earth texture
         const globe = new ThreeGlobe()
-          .globeImageUrl("/textures/earth_day_clouds.jpg")
+          .globeImageUrl("/textures/earth_day_clouds.jpg") // Main texture with clouds
           .showAtmosphere(true)
           .atmosphereColor("#4a9eff") // Blue glow atmosphere
-          .atmosphereAltitude(0.18);
+          .atmosphereAltitude(0.15); // Slightly thinner atmosphere for better visibility
 
         scene.add(globe);
         globeRef.current = globe;
