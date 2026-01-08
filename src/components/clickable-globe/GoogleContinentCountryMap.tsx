@@ -158,6 +158,7 @@ export default function GoogleContinentCountryMap({
   const continentBoundsRef = useRef<google.maps.LatLngBounds | null>(null);
   const initialCountrySetRef = useRef(false);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const mapInitializedRef = useRef(false); // Track if map has finished initial setup
 
   const [drill, setDrill] = useState<Drill>("continent");
   const [selectedCountry, setSelectedCountry] = useState<{ code: string; name: string } | null>(null);
@@ -466,6 +467,9 @@ export default function GoogleContinentCountryMap({
 
         // Zoom out listener - return to globe when zoomed out far enough
         map.addListener("zoom_changed", () => {
+          // Only allow back-to-globe after initial map setup is complete
+          if (!mapInitializedRef.current) return;
+          
           const currentZoom = map.getZoom();
           if (currentZoom !== undefined && currentZoom <= 2) {
             // User zoomed out completely - return to globe
@@ -633,7 +637,17 @@ export default function GoogleContinentCountryMap({
                 left: 40,
                 right: 40,
               });
+              
+              // Mark map as initialized after bounds are fitted (allow zoom listener to work)
+              setTimeout(() => {
+                mapInitializedRef.current = true;
+              }, 500);
             }, 100);
+          } else {
+            // Country bounds not found, still mark as initialized
+            setTimeout(() => {
+              mapInitializedRef.current = true;
+            }, 500);
           }
         } else {
           // Fit to continent bounds with padding
@@ -645,7 +659,17 @@ export default function GoogleContinentCountryMap({
                 left: 40,
                 right: 40,
               });
+              
+              // Mark map as initialized after bounds are fitted (allow zoom listener to work)
+              setTimeout(() => {
+                mapInitializedRef.current = true;
+              }, 500);
             }, 100);
+          } else {
+            // No features found, but still mark as initialized
+            setTimeout(() => {
+              mapInitializedRef.current = true;
+            }, 500);
           }
         }
 
@@ -666,6 +690,7 @@ export default function GoogleContinentCountryMap({
       mapRef.current = null;
       dataLayerRef.current = null;
       continentBoundsRef.current = null;
+      mapInitializedRef.current = false; // Reset for next map load
     };
   }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, searchParams, fetchStateData]);
 
