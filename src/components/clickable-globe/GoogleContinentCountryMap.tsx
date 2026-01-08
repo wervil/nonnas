@@ -67,7 +67,7 @@ const REGION_COUNTRIES: Record<string, string[]> = {
   "Middle East": [
     "Turkey", "Iran", "Iraq", "Saudi Arabia", "Yemen", "Syria", "Jordan",
     "United Arab Emirates", "Israel", "Lebanon", "Oman", "Kuwait", "Qatar",
-    "Bahrain", "Cyprus", "Palestine", "Egypt", "Georgia", "Armenia", "Azerbaijan",
+    "Bahrain", "Cyprus", "Palestine", "Georgia", "Armenia", "Azerbaijan",
   ],
   "South Asia": [
     "India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Bhutan",

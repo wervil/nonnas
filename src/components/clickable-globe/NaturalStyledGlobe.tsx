@@ -39,8 +39,10 @@ const COUNTRY_TO_REGION: Record<string, string> = {
   "Iraq": "Middle East", "Israel": "Middle East", "Jordan": "Middle East", "Lebanon": "Middle East",
   "Syria": "Middle East", "Yemen": "Middle East", "Oman": "Middle East", "Qatar": "Middle East",
   "Bahrain": "Middle East", "Kuwait": "Middle East", "Turkey": "Middle East",
-  "Egypt": "Middle East", // Often grouped with Middle East
   "Cyprus": "Middle East",
+  
+  // North Africa (part of Africa continent)
+  "Egypt": "Africa", // Geographically and politically part of Africa
   
   // South Asia
   "India": "South Asia", "Pakistan": "South Asia", "Bangladesh": "South Asia",
@@ -88,8 +90,8 @@ function createRingTextTexture(text: string, fontSize: number = 64): THREE.Textu
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d")!;
   
-  // Set canvas size for ring text - bold, impactful letters
-  context.font = `900 ${fontSize}px "Arial Black", "Helvetica Neue", sans-serif`;
+  // Set canvas size for ring text - Aharoni Bold font
+  context.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
   const metrics = context.measureText(text);
   const textWidth = metrics.width;
   const textHeight = fontSize * 1.3;
@@ -100,8 +102,8 @@ function createRingTextTexture(text: string, fontSize: number = 64): THREE.Textu
   // Clear canvas (transparent background)
   context.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Text styling - dark brown/maroon like the logo
-  context.font = `900 ${fontSize}px "Arial Black", "Helvetica Neue", sans-serif`;
+  // Text styling - Aharoni Bold
+  context.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "middle";
   
@@ -143,7 +145,7 @@ function pointInPolygon(p: LatLng, coords: number[][][]) {
   if (!pointInRing(p, coords[0])) return false;
   for (let i = 1; i < coords.length; i++) {
     if (pointInRing(p, coords[i])) return false;
-  }
+    }
   return true;
 }
 
@@ -294,12 +296,12 @@ export default function NaturalStyledGlobe({
 
   // Helper to find region from lat/lng (with Asia sub-regions and country overrides)
   const findContinentAtLatLng = useCallback((lat: number, lng: number): string | null => {
-    const geo = geoRef.current;
-    if (!geo) return null;
+      const geo = geoRef.current;
+      if (!geo) return null;
 
-    for (const f of geo.features) {
-      const cont = f.properties?.CONTINENT as string | undefined;
-      if (!cont) continue;
+      for (const f of geo.features) {
+        const cont = f.properties?.CONTINENT as string | undefined;
+        if (!cont) continue;
       
       if (pointInFeature({ lat, lng }, f)) {
         const countryName = f.properties?.NAME as string | undefined;
@@ -332,7 +334,7 @@ export default function NaturalStyledGlobe({
         return cont;
       }
     }
-    return null;
+      return null;
   }, [getAsiaSubRegion]);
 
   // Convert 3D point to lat/lng
@@ -533,7 +535,7 @@ export default function NaturalStyledGlobe({
         // Create "NONNAS OF THE WORLD" circular text ring (like the logo)
         const ringGroup = new THREE.Group();
         const ringRadius = GLOBE_RADIUS + 80; // Ring radius - positioned away from globe
-        const ringText = "NONNAS OF THE WORLD • ";
+        const ringText = "NONNAS OF THE WORLD ";
         const totalChars = ringText.length;
         
         // Create each letter as a plane mesh positioned around the circle
@@ -594,7 +596,7 @@ export default function NaturalStyledGlobe({
               .polygonSideColor(() => "rgba(0,0,0,0)")
               .polygonsTransitionDuration(200);
             updatePolygonColors(null);
-          } else {
+        } else {
             setTimeout(waitForGeo, 100);
           }
         };
@@ -604,6 +606,11 @@ export default function NaturalStyledGlobe({
         const animate = () => {
           if (cancelled) return;
           rafRef.current = requestAnimationFrame(animate);
+
+          // Add slow auto-rotation when not being interacted with
+          if (!isDraggingRef.current && activeRef.current) {
+            targetRotationRef.current.y += 0.001; // Slow continuous rotation
+          }
 
           // Smooth rotation interpolation
           const lerp = 0.08;
@@ -621,15 +628,15 @@ export default function NaturalStyledGlobe({
         animate();
 
         // Event handlers
-        const onPointerDown = (e: PointerEvent) => {
+    const onPointerDown = (e: PointerEvent) => {
           if (!activeRef.current) return;
           isDraggingRef.current = true;
           hasDraggedRef.current = false;
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          renderer.domElement.setPointerCapture(e.pointerId);
-        };
+      renderer.domElement.setPointerCapture(e.pointerId);
+    };
 
-        const onPointerMove = (e: PointerEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
           if (!activeRef.current) return;
 
           if (isDraggingRef.current) {
@@ -658,15 +665,15 @@ export default function NaturalStyledGlobe({
               updatePolygonColors(continent);
             }
           }
-        };
+    };
 
-        const onPointerUp = (e: PointerEvent) => {
+    const onPointerUp = (e: PointerEvent) => {
           if (!isDraggingRef.current) return;
           isDraggingRef.current = false;
 
-          try {
-            renderer.domElement.releasePointerCapture(e.pointerId);
-          } catch {}
+      try {
+        renderer.domElement.releasePointerCapture(e.pointerId);
+      } catch {}
 
           // Handle click (no drag)
           if (!hasDraggedRef.current && activeRef.current) {
@@ -686,30 +693,29 @@ export default function NaturalStyledGlobe({
         // Wheel for rotation only (no zoom)
         const onWheel = (e: WheelEvent) => {
           if (!activeRef.current) return;
-          e.preventDefault();
-          e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
 
-          targetRotationRef.current.y += e.deltaX * 0.002;
-          targetRotationRef.current.x += e.deltaY * 0.002;
-          targetRotationRef.current.x = clamp(targetRotationRef.current.x, -MAX_TILT, MAX_TILT);
-        };
+          // Scroll wheel controls left/right rotation only (not up/down)
+          targetRotationRef.current.y += e.deltaY * 0.002;
+    };
 
-        const onResize = () => {
+    const onResize = () => {
           if (!camera || !renderer) return;
-          const w = mount.clientWidth;
-          const h = mount.clientHeight;
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
           renderer.setSize(w, h);
         };
 
         // Attach events
-        renderer.domElement.addEventListener("pointerdown", onPointerDown);
-        renderer.domElement.addEventListener("pointermove", onPointerMove);
-        renderer.domElement.addEventListener("pointerup", onPointerUp);
+      renderer.domElement.addEventListener("pointerdown", onPointerDown);
+      renderer.domElement.addEventListener("pointermove", onPointerMove);
+      renderer.domElement.addEventListener("pointerup", onPointerUp);
         renderer.domElement.addEventListener("pointerleave", onPointerLeave);
         renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
-        window.addEventListener("resize", onResize);
+      window.addEventListener("resize", onResize);
 
         isInitializedRef.current = true;
 
@@ -770,11 +776,11 @@ export default function NaturalStyledGlobe({
 
       {/* Region name floating above the globe on hover - single line */}
       {hoveredContinent && (
-        <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
+        <div className="absolute top-[-15px] left-0 right-0 flex justify-center z-10 pointer-events-none">
           <h2 
-            className="text-2xl md:text-3xl font-medium tracking-wide text-amber-400"
+            className="text-2xl md:text-3xl font-bold tracking-wide text-amber-400"
             style={{ 
-              fontFamily: '"Georgia", "Times New Roman", serif',
+              fontFamily: '"Bell MT", "Georgia", serif',
               textShadow: '0 0 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.6)'
             }}
           >
@@ -786,7 +792,7 @@ export default function NaturalStyledGlobe({
       {/* Globe container */}
       <div
         ref={mountRef}
-        className="w-full h-full"
+        className="w-full h-full mt-8"
         style={{ cursor: hoveredContinent ? "pointer" : "grab" }}
       />
     </div>
