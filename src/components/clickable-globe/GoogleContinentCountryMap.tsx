@@ -519,7 +519,7 @@ export default function GoogleContinentCountryMap({
             return cont === parentContinent && regionCountries.includes(countryName);
           }
           
-          // Otherwise, just check the continent
+          // Otherwise, just check the continent (this handles French Guiana automatically)
           return cont === selectedContinent;
         };
 
