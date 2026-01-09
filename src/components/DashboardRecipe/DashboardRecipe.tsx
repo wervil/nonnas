@@ -9,6 +9,15 @@ import { useRouter } from 'next/navigation'
 import { convertRecipesToHTML } from '@/app/(admin)/print/convertRecipesToHTML'
 import './styles.css'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
 
 async function fetchRecipe(id: string) {
   const res = await fetch(`/api/recipes?id=${id}`)
@@ -25,6 +34,8 @@ export const DashboardRecipe = ({
 }) => {
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const b = useTranslations('buttons')
   const d = useTranslations('descriptions')
   const l = useTranslations('labels')
@@ -49,11 +60,33 @@ export const DashboardRecipe = ({
     setRecipe({ ...recipe, published: !recipe.published })
   }
 
-  const deleteRecipe = async (recipeId: string) => {
-    await fetch(`/api/recipes?id=${recipeId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-    })
+  const deleteRecipe = async () => {
+    try {
+      setDeleting(true)
+      setShowDeleteDialog(false)
+      
+      const res = await fetch(`/api/recipes?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || 'Failed to delete recipe')
+      }
+
+      toast.success('Recipe deleted successfully')
+      
+      // Redirect back to dashboard after successful deletion
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1000)
+    } catch (error) {
+      console.error('Error deleting recipe:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete recipe')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) return <div className="p-4">{b('loading')}</div>
@@ -99,13 +132,42 @@ export const DashboardRecipe = ({
             <Button>{b('edit')}</Button>
           </Link>
         )}
-        <Button onClick={() => deleteRecipe(id)}>
-          {b('delete')}
+        <Button onClick={() => setShowDeleteDialog(true)} disabled={deleting}>
+          {deleting ? 'Deleting...' : b('delete')}
         </Button>
       </div>
       <div id="cookbook-content" className="w-fullpage">
         {convertRecipesToHTML([recipe], l)}
       </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete recipe?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this recipe? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2">
+            <Button
+              onClick={() => {
+                setShowDeleteDialog(false)
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              className='bg-red-800'
+              onClick={deleteRecipe}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
