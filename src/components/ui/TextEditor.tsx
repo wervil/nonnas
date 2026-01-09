@@ -95,6 +95,7 @@ interface TextEditorProps<T extends FieldValues> {
   control: Control<T>
   description?: string
   theme?: 'dark' | 'light'
+  maxLength?: number
 }
 
 export const TextEditor = <T extends FieldValues>({
@@ -103,7 +104,16 @@ export const TextEditor = <T extends FieldValues>({
   name,
   control,
   theme = 'dark',
+  maxLength,
 }: TextEditorProps<T>) => {
+  const [charCount, setCharCount] = React.useState(0)
+
+  const getTextContent = (html: string): string => {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    return doc.body.textContent || ''
+  }
+
   return (
     <div className="mb-5">
       <Typography
@@ -117,29 +127,50 @@ export const TextEditor = <T extends FieldValues>({
       <Controller
         name={name}
         control={control}
-        render={({ field }) => (
-          <LexicalComposer initialConfig={editorConfig as any}>
-            {/* Add the Toolbar */}
-            <ToolbarPlugin />
-            <RichTextPlugin
-              contentEditable={
-                <ContentEditable className={clsx("w-full px-3 py-4 border rounded-br-lg rounded-bl-lg focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] min-h-[100px] ", theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale')} />
-              }
-              ErrorBoundary={LexicalErrorBoundary}
-            />
-            <InitialContentPlugin initialHtml={field.value} />
-            <OnChangePlugin
-              onChange={(editorState, editor) =>
-                onChange(editor, field.onChange)
-              }
-            />
-            <HistoryPlugin />
-            <ListPlugin />
-            <ListCommandPlugin />
-          </LexicalComposer>
-        )}
+        render={({ field, fieldState }) => {
+          const textContent = getTextContent(field.value || '')
+          React.useEffect(() => {
+            setCharCount(textContent.length)
+          }, [textContent])
+
+          return (
+            <>
+              <div className={clsx("border rounded-lg overflow-hidden", fieldState.error ? 'border-danger-main' : 'border-primary-main')}>
+                <LexicalComposer initialConfig={editorConfig as any}>
+                  {/* Add the Toolbar */}
+                  <ToolbarPlugin />
+                  <RichTextPlugin
+                    contentEditable={
+                      <ContentEditable className={clsx("w-full px-3 py-4 focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] min-h-[100px] ", theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale')} />
+                    }
+                    ErrorBoundary={LexicalErrorBoundary}
+                  />
+                  <InitialContentPlugin initialHtml={field.value} />
+                  <OnChangePlugin
+                    onChange={(editorState, editor) =>
+                      onChange(editor, field.onChange)
+                    }
+                  />
+                  <HistoryPlugin />
+                  <ListPlugin />
+                  <ListCommandPlugin />
+                </LexicalComposer>
+              </div>
+              {maxLength && (
+                <Typography size="bodyXS" color={charCount > maxLength ? "dangerMain" : "primaryFocus"} className="mt-1">
+                  {charCount}/{maxLength} characters
+                </Typography>
+              )}
+              {description ? <Typography size="bodyXS" color="primaryFocus" className='mt-2'>{description}</Typography> : null}
+              {fieldState.error && (
+                <Typography size="bodyXS" color="dangerMain" className="mt-2">
+                  {fieldState.error.message}
+                </Typography>
+              )}
+            </>
+          )
+        }}
       />
-      {description ? <Typography size="bodyXS" color="primaryFocus" className='mt-2'>{description}</Typography> : null}
     </div>
   )
 }

@@ -21,11 +21,11 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
       {recipes.map((recipe) => (
         <li
           key={recipe.id}
-          className="border p-4 rounded flex justify-between items-center"
+          className="border p-4 rounded flex justify-between items-center gap-4"
         >
-          <div>
-            <div className="font-semibold">{`${recipe.firstName} ${recipe.lastName}`}</div>
-            <div className="text-sm text-gray-500">
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold break-words overflow-wrap-anywhere">{`${recipe.firstName} ${recipe.lastName}`}</div>
+            <div className="text-sm text-gray-500 truncate">
               {recipe.country}
               {recipe.region ? `, ${recipe.region}` : ''}
             </div>
@@ -38,7 +38,7 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
           </div>
           {togglePublished ? (
             <button
-              className={`px-3 py-1 rounded cursor-pointer ${
+              className={`px-3 py-1 rounded cursor-pointer flex-shrink-0 ${
                 recipe.published
                   ? 'bg-yellow-500 text-white'
                   : 'bg-green-500 text-white'

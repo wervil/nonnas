@@ -130,6 +130,33 @@ export default function Dashboard() {
     }
   }
 
+  /* ================= TOGGLE PUBLISHED ================= */
+  const togglePublished = async (id: number, published: boolean) => {
+    try {
+      const res = await fetch('/api/recipes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, published }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to update recipe')
+      }
+
+      // Update the local state
+      setRecipes((prevRecipes) =>
+        prevRecipes.map((recipe) =>
+          recipe.id === id ? { ...recipe, published } : recipe
+        )
+      )
+
+      toast.success(published ? 'Recipe published' : 'Recipe unpublished')
+    } catch (error) {
+      console.error('Error updating recipe:', error)
+      toast.error('Failed to update recipe')
+    }
+  }
+
   /* ================= LOAD DATA ================= */
   const loadTabData = async () => {
     setLoading(true)
@@ -369,7 +396,7 @@ export default function Dashboard() {
 
         </div>
       ) : (
-        <RecipesList recipes={recipes} togglePublished={() => {}} />
+        <RecipesList recipes={recipes} togglePublished={togglePublished} />
       )}
 
 <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>

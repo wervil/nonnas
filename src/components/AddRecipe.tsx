@@ -18,21 +18,37 @@ import { Typography } from './ui/Typography'
 import Textarea from './ui/Textarea'
 import { Recipe } from '@/db/schema'
 
+// Helper function to strip HTML tags and get text content
+const getTextContent = (html: string): string => {
+  if (typeof window === 'undefined') return html // Server-side fallback
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  return doc.body.textContent || ''
+}
+
 const recipeSchema = z.object({
-  grandmotherTitle: z.string().min(1, 'Grandmother Title is required'),
-  firstName: z.string().min(1, 'First Name is required'),
-  lastName: z.string().min(1, 'Last Name is required'),
+  grandmotherTitle: z.string().min(1, 'Grandmother Title is required').max(80, 'Grandmother Title must be 80 characters or less'),
+  firstName: z.string().min(1, 'First Name is required').max(60, 'First Name must be 60 characters or less'),
+  lastName: z.string().min(1, 'Last Name is required').max(60, 'Last Name must be 60 characters or less'),
   country: z.string().min(1, 'Country is required'),
-  history: z.string().min(1, 'History is required'),
-  recipeTitle: z.string().min(1, 'Recipe Title is required'),
-  recipe: z.string().min(1, 'Ingredients are required'),
-  directions: z.string().min(1, 'Directions are required'),
+  history: z.string().min(1, 'Biography is required').max(700, 'Biography must be 700 characters or less'),
+  recipeTitle: z.string().min(1, 'Recipe Title is required').max(80, 'Recipe Title must be 80 characters or less'),
+  recipe: z.string().min(1, 'Ingredients are required').refine((val) => getTextContent(val).length <= 1000, {
+    message: 'Ingredients must be 1000 characters or less',
+  }),
+  directions: z.string().min(1, 'Directions are required').refine((val) => getTextContent(val).length <= 500, {
+    message: 'Directions must be 500 characters or less',
+  }),
   region: z.string().min(1, 'Region is required'),
-  traditions: z.string().min(1, 'Traditions is required'),
-  geo_history: z.string().optional(),
-  influences: z.string().optional(),
-  photo: z.any().optional(),
-  recipe_image: z.any().optional(),
+  traditions: z.string().min(1, 'Traditions is required').max(500, 'Traditions must be 500 characters or less'),
+  geo_history: z.string().min(1, 'Regional History is required').max(600, 'Regional History must be 600 characters or less'),
+  influences: z.string().min(1, 'Influences is required').max(400, 'Influences must be 400 characters or less'),
+  photo: z.any().refine((val) => val && val.length > 0, {
+    message: 'Photo of your Grandmother is required',
+  }),
+  recipe_image: z.any().refine((val) => val && val.length > 0, {
+    message: 'Recipe Photo is required',
+  }),
   dish_image: z.any().optional(),
   userId: z.string().optional(),
   release_signature: z
@@ -192,6 +208,7 @@ export const AddRecipe = ({
             control={control}
             description={d('grandmotherDesc')}
             error={errors.grandmotherTitle?.message}
+            maxLength={80}
           />
           <div className="flex w-full gap-5">
             <Input
@@ -199,12 +216,14 @@ export const AddRecipe = ({
               name="firstName"
               control={control}
               error={errors.firstName?.message}
+              maxLength={60}
             />
             <Input
               label={`${l('lastName')}*`}
               name="lastName"
               control={control}
               error={errors.lastName?.message}
+              maxLength={60}
             />
           </div>
           <div>
@@ -239,13 +258,15 @@ export const AddRecipe = ({
             name="history"
             control={control}
             error={errors.history?.message}
+            maxLength={700}
           />
           <Textarea
-            label={l('geoHistory')}
+            label={`${l('geoHistory')}*`}
             description={d('geoHistory')}
             name="geo_history"
             control={control}
             error={errors.geo_history?.message}
+            maxLength={600}
           />
         </div>
         <div className="bg-primary-hover p-6 rounded-bl-3xl rounded-br-3xl md:rounded-tr-3xl md:rounded-bl-none flex flex-col gap-5 w-full">
@@ -255,6 +276,7 @@ export const AddRecipe = ({
             control={control}
             error={errors.recipeTitle?.message}
             theme="light"
+            maxLength={80}
           />
           <TextEditor
             title={`${l('ingredients')}*`}
@@ -262,24 +284,16 @@ export const AddRecipe = ({
             name="recipe"
             control={control}
             theme="light"
+            maxLength={1000}
           />
-          {errors.recipe && (
-            <Typography size="bodyXS" color="dangerMain" className="mt-2">
-              {errors.recipe.message as string}
-            </Typography>
-          )}
           <TextEditor
             title={`${l('directions')}*`}
             description={d('directionsDesc')}
             name="directions"
             control={control}
             theme="light"
+            maxLength={500}
           />
-          {errors.directions && (
-            <Typography size="bodyXS" color="dangerMain" className="mt-2">
-              {errors.directions.message as string}
-            </Typography>
-          )}
 
           <Textarea
             label={`${l('traditions')}*`}
@@ -287,13 +301,15 @@ export const AddRecipe = ({
             name="traditions"
             control={control}
             theme="light"
+            maxLength={500}
           />
           <Textarea
-            label={l('influences')}
+            label={`${l('influences')}*`}
             description={d('influences')}
             name="influences"
             control={control}
             theme="light"
+            maxLength={400}
           />
           <Checkbox
             label={
