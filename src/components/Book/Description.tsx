@@ -24,7 +24,6 @@ export const Description = ({
   popupImageUrl,
   maxWidth,
   height,
-  type
 }: Props) => {
   const [isOpen, setIsOpen] = useState(false)
   const [showButton, setShowButton] = useState(false)

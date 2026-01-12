@@ -16,22 +16,7 @@ interface Props {
   images: string[] | null
   ingredientsText: string
   directionsText: string
-  hasInfluences: boolean
-  contentHeight: number
   setImages: Dispatch<SetStateAction<string[] | null>>
-}
-
-const TEXT_LINE_HEIGHT = 22.4
-
-const getHeight = (
-  hasInfluences: boolean,
-  contentHeight: number,
-  isMobile: boolean
-) => {
-  const height = contentHeight - 60 - (hasInfluences ? (isMobile ? 30 : 20) : 0)
-  const baseHeight = hasInfluences ? height / 2 : height * 0.65
-  const contHeight = Math.floor((baseHeight - 28 - 24 - 8) / TEXT_LINE_HEIGHT)
-  return contHeight * TEXT_LINE_HEIGHT + 28 + 24
 }
 
 export const RecipeSection = ({
@@ -39,8 +24,6 @@ export const RecipeSection = ({
   images,
   ingredientsText,
   directionsText,
-  hasInfluences,
-  contentHeight,
   setImages,
 }: Props) => {
   const [isOpen, setIsOpen] = useState(false)

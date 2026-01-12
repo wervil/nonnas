@@ -150,8 +150,6 @@ export const convertRecipesToPages = (
               images={recipe.recipe_image}
               ingredientsText={recipe.recipe}
               directionsText={recipe.directions}
-              hasInfluences={!!recipe.influences}
-              contentHeight={contentHeight}
               setImages={setImages}
             />
           {/* </div> */}

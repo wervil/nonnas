@@ -4,7 +4,7 @@ import './Book.css'
 import HTMLFlipBook from 'react-pageflip'
 
 import { Recipe } from '@/db/schema'
-import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react'
 import { convertRecipesToPages } from '@/utils/convertRecipesToPages'
 import { useTranslations } from 'next-intl'
 import { ImagesModal } from '../ui/ImagesModal'
@@ -133,17 +133,17 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }
 
   // Find the page number for a specific recipe ID
-  const getPageNumberForRecipe = (recipeId: number): number => {
+  const getPageNumberForRecipe = useCallback((recipeId: number): number => {
     const recipeIndex = recipes.findIndex((r) => r.id === recipeId)
     if (recipeIndex === -1) return 0
     // Each recipe takes 2 pages, and there's a cover page at the start
     return PAGES_BEFORE_RECIPES + (recipeIndex * 2)
-  }
+  }, [recipes])
 
-  const goToRecipe = (recipeId: number) => {
+  const goToRecipe = useCallback((recipeId: number) => {
     const pageNumber = getPageNumberForRecipe(recipeId)
     goToPage(pageNumber)
-  }
+  }, [getPageNumberForRecipe, goToPage])
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -160,7 +160,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [initialRecipeId, recipes])
+  }, [initialRecipeId, recipes, goToRecipe])
 
   return (
     <>
