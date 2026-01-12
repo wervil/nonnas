@@ -48,8 +48,8 @@ export const convertRecipesToPages = (
   recipes?.map((recipe, index) => [
     <div className="page" key={`${index}-1`}>
       <div className="page-content">
-        <div className="pokemon-container">
-          <div className="pokemon-info w-full">
+        <div className="pokemon-container h-[100%]">
+          <div className="pokemon-info w-full h-[5%]">
             <ClickableHoverCard
               trigger={
                 <h2 className="page-title max-w-full overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer capitalize">
@@ -59,7 +59,7 @@ export const convertRecipesToPages = (
               content={`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}
             />
           </div>
-          <div className="flex gap-3 items-center flex-wrap justify-around w-full">
+          <div className="flex gap-3 items-center flex-wrap justify-around w-full h-[35%]">
             <div className="max-w-[110px] flex flex-col items-center gap-1">
               <FlagIcon
                 code={
@@ -112,7 +112,7 @@ export const convertRecipesToPages = (
               <div className="corner corner--big rb" />
             </div>
           </div>
-          <div className="page-info">
+          <div className="page-info  h-[58%]">
             <Description
               title={(l as (name: string) => string)('bio')}
               text={recipe.history}
@@ -122,6 +122,7 @@ export const convertRecipesToPages = (
               )}
               imageUrl="/bg-1.webp"
               popupImageUrl="/bg-1.webp"
+              type="intro"
             />
             {recipe.geo_history ? (
               <Description
@@ -133,6 +134,7 @@ export const convertRecipesToPages = (
                   !!recipe.geo_history,
                   contentHeight
                 )}
+              type="intro"
               />
             ) : null}
           </div>
@@ -141,18 +143,20 @@ export const convertRecipesToPages = (
     </div>,
     <div className="page" key={`${index}-2`}>
       <div className="page-content">
-        <div className="pokemon-container">
-          <RecipeSection
-            title={recipe.recipeTitle}
-            images={recipe.recipe_image}
-            ingredientsText={recipe.recipe}
-            directionsText={recipe.directions}
-            hasInfluences={!!recipe.influences}
-            contentHeight={contentHeight}
-            setImages={setImages}
-          />
+        <div className="pokemon-container h-[100%]">
+          {/* <div className='h-[50%]'>  */}
+            <RecipeSection
+              title={recipe.recipeTitle}
+              images={recipe.recipe_image}
+              ingredientsText={recipe.recipe}
+              directionsText={recipe.directions}
+              hasInfluences={!!recipe.influences}
+              contentHeight={contentHeight}
+              setImages={setImages}
+            />
+          {/* </div> */}
 
-          <div className="page-info">
+          <div className="page-info h-[49%]">
             {recipe.traditions ? (
               <Description
                 title={(l as (name: string) => string)('traditions')}

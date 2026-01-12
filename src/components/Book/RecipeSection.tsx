@@ -60,14 +60,14 @@ export const RecipeSection = ({
   return (
     <>
       <div
-        className="relative description-wrap cursor-pointer"
-        style={{
-          height: getHeight(
-            hasInfluences,
-            contentHeight,
-            window.innerWidth < 768
-          ),
-        }}
+        className="relative description-wrap cursor-pointer h-[49%]"
+        // style={{
+        //   height: getHeight(
+        //     hasInfluences,
+        //     contentHeight,
+        //     window.innerWidth < 768
+        //   ),
+        // }}
         onClick={openModal}
         onMouseEnter={() => setShowButton(true)}
         onMouseLeave={() => setShowButton(false)}

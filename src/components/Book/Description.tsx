@@ -12,6 +12,7 @@ interface Props {
   imageUrl?: string
   popupImageUrl?: string
   maxWidth?: string
+  type?: 'intro' | 'normal'
 }
 
 const getLineClamp = (height: number) => Math.floor(height / 26) - (window.innerWidth < 1536 ? 1 : 3)
@@ -23,6 +24,7 @@ export const Description = ({
   popupImageUrl,
   maxWidth,
   height,
+  type
 }: Props) => {
   const [isOpen, setIsOpen] = useState(false)
   const [showButton, setShowButton] = useState(false)
@@ -42,13 +44,13 @@ export const Description = ({
   return (
     <>
       <div
-        className="description-wrap cursor-pointer"
+        className={`description-wrap cursor-pointer h-[40%] sm:h-[50%]`}
         style={{
           backgroundImage: imageUrl
             ? `url(${imageUrl})`
             : "url('/bg-6.webp')",
           maxWidth: maxWidth || '100%',
-          height: `${height}px`,
+          // height: `${height}px`,
         }}
         onClick={openModal}
         onMouseEnter={() => setShowButton(true)}
