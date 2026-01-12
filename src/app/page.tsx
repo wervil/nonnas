@@ -12,13 +12,6 @@ import { Select } from '@/components/Select'
 import { Typography } from '@/components/ui/Typography'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-// import WorldGrandmasView from '@/components/globe/GlobeComponent'
-// import HomeShell from '@/components/globe/HomeShell'
-// import GithubStyleGlobe from '@/components/globe/GithubStyleGlobe'
-
-// import Globe2D3DShell from "@/components/globe/Globe2D3DShell";
-
-// import { useMemo, useState } from 'react'
 
 
 
@@ -59,36 +52,7 @@ export default function Recipes() {
     })),
   ]
 
-    // 🔹 Dummy clustered points
-    // const points = useMemo<ClusterPoint[]>(() => {
-    //   return [
-    //     // Islamabad
-    //     { id: "1", lat: 33.6844, lng: 73.0479, weight: 5 },
-    //     { id: "2", lat: 33.6849, lng: 73.0485, weight: 3 },
-    //     { id: "3", lat: 33.6838, lng: 73.0465, weight: 4 },
-  
-    //     // Lahore
-    //     { id: "4", lat: 31.5204, lng: 74.3587, weight: 6 },
-    //     { id: "5", lat: 31.5210, lng: 74.3595, weight: 4 },
-  
-    //     // Karachi
-    //     { id: "6", lat: 24.8607, lng: 67.0011, weight: 7 },
-    //     { id: "7", lat: 24.8615, lng: 67.0020, weight: 5 },
-  
-    //     // NYC
-    //     { id: "8", lat: 40.7128, lng: -74.006, weight: 6 },
-    //     { id: "9", lat: 40.7135, lng: -74.005, weight: 4 },
-    //   ];
-    // }, []);
-  
-    // // 🔹 Dummy center (start position)
-    // const [center, setCenter] = useState<{ lat: number; lng: number }>({
-    //   lat: 33.6844,
-    //   lng: 73.0479,
-    // });
-  
-    // // 🔹 Dummy zoom
-    // const [zoom, setZoom] = useState<number>(6);
+
 
   const {
     loading,
@@ -109,38 +73,7 @@ export default function Recipes() {
 
   return (
     <>
-      {/* <div className="flex justify-end items-center gap-2 py-4 px-8">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search..."
-          className="border rounded px-2 py-1 w-full max-w-md"
-        />
-      </div> */}
-      {/* <div className="flex justify-end items-center gap-2 py-4 px-8">
-        <label htmlFor="lang-select" className="font-medium">
-          {l('language')}:
-        </label>
-        <select
-          id="lang-select"
-          value={lang}
-          onChange={(e) => setLang(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          {availableLanguages.map((l) => (
-            <option key={l.lang} value={l.lang}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-      </div> */}
 
-      {/* <WorldGrandmasView /> */}
-
-      {/* <HomeShell /> */}
-
-      {/* <Globe2D3DShell /> */}
 
 
       <div className="min-h-svh flex flex-col overflow-hidden">

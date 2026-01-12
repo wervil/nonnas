@@ -11,6 +11,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { FlagIcon, FlagIconCode } from 'react-flag-kit'
 import { Dispatch, SetStateAction } from 'react'
+import { ClickableHoverCard } from '@/components/ClickableHoverCard'
 
 const getLeftSizeDescriptionHeight = (
   hasGeoHistory: boolean,
@@ -48,8 +49,15 @@ export const convertRecipesToPages = (
     <div className="page" key={`${index}-1`}>
       <div className="page-content">
         <div className="pokemon-container">
-          <div className="pokemon-info">
-            <h2 className="page-title">{`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}</h2>
+          <div className="pokemon-info w-full">
+            <ClickableHoverCard
+              trigger={
+                <h2 className="page-title max-w-full overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer capitalize">
+                  {`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}
+                </h2>
+              }
+              content={`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}
+            />
           </div>
           <div className="flex gap-3 items-center flex-wrap justify-around w-full">
             <div className="max-w-[110px] flex flex-col items-center gap-1">
