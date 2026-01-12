@@ -3,9 +3,8 @@ import { stackServerApp } from '@/stack'
 
 const STACK_API_BASE = 'https://api.stack-auth.com/api/v1'
 
-const SUPER_ADMIN_EMAIL = (
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
-).toLowerCase()
+const SUPER_ADMIN_EMAIL = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || '').toLowerCase()
+const SUPER_ADMIN_SEC_EMAIL = (process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL || '').toLowerCase()
 
 function getStackServerHeaders(): Record<string, string> {
   const projectId = process.env.NEXT_PUBLIC_STACK_PROJECT_ID
@@ -51,7 +50,8 @@ export async function POST(req: Request) {
 
     const email = (user?.primaryEmail || '').toLowerCase()
 
-    if (!SUPER_ADMIN_EMAIL || email !== SUPER_ADMIN_EMAIL) {
+    const isSuperAdmin = email && (email === SUPER_ADMIN_EMAIL || email === SUPER_ADMIN_SEC_EMAIL)
+    if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

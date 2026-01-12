@@ -105,11 +105,12 @@ export async function POST(req: Request) {
   }
 
   // Only SUPER ADMIN can change roles
-  const superAdminEmail =
-    process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
+  const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || ''
+  const superAdminSecEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
   const currentEmail = (current.primaryEmail || '').toLowerCase()
 
-  if (!superAdminEmail || currentEmail !== superAdminEmail) {
+  const isSuperAdmin = currentEmail && (currentEmail === superAdminEmail || currentEmail === superAdminSecEmail)
+  if (!isSuperAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

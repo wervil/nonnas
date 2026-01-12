@@ -67,10 +67,11 @@ export default function Dashboard() {
   const router = useRouter()
 
   /* ================= SUPER ADMIN ================= */
-  const SUPER_ADMIN_EMAIL =
-    process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() ||''
+  const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || ''
+  const SUPER_ADMIN_SEC_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
+    
   const currentEmail = user?.primaryEmail?.toLowerCase() || ''
-  const isSuperAdmin = !!SUPER_ADMIN_EMAIL && currentEmail === SUPER_ADMIN_EMAIL
+  const isSuperAdmin = currentEmail && (currentEmail === SUPER_ADMIN_EMAIL || currentEmail === SUPER_ADMIN_SEC_EMAIL)
 
   /* ================= ADMIN PERMISSION ================= */
   const teamId = process.env.NEXT_PUBLIC_STACK_TEAM || ''
