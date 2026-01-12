@@ -224,15 +224,15 @@ export default function Dashboard() {
   /* ================= SUPER ADMIN FIRST ================= */
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
-      const aIsSuper =
-        (a.primaryEmail || '').toLowerCase() === SUPER_ADMIN_EMAIL
-      const bIsSuper =
-        (b.primaryEmail || '').toLowerCase() === SUPER_ADMIN_EMAIL
+      const aEmail = (a.primaryEmail || '').toLowerCase()
+      const bEmail = (b.primaryEmail || '').toLowerCase()
+      const aIsSuper = aEmail === SUPER_ADMIN_EMAIL || aEmail === SUPER_ADMIN_SEC_EMAIL
+      const bIsSuper = bEmail === SUPER_ADMIN_EMAIL || bEmail === SUPER_ADMIN_SEC_EMAIL
       if (aIsSuper && !bIsSuper) return -1
       if (!aIsSuper && bIsSuper) return 1
       return 0
     })
-  }, [users, SUPER_ADMIN_EMAIL])
+  }, [users, SUPER_ADMIN_EMAIL, SUPER_ADMIN_SEC_EMAIL])
 
   /* ================= RENDER ================= */
   return (
@@ -320,8 +320,8 @@ export default function Dashboard() {
           </div>
 
           {sortedUsers.map((u) => {
-  const isSuper =
-    (u.primaryEmail || '').toLowerCase() === SUPER_ADMIN_EMAIL
+  const userEmail = (u.primaryEmail || '').toLowerCase()
+  const isSuper = userEmail === SUPER_ADMIN_EMAIL || userEmail === SUPER_ADMIN_SEC_EMAIL
 
   const isAdmin = u.role === 'team_member'
   const badge = isSuper ? 'Super Admin' : isAdmin ? 'Admin' : 'Client'
