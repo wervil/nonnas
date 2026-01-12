@@ -106,7 +106,7 @@ export async function POST(req: Request) {
 
   // Only SUPER ADMIN can change roles
   const superAdminEmail =
-    process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || process.env.SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
+    process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
   const currentEmail = (current.primaryEmail || '').toLowerCase()
 
   if (!superAdminEmail || currentEmail !== superAdminEmail) {
