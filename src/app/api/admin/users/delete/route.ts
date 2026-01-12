@@ -4,7 +4,7 @@ import { stackServerApp } from '@/stack'
 const STACK_API_BASE = 'https://api.stack-auth.com/api/v1'
 
 const SUPER_ADMIN_EMAIL = (
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || ''
+  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
 ).toLowerCase()
 
 function getStackServerHeaders(): Record<string, string> {

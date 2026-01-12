@@ -68,7 +68,7 @@ export default function Dashboard() {
 
   /* ================= SUPER ADMIN ================= */
   const SUPER_ADMIN_EMAIL =
-    process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || ''
+    process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || process.env.SUPER_ADMIN_SEC_EMAIL?.toLowerCase() ||''
   const currentEmail = user?.primaryEmail?.toLowerCase() || ''
   const isSuperAdmin = !!SUPER_ADMIN_EMAIL && currentEmail === SUPER_ADMIN_EMAIL
 
