@@ -106,8 +106,6 @@ export const TextEditor = <T extends FieldValues>({
   theme = 'dark',
   maxLength,
 }: TextEditorProps<T>) => {
-  const [charCount, setCharCount] = React.useState(0)
-
   const getTextContent = (html: string): string => {
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
@@ -129,9 +127,7 @@ export const TextEditor = <T extends FieldValues>({
         control={control}
         render={({ field, fieldState }) => {
           const textContent = getTextContent(field.value || '')
-          React.useEffect(() => {
-            setCharCount(textContent.length)
-          }, [textContent])
+          const currentCharCount = textContent.length
 
           return (
             <>
@@ -157,8 +153,8 @@ export const TextEditor = <T extends FieldValues>({
                 </LexicalComposer>
               </div>
               {maxLength && (
-                <Typography size="bodyXS" color={charCount > maxLength ? "dangerMain" : "primaryFocus"} className="mt-1">
-                  {charCount}/{maxLength} characters
+                <Typography size="bodyXS" color={currentCharCount > maxLength ? "dangerMain" : "primaryFocus"} className="mt-1">
+                  {currentCharCount}/{maxLength} characters
                 </Typography>
               )}
               {description ? <Typography size="bodyXS" color="primaryFocus" className='mt-2'>{description}</Typography> : null}
