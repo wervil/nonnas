@@ -669,6 +669,17 @@ body {
   max-height: 100% !important;
 }
 
+/* Prevent flipbook wrapper from capturing clicks outside visible area */
+.stf__wrapper {
+  pointer-events: none;
+}
+
+.stf__wrapper .stf__block,
+.stf__wrapper .stf__item,
+.stf__wrapper .page {
+  pointer-events: auto;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;

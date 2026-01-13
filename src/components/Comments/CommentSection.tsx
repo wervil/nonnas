@@ -92,7 +92,7 @@ export default function CommentSection({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                 </div>
-                
+
                 <div className="flex-1">
                     <h3 className="font-[var(--font-imprint)] text-2xl text-[var(--color-yellow-light)] tracking-wide">
                         Family Notes
@@ -101,7 +101,7 @@ export default function CommentSection({
                         {count === 0 ? 'Be the first to share your thoughts' : `${count} note${count !== 1 ? 's' : ''} shared`}
                     </p>
                 </div>
-                
+
                 {/* Add Comment Button */}
                 {userId && !showEditor && (
                     <button
@@ -118,13 +118,15 @@ export default function CommentSection({
                         <span className="sm:hidden">Add</span>
                     </button>
                 )}
-                
+
                 {!userId && (
                     <Link
                         href="/handler/sign-in"
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-primary-main)] 
-                                 text-white rounded-lg hover:bg-[var(--color-primary-hover)] 
-                                 transition-all duration-200 font-[var(--font-bell)] text-sm shadow-sm hover:shadow-md"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-primary-secondary)] 
+                                 text-[var(--color-primary-main)] rounded-lg border border-[var(--color-primary-border)]
+                                 hover:bg-[var(--color-primary-focus)] transition-all duration-200 
+                                 font-[var(--font-bell)] text-sm shadow-sm hover:shadow-md no-underline cursor-pointer
+                                 relative z-20"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -165,8 +167,8 @@ export default function CommentSection({
                     <div className="mx-auto w-20 h-20 rounded-full bg-[var(--color-primary-focus)]/50 
                                   flex items-center justify-center mb-4 border border-[var(--color-primary-border)]/30">
                         <svg className="w-10 h-10 text-[var(--color-yellow-light)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} 
-                                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
+                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                     </div>
                     <h4 className="font-[var(--font-imprint)] text-xl text-[var(--color-yellow-light)] mb-2">
