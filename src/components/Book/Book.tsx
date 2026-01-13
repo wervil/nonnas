@@ -299,12 +299,27 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
       {/* Comments Section - appears below flipbook */}
       {currentRecipeId && (
-        <div className="w-full max-w-4xl mx-auto px-4 py-8  bg-[#352721bf] rounded-md">
-          <CommentSection
-            key={currentRecipeId}
-            recipeId={currentRecipeId}
-            userId={user?.id}
-          />
+        <div className="w-full max-w-3xl mx-auto px-4 py-6 mb-8 relative">
+          {/* Decorative background with vintage paper texture effect */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 rounded-xl" />
+
+          {/* Decorative top border */}
+          <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-primary-border)] to-transparent opacity-40" />
+
+          {/* Corner ornaments */}
+          <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-tl-lg" />
+          <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-[var(--color-primary-border)]/40 rounded-tr-lg" />
+          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-bl-lg" />
+          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-[var(--color-primary-border)]/40 rounded-br-lg" />
+
+          {/* Content */}
+          <div className="relative z-10 p-6">
+            <CommentSection
+              key={currentRecipeId}
+              recipeId={currentRecipeId}
+              userId={user?.id}
+            />
+          </div>
         </div>
       )}
 
