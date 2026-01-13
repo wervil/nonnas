@@ -11,6 +11,8 @@ import { ImagesModal } from '../ui/ImagesModal'
 import Image from 'next/image'
 // import { generateTOCpages } from '@/utils/generateTOCpages'
 import { Typography } from '../ui/Typography'
+import { useUser } from '@stackframe/stack'
+import CommentSection from '../Comments/CommentSection'
 
 type Props = {
   recipes: Recipe[]
@@ -31,6 +33,7 @@ const PAGES_BEFORE_RECIPES = 1 // Just cover page, TOC is commented out
 
 export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, initialRecipeId }, ref) => {
   const l = useTranslations('labels')
+  const user = useUser()
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [contentHeight, setContentHeight] = useState(
     window.innerHeight - HEADER_HEIGHT
@@ -39,6 +42,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>(
     'landscape'
   )
+  const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null)
   // const [pageRanges, setPageRanges] = useState<Record<string, string>>({})
   // const [recipesPerPage, setRecipesPerPage] = useState(14)
 
@@ -154,12 +158,15 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   // Handle initial recipe navigation
   useEffect(() => {
     if (initialRecipeId && recipes.length > 0) {
+      // Set the current recipe ID when navigating to a specific recipe
+      setCurrentRecipeId(initialRecipeId)
       // Small delay to ensure flipbook is fully initialized
       const timer = setTimeout(() => {
         goToRecipe(initialRecipeId)
       }, 500)
       return () => clearTimeout(timer)
     }
+    // Don't set initial recipe - let user open the book first
   }, [initialRecipeId, recipes, goToRecipe])
 
   return (
@@ -218,7 +225,33 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               swipeDistance={30}
               showPageCorners={true}
               disableFlipByClick={false}
-              onFlip={() => {}}
+              onFlip={(e) => {
+                // e.data contains the current page number
+                const currentPage = e.data
+                console.log('Page flipped to:', currentPage, 'PAGES_BEFORE_RECIPES:', PAGES_BEFORE_RECIPES)
+
+                if (currentPage < PAGES_BEFORE_RECIPES) {
+                  // On cover page, clear current recipe
+                  console.log('On cover page, clearing recipe')
+                  setCurrentRecipeId(null)
+                } else {
+                  // Calculate which recipe is currently displayed
+                  // Each recipe has 2 pages, and there's 1 cover page before recipes
+                  // If currentPage is 1 (left page of first recipe), index should be 0
+                  // If currentPage is 2 (right page of first recipe), index should be 0
+                  const recipeIndex = Math.floor((currentPage - PAGES_BEFORE_RECIPES) / 2)
+                  console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
+
+                  if (recipeIndex >= 0 && recipeIndex < recipes.length) {
+                    const recipeId = recipes[recipeIndex].id
+                    console.log('Setting recipe ID to:', recipeId)
+                    setCurrentRecipeId(recipeId)
+                  } else {
+                    console.log('Recipe index out of bounds')
+                    setCurrentRecipeId(null)
+                  }
+                }
+              }}
               mobileScrollSupport={false}
               style={{}}
               clickEventForward={true}
@@ -263,6 +296,18 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
           </button>
         </div>
       </div>
+
+      {/* Comments Section - appears below flipbook */}
+      {currentRecipeId && (
+        <div className="w-full max-w-4xl mx-auto px-4 py-8  bg-[#352721bf] rounded-md">
+          <CommentSection
+            key={currentRecipeId}
+            recipeId={currentRecipeId}
+            userId={user?.id}
+          />
+        </div>
+      )}
+
       <ImagesModal images={images} onClose={() => setImages(null)} />
     </>
   )

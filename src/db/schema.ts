@@ -7,6 +7,8 @@ import {
   pgEnum,
   integer,
   uniqueIndex,
+  // type PgTableWithColumns,
+  type PgColumn,
 } from 'drizzle-orm/pg-core'
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm'
 import { customType } from 'drizzle-orm/pg-core'
@@ -90,3 +92,77 @@ export const recipe_translations = pgTable(
 
 export type RecipeTranslation = InferSelectModel<typeof recipe_translations>
 export type NewRecipeTranslation = InferInsertModel<typeof recipe_translations>
+
+// ============================================
+// PHASE C: SOCIAL FEATURES
+// ============================================
+
+// Threads table - Regional discussions
+export const threads = pgTable('threads', {
+  id: serial('id').primaryKey(),
+  region: text('region').notNull(),
+  category: text('category').notNull(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  user_id: text('user_id').notNull(),
+  view_count: integer('view_count').default(0),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+})
+
+export type Thread = InferSelectModel<typeof threads>
+export type NewThread = InferInsertModel<typeof threads>
+
+// Posts table - Nested replies to threads
+export const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  thread_id: integer('thread_id')
+    .notNull()
+    .references(() => threads.id, { onDelete: 'cascade' }),
+  parent_post_id: integer('parent_post_id').references(
+    (): PgColumn => posts.id,
+    {
+      onDelete: 'cascade',
+    }
+  ),
+  user_id: text('user_id').notNull(),
+  content: text('content').notNull(),
+  depth: integer('depth').default(0),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+})
+
+export type Post = InferSelectModel<typeof posts>
+export type NewPost = InferInsertModel<typeof posts>
+
+// Recipe comments table - Comments on individual recipes
+export const recipe_comments = pgTable('recipe_comments', {
+  id: serial('id').primaryKey(),
+  recipe_id: integer('recipe_id')
+    .notNull()
+    .references(() => recipes.id, { onDelete: 'cascade' }),
+  parent_comment_id: integer('parent_comment_id').references(
+    (): PgColumn => recipe_comments.id,
+    { onDelete: 'cascade' }
+  ),
+  user_id: text('user_id').notNull(),
+  content: text('content').notNull(),
+  depth: integer('depth').default(0),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+})
+
+export type RecipeComment = InferSelectModel<typeof recipe_comments>
+export type NewRecipeComment = InferInsertModel<typeof recipe_comments>
+
+// Likes table - Polymorphic likes for threads, posts, and comments
+export const likes = pgTable('likes', {
+  id: serial('id').primaryKey(),
+  user_id: text('user_id').notNull(),
+  likeable_id: integer('likeable_id').notNull(),
+  likeable_type: text('likeable_type').notNull(), // 'thread', 'post', or 'comment'
+  created_at: timestamp('created_at').defaultNow(),
+})
+
+export type Like = InferSelectModel<typeof likes>
+export type NewLike = InferInsertModel<typeof likes>
