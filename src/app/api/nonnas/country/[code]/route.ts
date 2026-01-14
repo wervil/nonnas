@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import { recipes } from "@/db/schema";
 import { eq, and, ilike, or } from "drizzle-orm";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
+import { countriesData } from "@/utils/countries";
 
 const db = drizzle(process.env.DATABASE_URL!);
 
@@ -198,7 +199,7 @@ export async function GET(
 
     // Build conditions to match the country
     const conditions = [];
-    
+
     if (published) {
       conditions.push(eq(recipes.published, true));
     }
@@ -234,7 +235,7 @@ export async function GET(
 
     for (const recipe of countryRecipes) {
       const stateName = recipe.region?.trim() || "Unknown Region";
-      
+
       if (!stateMap.has(stateName)) {
         stateMap.set(stateName, []);
       }
@@ -251,27 +252,59 @@ export async function GET(
       });
     }
 
+    // Use countriesData as the source of truth for regions
+    const countryData = countriesData[code.toUpperCase()];
+    const regionsList = countryData ? countryData.regions : [];
+
     // Convert to array with coordinates
     const stateCoords = stateCoordinates[code.toUpperCase()] || {};
     const states: NonnasByState[] = [];
 
-    for (const [stateName, nonnas] of stateMap.entries()) {
-      const normalizedState = stateName.toLowerCase();
-      const coords = stateCoords[normalizedState];
-
-      let lat: number;
-      let lng: number;
-
-      if (coords) {
-        // Use predefined coordinates
-        lat = coords.lat;
-        lng = coords.lng;
-      } else {
-        // Use deterministic offset based on state name (consistent across requests)
-        const offsets = hashStringToOffset(`${code.toUpperCase()}-${stateName}`);
-        lat = countryInfo.lat + offsets.latOffset;
-        lng = countryInfo.lng + offsets.lngOffset;
+    // First, add all states from the predefined list (even if empty)
+    for (const regionName of regionsList) {
+      // Check if we have nonnas for this state
+      // We need to check case-insensitive matching against keys in stateMap
+      let matchingStateName = "";
+      for (const mapKey of stateMap.keys()) {
+        if (mapKey.toLowerCase() === regionName.toLowerCase()) {
+          matchingStateName = mapKey;
+          break;
+        }
       }
+
+      const nonnas = matchingStateName ? stateMap.get(matchingStateName)! : [];
+
+      // Get coordinates for the region determine center
+      // Try exact match or lower case match from our coordinates map
+      const coords = stateCoords[regionName.toLowerCase()] ||
+        stateCoords[regionName] ||
+      // Fallback to deterministic offset if no coords found
+      {
+        lat: countryInfo.lat + hashStringToOffset(`${code.toUpperCase()}-${regionName}`).latOffset,
+        lng: countryInfo.lng + hashStringToOffset(`${code.toUpperCase()}-${regionName}`).lngOffset
+      };
+
+      states.push({
+        stateName: regionName,
+        lat: coords.lat,
+        lng: coords.lng,
+        nonnaCount: nonnas.length,
+        nonnas: nonnas,
+      });
+
+      // Remove from map to track which ones we've processed
+      if (matchingStateName) {
+        stateMap.delete(matchingStateName);
+      }
+    }
+
+    // Then add any remaining states from the DB that weren't in the predefined list
+    // This handles cases where DB region name doesn't match countriesData exactly
+    for (const [stateName, nonnas] of stateMap.entries()) {
+      // Use deterministic offset based on state name
+      const offsets = hashStringToOffset(`${code.toUpperCase()}-${stateName}`);
+      const lat = countryInfo.lat + offsets.latOffset;
+      const lng = countryInfo.lng + offsets.lngOffset;
 
       states.push({
         stateName,

@@ -24,7 +24,7 @@ export default function Globe2D3DShell() {
   const [mode, setMode] = useState<Mode>("globe");
   const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  
+
   // Track if globe has been loaded at least once (keep it mounted after first load)
   const globeLoadedRef = useRef(false);
   const [globeLoaded, setGlobeLoaded] = useState(false);
@@ -49,7 +49,7 @@ export default function Globe2D3DShell() {
   const handleContinentClick = useCallback((continent: string) => {
     setIsTransitioning(true);
     setSelectedContinent(continent);
-    
+
     // Smooth transition delay
     setTimeout(() => {
       setMode("map");
@@ -59,7 +59,7 @@ export default function Globe2D3DShell() {
 
   const handleBackToGlobe = useCallback(() => {
     setIsTransitioning(true);
-    
+
     setTimeout(() => {
       setMode("globe");
       setSelectedContinent(null);
@@ -74,18 +74,16 @@ export default function Globe2D3DShell() {
     <div className="w-full h-full relative overflow-hidden bg-[#0a0a0a]">
       {/* Transition overlay */}
       <div
-        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${
-          isTransitioning ? "opacity-100" : "opacity-0"
-        }`}
+        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${isTransitioning ? "opacity-100" : "opacity-0"
+          }`}
       />
 
       {/* 3D Globe View - stays mounted after first load for instant return */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${
-          mode === "globe"
-            ? "opacity-100 z-10"
-            : "opacity-0 z-0 pointer-events-none"
-        }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${mode === "globe"
+          ? "opacity-100 z-10"
+          : "opacity-0 z-0 pointer-events-none"
+          }`}
         style={{ visibility: mode === "globe" ? "visible" : "hidden" }}
       >
         {shouldRenderGlobe && (
@@ -98,11 +96,10 @@ export default function Globe2D3DShell() {
 
       {/* 2D Map View */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${
-          mode === "map"
-            ? "opacity-100 z-10"
-            : "opacity-0 z-0 pointer-events-none"
-        }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${mode === "map"
+          ? "opacity-100 z-10"
+          : "opacity-0 z-0 pointer-events-none"
+          }`}
       >
         {mode === "map" && selectedContinent && (
           <GoogleContinentCountryMap

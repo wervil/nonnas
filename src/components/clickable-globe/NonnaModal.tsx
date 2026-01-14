@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { Nonna } from "./sharedTypes";
+import ThreadList from "../Threads/ThreadList";
 
 export default function NonnaModal({
   open,
@@ -11,14 +12,19 @@ export default function NonnaModal({
   nonnas,
   onClose,
   themeColor = "#ef4444",
+  region,
+  scope = "country",
 }: {
   open: boolean;
   title: string;
   nonnas: Nonna[];
   onClose: () => void;
   themeColor?: string;
+  region?: string;
+  scope?: "country" | "state";
 }) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"recipes" | "community">("recipes");
 
   const handleViewRecipe = useCallback((recipeId: string | number) => {
     // Close the modal first
@@ -26,6 +32,11 @@ export default function NonnaModal({
     // Navigate to home page with recipe ID to open flipbook at that recipe's page
     router.push(`/?recipe=${recipeId}`);
   }, [onClose, router]);
+
+  const handleStartDiscussion = useCallback(() => {
+    if (!region) return;
+    router.push(`/community/create?region=${encodeURIComponent(region)}&scope=${scope}`);
+  }, [region, scope, router]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -66,10 +77,11 @@ export default function NonnaModal({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl">👵</span>
-                <h2 className="text-lg font-bold text-white">Nonnas</h2>
+                <h2 className="text-lg font-bold text-white">{title}</h2>
               </div>
-              <p className="text-sm text-gray-300 mt-1">{title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{nonnas.length} result(s)</p>
+              <p className="text-sm text-gray-300 mt-1">
+                {scope === "country" ? "Country" : "State"} Level
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -83,90 +95,139 @@ export default function NonnaModal({
           </div>
         </div>
 
-        {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(85vh-100px)] p-6">
-          {nonnas.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-3">🍝</div>
-              <p className="text-gray-400">No nonnas found in this area.</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {nonnas.map((nonna, idx) => (
-                <div
-                  key={nonna.id}
-                  className="group relative bg-black/30 rounded-xl border border-white/10 overflow-hidden hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200"
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  <div className="flex">
-                    {/* Photo */}
-                    <div className="relative flex-shrink-0 w-24 h-24 bg-gradient-to-br from-amber-900/30 to-orange-900/30 flex items-center justify-center overflow-hidden">
-                      {nonna.photo && nonna.photo.length > 0 ? (
-                        <Image 
-                          src={nonna.photo[0]} 
-                          alt={nonna.name} 
-                          fill
-                          className="object-cover"
-                          sizes="96px"
-                        />
-                      ) : (
-                        <span className="text-3xl">👵</span>
-                      )}
-                    </div>
+        {/* Tabs */}
+        <div className="flex border-b border-white/10 bg-black/30">
+          <button
+            onClick={() => setActiveTab("recipes")}
+            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${activeTab === "recipes"
+                ? "text-amber-500 border-b-2 border-amber-500 bg-white/5"
+                : "text-gray-400 hover:text-gray-300"
+              }`}
+          >
+            Recipes ({nonnas.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("community")}
+            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${activeTab === "community"
+                ? "text-amber-500 border-b-2 border-amber-500 bg-white/5"
+                : "text-gray-400 hover:text-gray-300"
+              }`}
+          >
+            Community
+          </button>
+        </div>
 
-                    {/* Info */}
-                    <div className="flex-1 p-4 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-bold text-white">{nonna.name}</h3>
-                          {nonna.recipeTitle && (
-                            <p className="text-sm font-medium mt-0.5" style={{ color: themeColor }}>
-                              {nonna.recipeTitle}
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(85vh-180px)] p-6">
+          {activeTab === "recipes" ? (
+            <>
+              {nonnas.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-3">🍝</div>
+                  <p className="text-gray-400">No nonnas found in this area.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {nonnas.map((nonna, idx) => (
+                    <div
+                      key={nonna.id}
+                      className="group relative bg-black/30 rounded-xl border border-white/10 overflow-hidden hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200"
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                    >
+                      <div className="flex">
+                        {/* Photo */}
+                        <div className="relative flex-shrink-0 w-24 h-24 bg-gradient-to-br from-amber-900/30 to-orange-900/30 flex items-center justify-center overflow-hidden">
+                          {nonna.photo && nonna.photo.length > 0 ? (
+                            <Image
+                              src={nonna.photo[0]}
+                              alt={nonna.name}
+                              fill
+                              className="object-cover"
+                              sizes="96px"
+                            />
+                          ) : (
+                            <span className="text-3xl">👵</span>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 p-4 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-bold text-white">{nonna.name}</h3>
+                              {nonna.recipeTitle && (
+                                <p className="text-sm font-medium mt-0.5" style={{ color: themeColor }}>
+                                  {nonna.recipeTitle}
+                                </p>
+                              )}
+                            </div>
+                            {nonna.origin && (
+                              <span className="flex-shrink-0 text-xs text-gray-400 bg-white/10 px-2 py-1 rounded-full">
+                                📍 {nonna.origin}
+                              </span>
+                            )}
+                          </div>
+
+                          {nonna.history && (
+                            <p className="mt-2 text-sm text-gray-300 line-clamp-2">
+                              {nonna.history}
+                            </p>
+                          )}
+
+                          {nonna.tagline && !nonna.history && (
+                            <p className="mt-2 text-sm text-gray-400 italic line-clamp-2">
+                              &ldquo;{nonna.tagline}&rdquo;
+                            </p>
+                          )}
+
+                          {nonna.traditions && (
+                            <p className="mt-1 text-xs text-gray-500 line-clamp-1">
+                              🎄 {nonna.traditions}
                             </p>
                           )}
                         </div>
-                        {nonna.origin && (
-                          <span className="flex-shrink-0 text-xs text-gray-400 bg-white/10 px-2 py-1 rounded-full">
-                            📍 {nonna.origin}
-                          </span>
-                        )}
                       </div>
 
-                      {nonna.history && (
-                        <p className="mt-2 text-sm text-gray-300 line-clamp-2">
-                          {nonna.history}
-                        </p>
-                      )}
-
-                      {nonna.tagline && !nonna.history && (
-                        <p className="mt-2 text-sm text-gray-400 italic line-clamp-2">
-                          &ldquo;{nonna.tagline}&rdquo;
-                        </p>
-                      )}
-
-                      {nonna.traditions && (
-                        <p className="mt-1 text-xs text-gray-500 line-clamp-1">
-                          🎄 {nonna.traditions}
-                        </p>
+                      {/* View recipe link */}
+                      {nonna.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewRecipe(nonna.id);
+                          }}
+                          className="absolute bottom-0 right-0 px-3 py-1 text-xs font-medium text-white rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:brightness-110"
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          View Recipe →
+                        </button>
                       )}
                     </div>
-                  </div>
-
-                  {/* View recipe link */}
-                  {nonna.id && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewRecipe(nonna.id);
-                      }}
-                      className="absolute bottom-0 right-0 px-3 py-1 text-xs font-medium text-white rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:brightness-110"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      View Recipe →
-                    </button>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
+            </>
+          ) : (
+            <div>
+              <div className="mb-4 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-white">
+                  Regional Discussions
+                </h3>
+                {region && (
+                  <button
+                    onClick={handleStartDiscussion}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-500 transition-colors text-sm font-medium"
+                  >
+                    + Start Discussion
+                  </button>
+                )}
+              </div>
+              {region ? (
+                <ThreadList region={region} scope={scope} />
+              ) : (
+                <div className="text-center py-12 text-gray-400">
+                  No region selected
+                </div>
+              )}
             </div>
           )}
         </div>
