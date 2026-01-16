@@ -290,7 +290,7 @@ export default function GoogleContinentCountryMap({
 
         const loadStateView = async () => {
           const data = await fetchStateData(countryCode, countryName);
-          const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
+          // const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
 
           // Find the specific state
           const matchedState = data?.states.find(s =>
