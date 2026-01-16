@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { threads } from '@/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { threads, posts, likes } from '@/db/schema'
+import { eq, sql, and, count } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
 
 
@@ -9,7 +9,7 @@ import { drizzle } from 'drizzle-orm/neon-serverless'
 
 const db = drizzle(process.env.DATABASE_URL!)
 
-// GET /api/threads/[id] - Fetch a single thread by ID
+// GET /api/threads/[id] - Fetch a single thread by ID with likes and posts
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -22,12 +22,22 @@ export async function GET(
             return NextResponse.json({ error: 'Invalid thread ID' }, { status: 400 })
         }
 
+        // Get current user (if authenticated)
+        let currentUserId: string | null = null
+        try {
+            const user = await stackServerApp.getUser()
+            currentUserId = user?.id || null
+        } catch {
+            // User not authenticated, continue without user ID
+        }
+
         // Increment view count
         await db
             .update(threads)
             .set({ view_count: sql`${threads.view_count} + 1` })
             .where(eq(threads.id, threadId))
 
+        // Fetch thread
         const [thread] = await db
             .select()
             .from(threads)
@@ -37,7 +47,49 @@ export async function GET(
             return NextResponse.json({ error: 'Thread not found' }, { status: 404 })
         }
 
-        return NextResponse.json(thread)
+        // Fetch total like count for this thread
+        const likeCountResult = await db
+            .select({ count: count() })
+            .from(likes)
+            .where(
+                and(
+                    eq(likes.likeable_id, threadId),
+                    eq(likes.likeable_type, 'thread')
+                )
+            )
+
+        const likeCount = likeCountResult[0]?.count || 0
+
+        // Check if current user has liked this thread
+        let userHasLiked = false
+        if (currentUserId) {
+            const userLike = await db
+                .select()
+                .from(likes)
+                .where(
+                    and(
+                        eq(likes.user_id, currentUserId),
+                        eq(likes.likeable_id, threadId),
+                        eq(likes.likeable_type, 'thread')
+                    )
+                )
+            userHasLiked = userLike.length > 0
+        }
+
+        // Fetch all posts for this thread, ordered by creation date
+        const threadPosts = await db
+            .select()
+            .from(posts)
+            .where(eq(posts.thread_id, threadId))
+            .orderBy(posts.created_at)
+
+        // Return enriched thread data
+        return NextResponse.json({
+            ...thread,
+            like_count: likeCount,
+            user_has_liked: userHasLiked,
+            posts: threadPosts,
+        })
     } catch (error) {
         console.error('Error fetching thread:', error)
         return NextResponse.json(

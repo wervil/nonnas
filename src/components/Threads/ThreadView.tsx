@@ -15,6 +15,13 @@ interface ThreadViewProps {
     hideBackButton?: boolean
 }
 
+// Extended thread type with like and post data
+interface EnrichedThread extends Thread {
+    like_count: number
+    user_has_liked: boolean
+    posts: Post[]
+}
+
 export default function ThreadView({
     threadId,
     currentUserId,
@@ -22,13 +29,15 @@ export default function ThreadView({
     onBack,
     hideBackButton,
 }: ThreadViewProps) {
-    const [thread, setThread] = useState<Thread | null>(null)
+    const [thread, setThread] = useState<EnrichedThread | null>(null)
     const [posts, setPosts] = useState<Post[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [replyToPostId, setReplyToPostId] = useState<number | null>(null)
     const [replyContent, setReplyContent] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    // Add a key that changes each time to force refetch
+    const [fetchKey, setFetchKey] = useState(Date.now())
 
     useEffect(() => {
         const fetchThread = async () => {
@@ -42,8 +51,10 @@ export default function ThreadView({
                     throw new Error('Failed to fetch thread')
                 }
 
-                const data = await response.json()
+                const data: EnrichedThread = await response.json()
                 setThread(data)
+                // Set posts from the API response
+                setPosts(data.posts || [])
             } catch (err) {
                 console.error('Error fetching thread:', err)
                 setError('Failed to load thread')
@@ -53,7 +64,12 @@ export default function ThreadView({
         }
 
         fetchThread()
-    }, [threadId])
+    }, [threadId, fetchKey]) // Include fetchKey to refetch when it changes
+
+    useEffect(() => {
+        // Force refetch when component mounts (e.g., when reopening the same thread)
+        setFetchKey(Date.now())
+    }, [])
 
     const handleReply = async (parentPostId?: number) => {
         if (!replyContent.trim()) return
@@ -80,11 +96,24 @@ export default function ThreadView({
             setReplyContent('')
             setReplyToPostId(null)
             console.log(replyToPostId)
+
+            // Refetch thread data to update like counts and posts
+            setFetchKey(Date.now())
         } catch (error) {
             console.error('Error creating reply:', error)
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const handlePostEdit = () => {
+        // Refetch thread data to show updated post content
+        setFetchKey(Date.now())
+    }
+
+    const handlePostDelete = () => {
+        // Refetch thread data to remove deleted post
+        setFetchKey(Date.now())
     }
 
     const formatDate = (date: Date | null) => {
@@ -146,11 +175,10 @@ export default function ThreadView({
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                            thread.scope === 'country'
-                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                        }`}
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${thread.scope === 'country'
+                            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            }`}
                     >
                         {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
                     </span>
@@ -161,7 +189,7 @@ export default function ThreadView({
                 </div>
 
                 {/* Title - smaller and more compact */}
-                <h2 className="text-lg font-bold  mb-2" style={{color : 'white'}}>{thread.title}</h2>
+                <h2 className="text-lg font-bold  mb-2" style={{ color: 'white' }}>{thread.title}</h2>
 
                 {/* Content */}
                 <p className="text-gray-300 text-sm whitespace-pre-wrap mb-4 leading-relaxed">{thread.content}</p>
@@ -186,15 +214,27 @@ export default function ThreadView({
                     likeableId={thread.id}
                     likeableType="thread"
                     isAuthenticated={isAuthenticated}
+                    initialLiked={thread.user_has_liked}
+                    initialCount={thread.like_count}
                 />
             </div>
 
             {/* Reply Form */}
             <div className="bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-xl p-4 mb-4">
-                <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-amber-400" />
-                    Reply to this discussion
-                </h2>
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-amber-400" />
+                        {replyToPostId ? `Replying to post #${replyToPostId}` : 'Reply to this discussion'}
+                    </h2>
+                    {replyToPostId && (
+                        <button
+                            onClick={() => setReplyToPostId(null)}
+                            className="text-xs text-gray-400 hover:text-amber-400 transition-colors"
+                        >
+                            Cancel reply
+                        </button>
+                    )}
+                </div>
                 <textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
@@ -213,7 +253,7 @@ export default function ThreadView({
                         {replyContent.length}/5000
                     </span>
                     <button
-                        onClick={() => handleReply()}
+                        onClick={() => handleReply(replyToPostId || undefined)}
                         disabled={!isAuthenticated || !replyContent.trim() || isSubmitting}
                         className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm rounded-lg hover:from-amber-400 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 disabled:shadow-none flex items-center gap-2"
                     >
@@ -251,6 +291,8 @@ export default function ThreadView({
                             currentUserId={currentUserId}
                             isAuthenticated={isAuthenticated}
                             onReply={setReplyToPostId}
+                            onEdit={handlePostEdit}
+                            onDelete={handlePostDelete}
                         />
                     ))
                 )}
