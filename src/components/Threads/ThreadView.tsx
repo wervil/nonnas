@@ -38,6 +38,37 @@ export default function ThreadView({
     // Add a key that changes each time to force refetch
     const [fetchKey, setFetchKey] = useState(Date.now())
 
+    // Build tree structure from flat posts array
+    const buildPostTree = (flatPosts: Post[]): Post[] => {
+        const postMap = new Map<number, Post & { replies: Post[] }>()
+        const rootPosts: Post[] = []
+
+        // First pass: create map of all posts with empty replies array
+        flatPosts.forEach(post => {
+            postMap.set(post.id, { ...post, replies: [] })
+        })
+
+        // Second pass: build tree structure
+        flatPosts.forEach(post => {
+            const postWithReplies = postMap.get(post.id)!
+            if (post.parent_post_id) {
+                // This is a nested reply, add it to parent's replies
+                const parent = postMap.get(post.parent_post_id)
+                if (parent) {
+                    parent.replies.push(postWithReplies)
+                } else {
+                    // Parent not found, treat as root
+                    rootPosts.push(postWithReplies)
+                }
+            } else {
+                // This is a top-level post
+                rootPosts.push(postWithReplies)
+            }
+        })
+
+        return rootPosts
+    }
+
     useEffect(() => {
         const fetchThread = async () => {
             setIsLoading(true)
@@ -52,8 +83,9 @@ export default function ThreadView({
 
                 const data: EnrichedThread = await response.json()
                 setThread(data)
-                // Set posts from the API response
-                setPosts(data.posts || [])
+                // Build tree structure from flat posts array
+                const treePosts = buildPostTree(data.posts || [])
+                setPosts(treePosts)
             } catch (err) {
                 console.error('Error fetching thread:', err)
                 setError('Failed to load thread')
