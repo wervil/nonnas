@@ -262,7 +262,7 @@ export default function GoogleContinentCountryMap({
     }
   }, []);
 
-  
+
   // IMPROVED: Helper function to normalize state names for matching
   const normalizeStateName = useCallback((name: string): string => {
     return name
@@ -277,23 +277,23 @@ export default function GoogleContinentCountryMap({
     const countryCode = searchParams.get("country");
     const countryName = searchParams.get("countryName");
     const stateName = searchParams.get("state"); // NEW: Support direct state navigation
-    
+
     if (countryCode && countryName) {
       initialCountrySetRef.current = true;
       setSelectedCountry({ code: countryCode, name: countryName });
-      
+
       // Check if we're navigating directly to a state
       if (stateName) {
         console.log(`🎯 Direct navigation to state: ${stateName}`);
         setDrill("state");
         setSelectedState(stateName);
-        
+
         const loadStateView = async () => {
           const data = await fetchStateData(countryCode, countryName);
           const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
-          
+
           // Find the specific state
-          const matchedState = data?.states.find(s => 
+          const matchedState = data?.states.find(s =>
             normalizeStateName(s.stateName) === normalizeStateName(stateName)
           );
 
@@ -438,7 +438,7 @@ export default function GoogleContinentCountryMap({
     shouldHighlight: boolean
   ) => {
     const feature = findStateFeature(stateLayer, stateName);
-    
+
     if (feature) {
       if (shouldHighlight) {
         stateLayer.overrideStyle(feature, {
@@ -466,9 +466,9 @@ export default function GoogleContinentCountryMap({
     stateCoords?: { lat: number; lng: number }
   ) => {
     console.log(`🔍 zoomToState called for: ${stateName}`);
-    
+
     const feature = findStateFeature(stateLayer, stateName);
-    
+
     if (feature) {
       console.log(`✓ Found feature for ${stateName}`);
       const bounds = new google.maps.LatLngBounds();
@@ -513,8 +513,8 @@ export default function GoogleContinentCountryMap({
 
   // Load and display state boundaries from GeoJSON
   const loadStateBoundaries = useCallback(async (
-    map: google.maps.Map, 
-    countryCode: string, 
+    map: google.maps.Map,
+    countryCode: string,
     countryName: string,
     targetStateName?: string // Optional: if provided, will zoom to this state after loading
   ): Promise<boolean> => {
@@ -582,7 +582,7 @@ export default function GoogleContinentCountryMap({
           event.feature.getProperty('NAME_1') ||
           ''
         );
-        
+
         // Don't change style if this is the selected state (it's already highlighted)
         if (normalizeStateName(hoveredName) === normalizeStateName(currentSelectedState || '')) return;
 
@@ -601,7 +601,7 @@ export default function GoogleContinentCountryMap({
           event.feature.getProperty('NAME_1') ||
           ''
         );
-        
+
         // Don't revert style if this is the selected state (keep it highlighted)
         if (normalizeStateName(hoveredName) === normalizeStateName(currentSelectedState || '')) return;
 
@@ -634,19 +634,19 @@ export default function GoogleContinentCountryMap({
         // Set new selected state and highlight it
         currentSelectedState = stateName;
         setSelectedState(stateName);
-        
+
         // Highlight immediately
         highlightState(stateLayer, stateName, true);
 
         // Find matching state data
         const currentStateData = stateDataRef.current;
         const normalizedStateName = normalizeStateName(stateName);
-        
+
         const matchedState = currentStateData.find(s => {
           const normalizedApiName = normalizeStateName(s.stateName);
           return normalizedApiName === normalizedStateName ||
-                 normalizedApiName.includes(normalizedStateName) ||
-                 normalizedStateName.includes(normalizedApiName);
+            normalizedApiName.includes(normalizedStateName) ||
+            normalizedStateName.includes(normalizedApiName);
         });
 
         console.log(`Matched state data:`, matchedState);
@@ -659,7 +659,7 @@ export default function GoogleContinentCountryMap({
 
         // IMPROVED: Zoom to the clicked state - wait a tiny bit for state updates
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         const zoomSuccess = zoomToState(
           map,
           stateLayer,
@@ -729,18 +729,18 @@ export default function GoogleContinentCountryMap({
       // If a target state was specified, zoom to it now
       if (targetStateName) {
         console.log(`🎯 Zooming to target state: ${targetStateName}`);
-        
+
         // Wait a tiny bit for the layer to fully render
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // Find state data for coordinates
         const currentStateData = stateDataRef.current;
         const normalizedTarget = normalizeStateName(targetStateName);
         const matchedState = currentStateData.find(s => {
           const normalized = normalizeStateName(s.stateName);
           return normalized === normalizedTarget ||
-                 normalized.includes(normalizedTarget) ||
-                 normalizedTarget.includes(normalized);
+            normalized.includes(normalizedTarget) ||
+            normalizedTarget.includes(normalized);
         });
 
         const zoomSuccess = zoomToState(
@@ -881,7 +881,7 @@ export default function GoogleContinentCountryMap({
               top: 100,
               bottom: 80,
               left: 40,
-              right: 40,
+              right: 500, // Add padding for discussion panel on the right
             });
 
             // Re-enable zoom listener and end transition after completes
@@ -943,12 +943,12 @@ export default function GoogleContinentCountryMap({
       if (stateLayer) {
         console.log(`Using state layer for highlight and zoom`);
         highlightState(stateLayer, stateName, true);
-        
+
         // Small delay to ensure highlight renders
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         const zoomSuccess = zoomToState(map, stateLayer, stateName, { lat: state.lat, lng: state.lng });
-        
+
         if (!zoomSuccess) {
           console.warn(`Zoom via layer failed, using fallback coordinates`);
           map.setCenter({ lat: state.lat, lng: state.lng });
@@ -984,7 +984,7 @@ export default function GoogleContinentCountryMap({
         scope: 'state',
         nonnas: [],
       });
-      
+
       setIsTransitioning(false);
     }
   }, [highlightState, zoomToState]);
@@ -1112,8 +1112,8 @@ export default function GoogleContinentCountryMap({
       const matchedState = currentStateData.find(s => {
         const normalizedApiName = normalizeStateName(s.stateName);
         return normalizedApiName === normalizedStateName ||
-               normalizedApiName.includes(normalizedStateName) ||
-               normalizedStateName.includes(normalizedApiName);
+          normalizedApiName.includes(normalizedStateName) ||
+          normalizedStateName.includes(normalizedApiName);
       });
 
       const count = matchedState?.nonnaCount || 0;
@@ -1480,7 +1480,7 @@ export default function GoogleContinentCountryMap({
               top: 100,
               bottom: 80,
               left: 40,
-              right: 40,
+              right: 500, // Add padding for discussion panel
             });
 
             // Re-enable zoom listener after transition completes
@@ -1514,15 +1514,15 @@ export default function GoogleContinentCountryMap({
 
         if (hasInitialState) {
           console.log(`🎯 Initializing with state view: ${urlStateName}`);
-          
+
           // Load state boundaries and zoom to the specific state
           const success = await loadStateBoundaries(
-            map, 
-            urlCountryCode, 
+            map,
+            urlCountryCode,
             urlCountryName,
             urlStateName // Pass target state name
           );
-          
+
           if (success) {
             console.log(`✓ Successfully loaded and zoomed to ${urlStateName}`);
           } else {
@@ -1542,7 +1542,7 @@ export default function GoogleContinentCountryMap({
                 top: 100,
                 bottom: 80,
                 left: 40,
-                right: 40,
+                right: 500, // Add padding for discussion panel
               });
             }
           }
@@ -1551,10 +1551,10 @@ export default function GoogleContinentCountryMap({
           setTimeout(() => {
             mapInitializedRef.current = true;
           }, 500);
-          
+
         } else if (hasInitialCountry) {
           console.log(`🗺️ Initializing with country view: ${urlCountryName}`);
-          
+
           // Find country bounds and zoom to it
           let countryBounds: google.maps.LatLngBounds | null = null;
           dataLayer.forEach((feature) => {
@@ -1593,7 +1593,7 @@ export default function GoogleContinentCountryMap({
                 top: 100,
                 bottom: 80,
                 left: 40,
-                right: 40,
+                right: 500, // Add padding for discussion panel
               });
 
               // Mark map as initialized after bounds are fitted (allow zoom listener to work)
