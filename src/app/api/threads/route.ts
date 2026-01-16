@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { threads, type NewThread } from '@/db/schema'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
 import { drizzle } from 'drizzle-orm/neon-serverless'
-
 
 const db = drizzle(process.env.DATABASE_URL!)
 
@@ -15,8 +14,6 @@ export async function GET(request: NextRequest) {
         const scope = searchParams.get('scope') // 'country' or 'state'
         const category = searchParams.get('category')
         const sort = searchParams.get('sort') || 'newest' // 'newest', 'top', 'relevant'
-
-        let query = db.select().from(threads)
 
         // Build filters
         const filters = []
@@ -30,18 +27,38 @@ export async function GET(request: NextRequest) {
             filters.push(eq(threads.category, category))
         }
 
+        // Build query conditionally without reassigning
+        let result;
+        
         if (filters.length > 0) {
-            query = query.where(and(...filters)) as any
-        }
-
-        // Apply sorting
-        if (sort === 'top') {
-            query = query.orderBy(desc(threads.view_count)) as any
+            // With filters
+            if (sort === 'top') {
+                result = await db
+                    .select()
+                    .from(threads)
+                    .where(and(...filters))
+                    .orderBy(desc(threads.view_count))
+            } else {
+                result = await db
+                    .select()
+                    .from(threads)
+                    .where(and(...filters))
+                    .orderBy(desc(threads.created_at))
+            }
         } else {
-            query = query.orderBy(desc(threads.created_at)) as any
+            // Without filters
+            if (sort === 'top') {
+                result = await db
+                    .select()
+                    .from(threads)
+                    .orderBy(desc(threads.view_count))
+            } else {
+                result = await db
+                    .select()
+                    .from(threads)
+                    .orderBy(desc(threads.created_at))
+            }
         }
-
-        const result = await query
 
         return NextResponse.json(result)
     } catch (error) {

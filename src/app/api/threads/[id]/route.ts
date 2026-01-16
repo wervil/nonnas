@@ -12,10 +12,11 @@ const db = drizzle(process.env.DATABASE_URL!)
 // GET /api/threads/[id] - Fetch a single thread by ID
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const threadId = parseInt(params.id)
+        const { id } = await params
+        const threadId = parseInt(id)
 
         if (isNaN(threadId)) {
             return NextResponse.json({ error: 'Invalid thread ID' }, { status: 400 })
@@ -49,7 +50,7 @@ export async function GET(
 // DELETE /api/threads/[id] - Delete a thread
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const user = await stackServerApp.getUser()
@@ -60,7 +61,8 @@ export async function DELETE(
 
         const userId = user.id
 
-        const threadId = parseInt(params.id)
+        const { id } = await params
+        const threadId = parseInt(id)
 
         if (isNaN(threadId)) {
             return NextResponse.json({ error: 'Invalid thread ID' }, { status: 400 })

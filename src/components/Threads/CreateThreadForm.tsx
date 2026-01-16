@@ -80,9 +80,10 @@ export default function CreateThreadForm({
             } else {
                 router.push(`/community/thread/${thread.id}`)
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error creating thread:', err)
-            setError(err.message || 'Failed to create thread')
+            const errorMessage = err instanceof Error ? err.message : 'Failed to create thread';
+            setError(errorMessage)
         } finally {
             setIsSubmitting(false)
         }

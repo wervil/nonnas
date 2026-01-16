@@ -5,12 +5,13 @@ import { redirect } from 'next/navigation'
 export default async function ThreadPage({
     params,
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
     const user = await stackServerApp.getUser()
     const isAuthenticated = !!user
 
-    const threadId = parseInt(params.id)
+    const { id } = await params
+    const threadId = parseInt(id)
 
     if (isNaN(threadId)) {
         redirect('/community')

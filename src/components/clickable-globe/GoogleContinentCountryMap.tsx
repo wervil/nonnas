@@ -20,6 +20,23 @@ type Admin0FC = GeoJSON.FeatureCollection<GeoJSON.Geometry, Admin0FeatureProps>;
 
 type Drill = "continent" | "country" | "state";
 
+// Type for GeoJSON feature with geometry
+interface GeoJSONFeatureWithGeometry {
+  type: string;
+  properties: Record<string, unknown>;
+  geometry: {
+    type: string;
+    coordinates: number[][] | number[][][] | number[][][][];
+  };
+}
+
+// Type for cached GeoJSON data
+interface CachedGeoJSON {
+  type: string;
+  features: GeoJSONFeatureWithGeometry[];
+  [key: string]: unknown;
+}
+
 // Region theme colors for dark theme (includes Asia sub-regions)
 const REGION_THEMES: Record<string, { primary: string; secondary: string; highlight: string; bg: string }> = {
   // Africa
@@ -306,10 +323,10 @@ export default function GoogleContinentCountryMap({
   }, [clearStateLabels]);
 
   // Cache for GeoJSON data to avoid re-fetching
-  const geojsonCacheRef = useRef<Record<string, any>>({});
+  const geojsonCacheRef = useRef<Record<string, CachedGeoJSON>>({});
 
   // Helper function to calculate centroid from GeoJSON geometry
-  const calculateCentroid = useCallback((feature: any): { lat: number; lng: number } | null => {
+  const calculateCentroid = useCallback((feature: GeoJSONFeatureWithGeometry): { lat: number; lng: number } | null => {
     try {
       const geometry = feature.geometry;
       if (!geometry) return null;
@@ -329,9 +346,9 @@ export default function GoogleContinentCountryMap({
       };
 
       if (geometry.type === 'Polygon') {
-        geometry.coordinates.forEach(processRing);
+        (geometry.coordinates as number[][][]).forEach(processRing);
       } else if (geometry.type === 'MultiPolygon') {
-        geometry.coordinates.forEach((polygon: number[][][]) => {
+        (geometry.coordinates as number[][][][]).forEach((polygon: number[][][]) => {
           polygon.forEach(processRing);
         });
       }
@@ -347,6 +364,7 @@ export default function GoogleContinentCountryMap({
   // Load and display state boundaries from GeoJSON
   const loadStateBoundaries = useCallback(async (map: google.maps.Map, countryCode: string, countryName: string) => {
     console.log(`📍 Loading state boundaries for ${countryCode}...`);
+    console.log(selectedState)
     
     // Clear existing state layer
     clearStateLayer();
@@ -358,7 +376,7 @@ export default function GoogleContinentCountryMap({
       if (!geojson) {
         // Fetch GeoJSON from our API
         const response = await fetch(`/api/geojson/${countryCode}`);
-        geojson = await response.json();
+        geojson = await response.json() as CachedGeoJSON;
         // Cache it
         geojsonCacheRef.current[countryCode] = geojson;
       } else {
@@ -383,7 +401,7 @@ export default function GoogleContinentCountryMap({
       stateLayer.addGeoJson(geojson);
 
       // Style the state boundaries - BLACK borders for visibility
-      stateLayer.setStyle((feature) => {
+      stateLayer.setStyle(() => {
         return {
           fillColor: MARKER_COLOR,
           fillOpacity: 0.05, // Very light fill
@@ -540,7 +558,7 @@ export default function GoogleContinentCountryMap({
             scale: 0, // Invisible icon
           },
           label: {
-            text: stateName,
+            text: String(stateName),
             color: '#1a1a1a',
             fontSize: '10px',
             fontWeight: '500',
@@ -560,7 +578,7 @@ export default function GoogleContinentCountryMap({
     } catch (error) {
       console.error(`Failed to load state boundaries for ${countryCode}:`, error);
     }
-  }, [clearStateLayer, clearStateLabels, calculateCentroid]); // Using stateDataRef instead of stateData to avoid stale closure
+  }, [clearStateLayer, clearStateLabels, calculateCentroid, selectedState]); // Using stateDataRef instead of stateData to avoid stale closure
 
   // Create country markers from API data - with click handlers to drill down
   const createCountryMarkers = useCallback((map: google.maps.Map) => {
@@ -701,11 +719,11 @@ export default function GoogleContinentCountryMap({
         }, 500);
       }
     }
-  }, [countryData, clearMarkers, fetchStateData]);
+  }, [countryData, clearMarkers, fetchStateData, loadStateBoundaries, drill]);
 
   // State marker click handler - extracted for reuse
   const handleStateMarkerClick = useCallback((
-    state: { stateName: string; lat: number; lng: number; nonnaCount: number; nonnas: any[] },
+    state: { stateName: string; lat: number; lng: number; nonnaCount: number; nonnas: Nonna[] },
     stateName: string,
     country: { code: string; name: string },
     map: google.maps.Map,
@@ -781,159 +799,7 @@ export default function GoogleContinentCountryMap({
       }
   }, []);
 
-  // Create state markers from GeoJSON centroids (most accurate positioning)
-  const createStateMarkersFromGeoJSON = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
-    clearMarkers();
-    
-    const geojson = geojsonCacheRef.current[country.code];
-    if (!geojson?.features) {
-      console.warn('No GeoJSON available for markers, falling back to API data');
-      // Fallback to API-based markers
-      createStateMarkersFromAPI(map, country);
-      return;
-    }
-
-    const currentStateData = stateDataRef.current;
-    console.log(`Creating markers from ${geojson.features.length} GeoJSON features`);
-
-    for (const feature of geojson.features) {
-      const stateName = feature.properties?.name || feature.properties?.NAME || feature.properties?.NAME_1 || 'Unknown';
-      
-      // Calculate centroid from geometry
-      const centroid = calculateCentroid(feature);
-      if (!centroid) {
-        console.warn(`Could not calculate centroid for ${stateName}`);
-        continue;
-      }
-
-      // Find matching state data for nonna count
-      const matchedState = currentStateData.find(s => 
-        s.stateName.toLowerCase() === stateName.toLowerCase() ||
-        stateName.toLowerCase().includes(s.stateName.toLowerCase()) ||
-        s.stateName.toLowerCase().includes(stateName.toLowerCase())
-      );
-
-      const count = matchedState?.nonnaCount || 0;
-      
-      // Skip states with 0 Nonnas - don't show empty markers
-      if (count === 0) {
-        continue;
-      }
-
-      // Determine size based on count
-      const size = Math.min(56, Math.max(40, 32 + count * 4));
-
-      // Info window for tooltips
-      const infoWindow = new google.maps.InfoWindow({
-        content: `<div style="padding: 8px; font-family: Arial, sans-serif;">
-          <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
-          <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Nonna${count !== 1 ? "s" : ""}</div>
-          <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to view discussions</div>
-        </div>`,
-        disableAutoPan: true,
-      });
-
-      // Use regular Marker at GeoJSON centroid (most accurate!)
-      const marker = new google.maps.Marker({
-        map,
-        position: centroid,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: size / 2,
-          fillColor: MARKER_COLOR,
-          fillOpacity: 0.6,
-          strokeColor: '#ffffff',
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
-        },
-        label: {
-          text: count.toString(),
-          color: "white",
-          fontSize: "12px",
-          fontWeight: "bold",
-        },
-        title: `${stateName}: ${count} nonna(s) - Click to view discussions`,
-        zIndex: 100,
-        clickable: true,
-        optimized: false,
-      });
-
-      // Store reference to the GeoJSON feature for highlighting
-      const geoFeature = feature;
-
-      marker.addListener("mouseover", () => {
-        infoWindow.open(map, marker);
-        // Highlight the marker
-        marker.setIcon({
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: (size / 2) * 1.3,
-          fillColor: MARKER_COLOR,
-          fillOpacity: 0.8,
-          strokeColor: "#ffffff",
-          strokeOpacity: 1.0,
-          strokeWeight: 3,
-        });
-        // Highlight the state boundary on the GeoJSON layer
-        const stateLayer = stateLayerRef.current;
-        if (stateLayer) {
-          stateLayer.forEach((f) => {
-            const fName = f.getProperty('name') || f.getProperty('NAME') || f.getProperty('NAME_1');
-            if (fName === stateName) {
-              stateLayer.overrideStyle(f, {
-                fillColor: MARKER_COLOR,
-                fillOpacity: 0.3,
-                strokeColor: MARKER_COLOR,
-                strokeWeight: 4,
-              });
-            }
-          });
-        }
-      });
-
-      marker.addListener("mouseout", () => {
-        infoWindow.close();
-        // Reset marker style
-        marker.setIcon({
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: size / 2,
-          fillColor: MARKER_COLOR,
-          fillOpacity: 0.6,
-          strokeColor: '#ffffff',
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
-        });
-        // Reset state boundary style
-        const stateLayer = stateLayerRef.current;
-        if (stateLayer) {
-          stateLayer.forEach((f) => {
-            const fName = f.getProperty('name') || f.getProperty('NAME') || f.getProperty('NAME_1');
-            if (fName === stateName) {
-              stateLayer.revertStyle(f);
-            }
-          });
-        }
-      });
-
-      // Create a state object for click handler
-      const stateForClick = matchedState || {
-        stateName,
-        lat: centroid.lat,
-        lng: centroid.lng,
-        nonnaCount: 0,
-        nonnas: []
-      };
-
-      marker.addListener("click", () => {
-        handleStateMarkerClick(stateForClick, stateName, country, map, infoWindow);
-      });
-
-      markersRef.current.push(marker);
-    }
-    
-    console.log(`✓ Created ${markersRef.current.length} state markers from GeoJSON centroids`);
-  }, [clearMarkers, calculateCentroid, handleStateMarkerClick]);
-
-  // Fallback: Create state markers from API data
+    // Fallback: Create state markers from API data
   const createStateMarkersFromAPI = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
     clearMarkers();
 
@@ -1039,6 +905,155 @@ export default function GoogleContinentCountryMap({
       markersRef.current.push(marker);
     }
   }, [stateData, clearMarkers, handleStateMarkerClick]);
+
+  // Create state markers from GeoJSON centroids (most accurate positioning)
+  const createStateMarkersFromGeoJSON = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
+    clearMarkers();
+    
+    const geojson = geojsonCacheRef.current[country.code];
+    if (!geojson?.features) {
+      console.warn('No GeoJSON available for markers, falling back to API data');
+      // Fallback to API-based markers
+      createStateMarkersFromAPI(map, country);
+      return;
+    }
+
+    const currentStateData = stateDataRef.current;
+    console.log(`Creating markers from ${geojson.features.length} GeoJSON features`);
+
+    for (const feature of geojson.features) {
+      const stateName = feature.properties?.name || feature.properties?.NAME || feature.properties?.NAME_1 || 'Unknown';
+      
+      // Calculate centroid from geometry
+      const centroid = calculateCentroid(feature);
+      if (!centroid) {
+        console.warn(`Could not calculate centroid for ${stateName}`);
+        continue;
+      }
+
+      // Find matching state data for nonna count
+      const matchedState = currentStateData.find(s => 
+        s.stateName.toLowerCase() === String(stateName).toLowerCase() ||
+        String(stateName).toLowerCase().includes(s.stateName.toLowerCase()) ||
+        s.stateName.toLowerCase().includes(String(stateName).toLowerCase())
+      );
+
+      const count = matchedState?.nonnaCount || 0;
+      
+      // Skip states with 0 Nonnas - don't show empty markers
+      if (count === 0) {
+        continue;
+      }
+
+      // Determine size based on count
+      const size = Math.min(56, Math.max(40, 32 + count * 4));
+
+      // Info window for tooltips
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div style="padding: 8px; font-family: Arial, sans-serif;">
+          <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Nonna${count !== 1 ? "s" : ""}</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to view discussions</div>
+        </div>`,
+        disableAutoPan: true,
+      });
+
+      // Use regular Marker at GeoJSON centroid (most accurate!)
+      const marker = new google.maps.Marker({
+        map,
+        position: centroid,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: size / 2,
+          fillColor: MARKER_COLOR,
+          fillOpacity: 0.6,
+          strokeColor: '#ffffff',
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+        },
+        label: {
+          text: count.toString(),
+          color: "white",
+          fontSize: "12px",
+          fontWeight: "bold",
+        },
+        title: `${stateName}: ${count} nonna(s) - Click to view discussions`,
+        zIndex: 100,
+        clickable: true,
+        optimized: false,
+      });
+
+      marker.addListener("mouseover", () => {
+        infoWindow.open(map, marker);
+        // Highlight the marker
+        marker.setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: (size / 2) * 1.3,
+          fillColor: MARKER_COLOR,
+          fillOpacity: 0.8,
+          strokeColor: "#ffffff",
+          strokeOpacity: 1.0,
+          strokeWeight: 3,
+        });
+        // Highlight the state boundary on the GeoJSON layer
+        const stateLayer = stateLayerRef.current;
+        if (stateLayer) {
+          stateLayer.forEach((f) => {
+            const fName = f.getProperty('name') || f.getProperty('NAME') || f.getProperty('NAME_1');
+            if (fName === stateName) {
+              stateLayer.overrideStyle(f, {
+                fillColor: MARKER_COLOR,
+                fillOpacity: 0.3,
+                strokeColor: MARKER_COLOR,
+                strokeWeight: 4,
+              });
+            }
+          });
+        }
+      });
+
+      marker.addListener("mouseout", () => {
+        infoWindow.close();
+        // Reset marker style
+        marker.setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: size / 2,
+          fillColor: MARKER_COLOR,
+          fillOpacity: 0.6,
+          strokeColor: '#ffffff',
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+        });
+        // Reset state boundary style
+        const stateLayer = stateLayerRef.current;
+        if (stateLayer) {
+          stateLayer.forEach((f) => {
+            const fName = f.getProperty('name') || f.getProperty('NAME') || f.getProperty('NAME_1');
+            if (fName === stateName) {
+              stateLayer.revertStyle(f);
+            }
+          });
+        }
+      });
+
+      // Create a state object for click handler
+      const stateForClick = matchedState || {
+        stateName: String(stateName),
+        lat: centroid.lat,
+        lng: centroid.lng,
+        nonnaCount: 0,
+        nonnas: []
+      };
+
+      marker.addListener("click", () => {
+        handleStateMarkerClick(stateForClick, String(stateName), country, map, infoWindow);
+      });
+
+      markersRef.current.push(marker);
+    }
+    
+    console.log(`✓ Created ${markersRef.current.length} state markers from GeoJSON centroids`);
+  }, [clearMarkers, calculateCentroid, handleStateMarkerClick, createStateMarkersFromAPI]);
 
   // Main function to create state markers - uses GeoJSON centroids if available
   const createStateMarkers = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
@@ -1405,7 +1420,7 @@ export default function GoogleContinentCountryMap({
       continentBoundsRef.current = null;
       mapInitializedRef.current = false; // Reset for next map load
     };
-  }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, searchParams, fetchStateData]);
+  }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, searchParams, fetchStateData, loadStateBoundaries, onBackToGlobe]);
 
   // State boundaries are now handled by the GeoJSON layer (loadStateBoundaries function)
   // No Feature Layer needed - it requires special Google Cloud Console configuration

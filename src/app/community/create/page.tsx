@@ -5,7 +5,7 @@ import CreateThreadForm from '@/components/Threads/CreateThreadForm'
 export default async function CreateThreadPage({
     searchParams,
 }: {
-    searchParams: { region?: string; scope?: string }
+    searchParams: Promise<{ region?: string; scope?: string }>
 }) {
     const user = await stackServerApp.getUser()
 
@@ -14,8 +14,9 @@ export default async function CreateThreadPage({
         redirect('/handler/sign-in')
     }
 
-    const region = searchParams.region || ''
-    const scope = (searchParams.scope as 'country' | 'state') || 'country'
+    const params = await searchParams
+    const region = params.region || ''
+    const scope = (params.scope as 'country' | 'state') || 'country'
 
     if (!region) {
         return (

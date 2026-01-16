@@ -79,6 +79,7 @@ export default function ThreadView({
             setPosts([...posts, newPost])
             setReplyContent('')
             setReplyToPostId(null)
+            console.log(replyToPostId)
         } catch (error) {
             console.error('Error creating reply:', error)
         } finally {

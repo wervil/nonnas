@@ -25,6 +25,24 @@ export type NonnasByState = {
   }[];
 };
 
+// Type for Google Geocoding API result
+interface GeocodeResult {
+  formatted_address: string;
+  place_id: string;
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  types?: string[];
+}
+
+interface GeocodeResponse {
+  status: string;
+  results: GeocodeResult[];
+}
+
 // Generate a deterministic "random" offset based on a string (to avoid marker position changes on refresh)
 // Helper function to normalize region names for better matching
 function normalizeRegionName(name: string): string {
@@ -410,11 +428,11 @@ export async function GET(
           // Use components parameter to restrict search to the specific country
           const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(regionName)}&components=country:${code.toUpperCase()}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
           const geocodeRes = await fetch(geocodeUrl);
-          const geocodeData = await geocodeRes.json();
+          const geocodeData = await geocodeRes.json() as GeocodeResponse;
           
           if (geocodeData.status === 'OK' && geocodeData.results.length > 0) {
             // Find the result that's an administrative area (state/province)
-            let result = geocodeData.results.find((r: any) => 
+            const result = geocodeData.results.find((r: GeocodeResult) => 
               r.types?.includes('administrative_area_level_1') ||
               r.types?.includes('administrative_area_level_2')
             ) || geocodeData.results[0];
@@ -496,4 +514,3 @@ export async function GET(
     );
   }
 }
-

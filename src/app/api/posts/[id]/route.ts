@@ -12,7 +12,7 @@ const db = drizzle(process.env.DATABASE_URL!)
 // PATCH /api/posts/[id] - Update a post
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const user = await stackServerApp.getUser()
@@ -23,7 +23,8 @@ export async function PATCH(
 
         const userId = user.id
 
-        const postId = parseInt(params.id)
+        const { id } = await params
+        const postId = parseInt(id)
 
         if (isNaN(postId)) {
             return NextResponse.json({ error: 'Invalid post ID' }, { status: 400 })
@@ -77,7 +78,7 @@ export async function PATCH(
 // DELETE /api/posts/[id] - Delete a post
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const user = await stackServerApp.getUser()
@@ -88,7 +89,8 @@ export async function DELETE(
 
         const userId = user.id
 
-        const postId = parseInt(params.id)
+        const { id } = await params
+        const postId = parseInt(id)
 
         if (isNaN(postId)) {
             return NextResponse.json({ error: 'Invalid post ID' }, { status: 400 })

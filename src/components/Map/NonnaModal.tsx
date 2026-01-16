@@ -4,12 +4,20 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import ThreadList from '../Threads/ThreadList'
 
+// Define proper Recipe type
+interface Recipe {
+    id: number;
+    recipeTitle: string;
+    history?: string;
+    [key: string]: unknown;
+}
+
 interface NonnaModalProps {
     isOpen: boolean
     onClose: () => void
     region: string
     scope: 'country' | 'state'
-    recipes?: any[] // Replace with proper Recipe type
+    recipes?: Recipe[]
 }
 
 export default function NonnaModal({

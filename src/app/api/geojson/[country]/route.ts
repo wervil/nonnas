@@ -14,6 +14,34 @@ const countryCodeMap: Record<string, string> = {
   'SA': 'SAU', 'AE': 'ARE', 'IL': 'ISR', 'BD': 'BGD', 'LK': 'LKA',
 };
 
+// Type definitions for GeoJSON feature properties
+interface FeatureProperties {
+  [key: string]: unknown;
+  NAME_1?: string;
+  name?: string;
+  admin1?: string;
+  name_en?: string;
+  ISO_1?: string;
+  HASC_1?: string;
+  iso_3166_2?: string;
+  iso_a2?: string;
+  ISO_A2?: string;
+  adm0_a3?: string;
+  GID_0?: string;
+  admin?: string;
+}
+
+interface GeoJSONFeature {
+  type: string;
+  properties: FeatureProperties;
+  geometry: unknown;
+}
+
+interface GeoJSONResponse {
+  features?: GeoJSONFeature[];
+  [key: string]: unknown;
+}
+
 // API to fetch GeoJSON state/province boundaries for a country
 export async function GET(
   request: NextRequest,
@@ -52,15 +80,23 @@ export async function GET(
         continue;
       }
 
-      const geojson = await response.json();
+      const geojson = await response.json() as GeoJSONResponse;
       
-      let features: any[] = [];
+      let features: Array<{
+        type: string;
+        properties: {
+          name: string;
+          code: string;
+          country: string;
+        };
+        geometry: unknown;
+      }> = [];
 
       // Handle different GeoJSON formats
       if (geojson.features) {
         // Filter features for this country if it's a global dataset
         features = geojson.features
-          .filter((f: any) => {
+          .filter((f: GeoJSONFeature) => {
             const props = f.properties || {};
             const featureCountry = props.iso_a2 || props.ISO_A2 || props.adm0_a3 || props.GID_0 || '';
             // Match by country code
@@ -69,7 +105,7 @@ export async function GET(
                    props.admin === countryCode ||
                    (sourceUrl.includes('gadm') && true); // GADM is already filtered
           })
-          .map((feature: any) => ({
+          .map((feature: GeoJSONFeature) => ({
             type: 'Feature',
             properties: {
               name: feature.properties?.NAME_1 || 
