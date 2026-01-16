@@ -12,6 +12,7 @@ export type NonnasByState = {
   lat: number;
   lng: number;
   nonnaCount: number;
+  placeId?: string;
   nonnas: {
     id: number;
     name: string;
@@ -25,6 +26,15 @@ export type NonnasByState = {
 };
 
 // Generate a deterministic "random" offset based on a string (to avoid marker position changes on refresh)
+// Helper function to normalize region names for better matching
+function normalizeRegionName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s]/g, '') // Remove special characters
+    .replace(/\s+/g, ' '); // Normalize whitespace
+}
+
 function hashStringToOffset(str: string): { latOffset: number; lngOffset: number } {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -32,9 +42,9 @@ function hashStringToOffset(str: string): { latOffset: number; lngOffset: number
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
-  // Use different bits for lat and lng to get different offsets
-  const latOffset = ((hash & 0xFFFF) / 0xFFFF - 0.5) * 4; // -2 to +2
-  const lngOffset = (((hash >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 4; // -2 to +2
+  // Use different bits for lat and lng to get more distributed offsets
+  const latOffset = ((hash & 0xFFFF) / 0xFFFF - 0.5) * 8; // -4 to +4 degrees (larger spread)
+  const lngOffset = (((hash >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 8; // -4 to +4 degrees (larger spread)
   return { latOffset, lngOffset };
 }
 
@@ -106,16 +116,78 @@ const stateCoordinates: Record<string, Record<string, { lat: number; lng: number
     "puglia": { lat: 41.1257, lng: 16.8667 },
   },
   IN: {
-    "delhi": { lat: 28.7041, lng: 77.1025 },
-    "maharashtra": { lat: 19.7515, lng: 75.7139 },
-    "karnataka": { lat: 15.3173, lng: 75.7139 },
-    "tamil nadu": { lat: 11.1271, lng: 78.6569 },
-    "kerala": { lat: 10.8505, lng: 76.2711 },
-    "west bengal": { lat: 22.9868, lng: 87.8550 },
-    "uttar pradesh": { lat: 26.8467, lng: 80.9462 },
-    "rajasthan": { lat: 27.0238, lng: 74.2179 },
+    // States
+    "andhra pradesh": { lat: 15.9129, lng: 79.7400 },
+    "arunachal pradesh": { lat: 28.2180, lng: 94.7278 },
+    "assam": { lat: 26.2006, lng: 92.9376 },
+    "bihar": { lat: 25.0961, lng: 85.3131 },
+    "chhattisgarh": { lat: 21.2787, lng: 81.8661 },
+    "goa": { lat: 15.2993, lng: 74.1240 },
     "gujarat": { lat: 22.2587, lng: 71.1924 },
+    "haryana": { lat: 29.0588, lng: 76.0856 },
+    "himachal pradesh": { lat: 31.1048, lng: 77.1734 },
+    "jharkhand": { lat: 23.6102, lng: 85.2799 },
+    "karnataka": { lat: 15.3173, lng: 75.7139 },
+    "kerala": { lat: 10.8505, lng: 76.2711 },
+    "madhya pradesh": { lat: 22.9734, lng: 78.6569 },
+    "maharashtra": { lat: 19.7515, lng: 75.7139 },
+    "manipur": { lat: 24.6637, lng: 93.9063 },
+    "meghalaya": { lat: 25.4670, lng: 91.3662 },
+    "mizoram": { lat: 23.1645, lng: 92.9376 },
+    "nagaland": { lat: 26.1584, lng: 94.5624 },
+    "odisha": { lat: 20.9517, lng: 85.0985 },
+    "orissa": { lat: 20.9517, lng: 85.0985 }, // Alternative name
     "punjab": { lat: 31.1471, lng: 75.3412 },
+    "rajasthan": { lat: 27.0238, lng: 74.2179 },
+    "sikkim": { lat: 27.5330, lng: 88.5122 },
+    "tamil nadu": { lat: 11.1271, lng: 78.6569 },
+    "telangana": { lat: 18.1124, lng: 79.0193 },
+    "tripura": { lat: 23.9408, lng: 91.9882 },
+    "uttar pradesh": { lat: 26.8467, lng: 80.9462 },
+    "uttarakhand": { lat: 30.0668, lng: 79.0193 },
+    "uttaranchal": { lat: 30.0668, lng: 79.0193 }, // Old name
+    "west bengal": { lat: 22.9868, lng: 87.8550 },
+    // Union Territories
+    "andaman and nicobar islands": { lat: 11.7401, lng: 92.6586 },
+    "andaman and nicobar": { lat: 11.7401, lng: 92.6586 },
+    "chandigarh": { lat: 30.7333, lng: 76.7794 },
+    "dadra and nagar haveli and daman and diu": { lat: 20.1809, lng: 73.0169 },
+    "dadra and nagar haveli": { lat: 20.1809, lng: 73.0169 },
+    "daman and diu": { lat: 20.4283, lng: 72.8397 },
+    "delhi": { lat: 28.7041, lng: 77.1025 },
+    "national capital territory of delhi": { lat: 28.7041, lng: 77.1025 },
+    "nct of delhi": { lat: 28.7041, lng: 77.1025 },
+    "jammu and kashmir": { lat: 33.7782, lng: 76.5762 },
+    "ladakh": { lat: 34.1526, lng: 77.5771 },
+    "lakshadweep": { lat: 10.5667, lng: 72.6417 },
+    "puducherry": { lat: 11.9416, lng: 79.8083 },
+    "pondicherry": { lat: 11.9416, lng: 79.8083 }, // Old name
+  },
+  PK: {
+    // Pakistan provinces and territories
+    "punjab": { lat: 31.1704, lng: 72.7097 },
+    "sindh": { lat: 25.8943, lng: 68.5247 },
+    "sind": { lat: 25.8943, lng: 68.5247 },
+    "khyber pakhtunkhwa": { lat: 34.9526, lng: 72.3311 },
+    "khyber-pakhtunkhwa": { lat: 34.9526, lng: 72.3311 },
+    "khyberpakhtunkhwa": { lat: 34.9526, lng: 72.3311 },
+    "khaibar pakhtunkhwa": { lat: 34.9526, lng: 72.3311 }, // Alternative spelling with 'i'
+    "khaibar-pakhtunkhwa": { lat: 34.9526, lng: 72.3311 },
+    "khaibarpakhtunkhwa": { lat: 34.9526, lng: 72.3311 },
+    "kpk": { lat: 34.9526, lng: 72.3311 }, // Acronym
+    "nwfp": { lat: 34.9526, lng: 72.3311 }, // Old name
+    "north-west frontier province": { lat: 34.9526, lng: 72.3311 },
+    "balochistan": { lat: 28.6139, lng: 65.3479 },
+    "baluchistan": { lat: 28.6139, lng: 65.3479 },
+    "gilgit-baltistan": { lat: 35.8186, lng: 74.5980 },
+    "gilgit baltistan": { lat: 35.8186, lng: 74.5980 },
+    "azad kashmir": { lat: 33.9259, lng: 73.7804 },
+    "azad jammu and kashmir": { lat: 33.9259, lng: 73.7804 },
+    "ajk": { lat: 33.9259, lng: 73.7804 }, // Acronym
+    "islamabad": { lat: 33.6844, lng: 73.0479 },
+    "islamabad capital territory": { lat: 33.6844, lng: 73.0479 },
+    "federally administered tribal areas": { lat: 32.7167, lng: 70.0000 },
+    "fata": { lat: 32.7167, lng: 70.0000 },
   },
   MX: {
     "mexico city": { lat: 19.4326, lng: -99.1332 },
@@ -179,6 +251,35 @@ const stateCoordinates: Record<string, Record<string, { lat: number; lng: number
     "valparaíso": { lat: -33.0472, lng: -71.6127 },
     "valparaiso": { lat: -33.0472, lng: -71.6127 },
     "biobío": { lat: -37.4689, lng: -72.3527 },
+  },
+  SE: {
+    "stockholm": { lat: 59.3293, lng: 18.0686 },
+    "göteborg": { lat: 57.7089, lng: 11.9746 },
+    "malmö": { lat: 55.6050, lng: 13.0038 },
+    "uppsala": { lat: 59.8586, lng: 17.6389 },
+    "västerås": { lat: 59.6162, lng: 16.5528 },
+    "örebro": { lat: 59.2741, lng: 15.2066 },
+    "linköping": { lat: 58.4108, lng: 15.6214 },
+    "helsingborg": { lat: 56.0465, lng: 12.6945 },
+    "jönköping": { lat: 57.7826, lng: 14.1618 },
+    "norrköping": { lat: 58.5877, lng: 16.1924 },
+    "lund": { lat: 55.7047, lng: 13.1910 },
+    "umeå": { lat: 63.8258, lng: 20.2630 },
+    "gävle": { lat: 60.6749, lng: 17.1413 },
+    "borås": { lat: 57.7210, lng: 12.9401 },
+    "södertälje": { lat: 59.1955, lng: 17.6253 },
+  },
+  FI: {
+    "helsinki": { lat: 60.1699, lng: 24.9384 },
+    "espoo": { lat: 60.2055, lng: 24.6559 },
+    "tampere": { lat: 61.4991, lng: 23.7871 },
+    "vantaa": { lat: 60.2934, lng: 25.0378 },
+    "oulu": { lat: 65.0121, lng: 25.4651 },
+    "turku": { lat: 60.4518, lng: 22.2666 },
+    "jyväskylä": { lat: 62.2426, lng: 25.7473 },
+    "lahti": { lat: 60.9827, lng: 25.6612 },
+    "kuopio": { lat: 62.8924, lng: 27.6780 },
+    "pori": { lat: 61.4847, lng: 21.7972 },
   },
 };
 
@@ -262,6 +363,8 @@ export async function GET(
 
     // First, add all states from the predefined list (even if empty)
     for (const regionName of regionsList) {
+      console.log(`[${code.toUpperCase()}] Processing region: "${regionName}"`);
+      
       // Check if we have nonnas for this state
       // We need to check case-insensitive matching against keys in stateMap
       let matchingStateName = "";
@@ -274,15 +377,74 @@ export async function GET(
 
       const nonnas = matchingStateName ? stateMap.get(matchingStateName)! : [];
 
-      // Get coordinates for the region determine center
-      // Try exact match or lower case match from our coordinates map
-      const coords = stateCoords[regionName.toLowerCase()] ||
-        stateCoords[regionName] ||
-      // Fallback to deterministic offset if no coords found
-      {
-        lat: countryInfo.lat + hashStringToOffset(`${code.toUpperCase()}-${regionName}`).latOffset,
-        lng: countryInfo.lng + hashStringToOffset(`${code.toUpperCase()}-${regionName}`).lngOffset
-      };
+      // First try hardcoded coordinates (most reliable)
+      let coords: { lat: number; lng: number } | undefined;
+      let placeId: string | undefined;
+      
+      const normalizedRegion = normalizeRegionName(regionName);
+      
+      // Try exact normalized match in hardcoded coordinates
+      for (const [key, value] of Object.entries(stateCoords)) {
+        if (normalizeRegionName(key) === normalizedRegion) {
+          coords = value;
+          console.log(`  ✓ Found hardcoded coords for "${regionName}" → (${value.lat}, ${value.lng})`);
+          break;
+        }
+      }
+
+      // If no exact match, try partial matching in hardcoded coordinates
+      if (!coords) {
+        for (const [key, value] of Object.entries(stateCoords)) {
+          const normalizedKey = normalizeRegionName(key);
+          if (normalizedKey.includes(normalizedRegion) || normalizedRegion.includes(normalizedKey)) {
+            coords = value;
+            console.log(`  ✓ Partial match hardcoded coords for "${regionName}" → "${key}" → (${value.lat}, ${value.lng})`);
+            break;
+          }
+        }
+      }
+      
+      // Fall back to Google Geocoding API if no hardcoded coords
+      if (!coords) {
+        try {
+          // Use components parameter to restrict search to the specific country
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(regionName)}&components=country:${code.toUpperCase()}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+          const geocodeRes = await fetch(geocodeUrl);
+          const geocodeData = await geocodeRes.json();
+          
+          if (geocodeData.status === 'OK' && geocodeData.results.length > 0) {
+            // Find the result that's an administrative area (state/province)
+            let result = geocodeData.results.find((r: any) => 
+              r.types?.includes('administrative_area_level_1') ||
+              r.types?.includes('administrative_area_level_2')
+            ) || geocodeData.results[0];
+            
+            const location = result.geometry.location;
+            coords = {
+              lat: location.lat,
+              lng: location.lng
+            };
+            placeId = result.place_id;
+            console.log(`  ✓ Geocoded "${regionName}" in ${code} → (${coords.lat}, ${coords.lng}) [${result.formatted_address}]`);
+          } else {
+            console.log(`  ✗ Geocoding failed for "${regionName}" in ${code}: ${geocodeData.status}`);
+          }
+        } catch (error) {
+          console.warn(`  ✗ Geocoding error for ${regionName}, ${countryName}:`, error);
+        }
+      }
+
+      // Final fallback to deterministic offset if geocoding fails
+      if (!coords) {
+        const offset = hashStringToOffset(`${code.toUpperCase()}-${regionName}`);
+        coords = {
+          lat: countryInfo.lat + offset.latOffset,
+          lng: countryInfo.lng + offset.lngOffset
+        };
+        console.log(`  ⚠ Using hash-based fallback for "${regionName}" → (${coords.lat}, ${coords.lng})`);
+      }
+
+      console.log(`  → Final coordinates for "${regionName}": (${coords.lat}, ${coords.lng})\n`);
 
       states.push({
         stateName: regionName,
@@ -290,6 +452,7 @@ export async function GET(
         lng: coords.lng,
         nonnaCount: nonnas.length,
         nonnas: nonnas,
+        placeId: placeId, // Include place ID for accurate boundary matching
       });
 
       // Remove from map to track which ones we've processed

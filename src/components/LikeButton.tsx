@@ -68,17 +68,18 @@ export default function LikeButton({
         <button
             onClick={handleLike}
             disabled={isLoading}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all ${liked
-                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`flex items-center gap-1 px-2 py-1 rounded transition-all ${
+                liked
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-red-400'
+            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={isAuthenticated ? (liked ? 'Unlike' : 'Like') : 'Sign in to like'}
         >
             <Heart
-                className={`w-4 h-4 ${liked ? 'fill-current' : ''}`}
+                className={`w-3.5 h-3.5 transition-all ${liked ? 'fill-current scale-110' : ''}`}
                 strokeWidth={2}
             />
-            <span className="text-sm font-medium">{count}</span>
+            <span className="text-xs font-medium">{count}</span>
         </button>
     )
 }

@@ -59,7 +59,7 @@ export const convertRecipesToPages = (
               content={`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}
             />
           </div>
-          <div className="flex gap-3 items-center flex-wrap justify-around w-full h-[35%]">
+          <div className="flex flex-row gap-3 items-center flex-wrap justify-around w-full h-[35%]">
             <div className="max-w-[110px] flex flex-col items-center gap-1">
               <FlagIcon
                 code={

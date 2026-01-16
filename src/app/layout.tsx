@@ -37,7 +37,7 @@ export default async function RootLayout({
       <body>
       <Script
           id="google-maps"
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`}
           strategy="beforeInteractive"
         />
         <NextIntlClientProvider locale={locale} messages={messages}>
