@@ -33,7 +33,6 @@ export default function ThreadView({
     const [posts, setPosts] = useState<Post[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [replyToPostId, setReplyToPostId] = useState<number | null>(null)
     const [replyContent, setReplyContent] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     // Add a key that changes each time to force refetch
@@ -71,7 +70,7 @@ export default function ThreadView({
         setFetchKey(Date.now())
     }, [])
 
-    const handleReply = async (parentPostId?: number) => {
+    const handleReply = async () => {
         if (!replyContent.trim()) return
 
         setIsSubmitting(true)
@@ -84,7 +83,7 @@ export default function ThreadView({
                 },
                 body: JSON.stringify({
                     thread_id: threadId,
-                    parent_post_id: parentPostId || null,
+                    parent_post_id: null, // Top-level reply only
                     content: replyContent,
                 }),
             })
@@ -92,13 +91,9 @@ export default function ThreadView({
             if (!response.ok) throw new Error('Failed to create reply')
 
             const newPost = await response.json()
+            // Optimistically add to posts
             setPosts([...posts, newPost])
             setReplyContent('')
-            setReplyToPostId(null)
-            console.log(replyToPostId)
-
-            // Refetch thread data to update like counts and posts
-            setFetchKey(Date.now())
         } catch (error) {
             console.error('Error creating reply:', error)
         } finally {
@@ -114,6 +109,26 @@ export default function ThreadView({
     const handlePostDelete = () => {
         // Refetch thread data to remove deleted post
         setFetchKey(Date.now())
+    }
+
+    // Handle inline reply submission (for nested replies)
+    const handleReplySubmit = async (parentPostId: number, content: string): Promise<Post> => {
+        const response = await fetch('/api/posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                thread_id: threadId,
+                parent_post_id: parentPostId,
+                content: content,
+            }),
+        })
+
+        if (!response.ok) throw new Error('Failed to create reply')
+
+        const newPost = await response.json()
+        return newPost
     }
 
     const formatDate = (date: Date | null) => {
@@ -221,20 +236,10 @@ export default function ThreadView({
 
             {/* Reply Form */}
             <div className="bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-xl p-4 mb-4">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-amber-400" />
-                        {replyToPostId ? `Replying to post #${replyToPostId}` : 'Reply to this discussion'}
-                    </h2>
-                    {replyToPostId && (
-                        <button
-                            onClick={() => setReplyToPostId(null)}
-                            className="text-xs text-gray-400 hover:text-amber-400 transition-colors"
-                        >
-                            Cancel reply
-                        </button>
-                    )}
-                </div>
+                <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-amber-400" />
+                    Reply to this discussion
+                </h2>
                 <textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
@@ -253,7 +258,7 @@ export default function ThreadView({
                         {replyContent.length}/5000
                     </span>
                     <button
-                        onClick={() => handleReply(replyToPostId || undefined)}
+                        onClick={() => handleReply()}
                         disabled={!isAuthenticated || !replyContent.trim() || isSubmitting}
                         className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm rounded-lg hover:from-amber-400 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 disabled:shadow-none flex items-center gap-2"
                     >
@@ -290,9 +295,9 @@ export default function ThreadView({
                             threadId={threadId}
                             currentUserId={currentUserId}
                             isAuthenticated={isAuthenticated}
-                            onReply={setReplyToPostId}
                             onEdit={handlePostEdit}
                             onDelete={handlePostDelete}
+                            onReplySubmit={handleReplySubmit}
                         />
                     ))
                 )}

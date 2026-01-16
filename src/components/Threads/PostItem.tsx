@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Post } from '@/db/schema'
 import LikeButton from '../LikeButton'
-import { Reply, Trash2, Edit2, User, Loader2, Check, X } from 'lucide-react'
+import { Reply, Trash2, Edit2, User, Loader2, Check, X, Send } from 'lucide-react'
 
 interface PostItemProps {
     post: Post & { replies?: PostItemProps['post'][] }
@@ -13,6 +13,7 @@ interface PostItemProps {
     onReply?: (postId: number) => void
     onDelete?: (postId: number) => void
     onEdit?: (postId: number, content: string) => void
+    onReplySubmit?: (parentPostId: number, content: string) => Promise<Post>
 }
 
 export default function PostItem({
@@ -23,10 +24,17 @@ export default function PostItem({
     onReply,
     onDelete,
     onEdit,
+    onReplySubmit,
 }: PostItemProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [editContent, setEditContent] = useState(post.content)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Inline reply form state
+    const [showReplyForm, setShowReplyForm] = useState(false)
+    const [replyContent, setReplyContent] = useState('')
+    const [isReplySubmitting, setIsReplySubmitting] = useState(false)
+    const [localReplies, setLocalReplies] = useState<Post[]>(post.replies || [])
 
     const isOwner = currentUserId === post.user_id
     const canReply = (post.depth || 0) < 5
@@ -75,6 +83,23 @@ export default function PostItem({
         }
     }
 
+    const handleInlineReply = async () => {
+        if (!replyContent.trim() || !onReplySubmit) return
+
+        setIsReplySubmitting(true)
+        try {
+            const newPost = await onReplySubmit(post.id, replyContent)
+            // Optimistically add the new reply to local state
+            setLocalReplies([...localReplies, newPost])
+            setReplyContent('')
+            setShowReplyForm(false)
+        } catch (error) {
+            console.error('Error posting reply:', error)
+        } finally {
+            setIsReplySubmitting(false)
+        }
+    }
+
     const formatDate = (date: Date | null) => {
         if (!date) return ''
         const now = new Date()
@@ -88,7 +113,7 @@ export default function PostItem({
         if (diffMins < 60) return `${diffMins}m ago`
         if (diffHours < 24) return `${diffHours}h ago`
         if (diffDays < 7) return `${diffDays}d ago`
-        
+
         return postDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -188,23 +213,60 @@ export default function PostItem({
                             likeableType="post"
                             isAuthenticated={isAuthenticated}
                         />
-                        {canReply && onReply && (
+                        {canReply && (
                             <button
-                                onClick={() => onReply(post.id)}
+                                onClick={() => setShowReplyForm(!showReplyForm)}
                                 className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 text-gray-400 hover:bg-white/10 hover:text-amber-400 transition-all text-xs font-medium"
                             >
                                 <Reply className="w-3 h-3" />
-                                <span>Reply</span>
+                                <span>{showReplyForm ? 'Cancel' : 'Reply'}</span>
                             </button>
                         )}
                     </div>
                 )}
             </div>
 
+            {/* Inline Reply Form */}
+            {showReplyForm && (
+                <div className="mt-3 ml-3 bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-lg p-3">
+                    <textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        maxLength={5000}
+                        rows={3}
+                        placeholder={isAuthenticated ? 'Write your reply...' : 'Sign in to reply'}
+                        disabled={!isAuthenticated}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <div className="flex justify-between items-center">
+                        <span className={`text-xs ${replyContent.length > 4500 ? 'text-amber-400' : 'text-gray-500'}`}>
+                            {replyContent.length}/5000
+                        </span>
+                        <button
+                            onClick={handleInlineReply}
+                            disabled={!isAuthenticated || !replyContent.trim() || isReplySubmitting}
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-lg hover:from-amber-400 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 disabled:shadow-none flex items-center gap-1.5"
+                        >
+                            {isReplySubmitting ? (
+                                <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Posting...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="w-3 h-3" />
+                                    Post Reply
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Nested Replies */}
-            {post.replies && post.replies.length > 0 && (
+            {localReplies && localReplies.length > 0 && (
                 <div className="mt-2 border-l-2 border-amber-500/20">
-                    {post.replies.map((reply) => (
+                    {localReplies.map((reply) => (
                         <PostItem
                             key={reply.id}
                             post={reply}
@@ -214,6 +276,7 @@ export default function PostItem({
                             onReply={onReply}
                             onDelete={onDelete}
                             onEdit={onEdit}
+                            onReplySubmit={onReplySubmit}
                         />
                     ))}
                 </div>
