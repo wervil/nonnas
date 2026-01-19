@@ -1267,7 +1267,7 @@ export default function GoogleContinentCountryMap({
           heading: 0,
           streetViewControl: false,
           fullscreenControl: false,
-          mapTypeControl: true, // Enable so user can switch if needed
+          mapTypeControl: false, // Disable so user cannot switch
           zoomControl: true, // Enable zoom controls
           scrollwheel: true, // Enable scroll wheel zoom
           disableDoubleClickZoom: false, // Enable double-click zoom
