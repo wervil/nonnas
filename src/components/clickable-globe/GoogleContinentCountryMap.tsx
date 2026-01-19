@@ -182,6 +182,9 @@ export default function GoogleContinentCountryMap({
   const mapInitializedRef = useRef(false); // Track if map has finished initial setup
   const ignoreZoomChangeRef = useRef(false); // Track if we should ignore zoom changes (e.g. during programmatic moves)
   const pendingZoomTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track pending zoom timeouts to cancel them
+  
+  // FIX: Track currently highlighted state globally to prevent conflicts
+  const currentlyHighlightedStateRef = useRef<string | null>(null);
 
   const [drill, setDrill] = useState<Drill>("continent");
   const [selectedCountry, setSelectedCountry] = useState<{ code: string; name: string } | null>(null);
@@ -213,6 +216,17 @@ export default function GoogleContinentCountryMap({
   useEffect(() => {
     stateDataRef.current = stateData;
   }, [stateData]);
+
+  // Refs to always have access to latest drill and selectedState in closures
+  const drillRef = useRef<Drill>(drill);
+  useEffect(() => {
+    drillRef.current = drill;
+  }, [drill]);
+
+  const selectedStateRef = useRef<string | null>(selectedState);
+  useEffect(() => {
+    selectedStateRef.current = selectedState;
+  }, [selectedState]);
 
   const theme = REGION_THEMES[selectedContinent] || REGION_THEMES.Europe;
 
@@ -270,6 +284,50 @@ export default function GoogleContinentCountryMap({
       .trim()
       .replace(/[^a-z0-9]/g, ''); // Remove all non-alphanumeric characters
   }, []);
+
+  // NEW: Fuzzy state matching function to handle name variations
+  const findMatchingState = useCallback((
+    geoJsonStateName: string,
+    stateDataList: StateData[]
+  ): StateData | undefined => {
+    if (!geoJsonStateName || geoJsonStateName === 'Unknown') return undefined;
+    
+    const normalized = normalizeStateName(geoJsonStateName);
+    
+    // 1. Try exact match
+    let match = stateDataList.find(s => 
+      normalizeStateName(s.stateName) === normalized
+    );
+    if (match) {
+      console.log(`✓ Exact match: "${geoJsonStateName}" = "${match.stateName}"`);
+      return match;
+    }
+    
+    // 2. Try contains match
+    match = stateDataList.find(s => {
+      const n = normalizeStateName(s.stateName);
+      return n.includes(normalized) || normalized.includes(n);
+    });
+    if (match) {
+      console.log(`✓ Contains match: "${geoJsonStateName}" ≈ "${match.stateName}"`);
+      return match;
+    }
+    
+    // 3. Clean common suffixes and try again
+    const cleanedGeoJson = normalized.replace(/(state|province|territory)$/, '');
+    match = stateDataList.find(s => {
+      const cleanedApi = normalizeStateName(s.stateName).replace(/(state|province)$/, '');
+      return cleanedApi === cleanedGeoJson;
+    });
+    if (match) {
+      console.log(`✓ Suffix match: "${geoJsonStateName}" ≈ "${match.stateName}"`);
+      return match;
+    }
+    
+    console.warn(`✗ No match found for: "${geoJsonStateName}"`);
+    console.log('   Available states:', stateDataList.map(s => s.stateName).slice(0, 10).join(', '), '...');
+    return undefined;
+  }, [normalizeStateName]);
 
   // Check URL for country parameter (for testing)
   useEffect(() => {
@@ -359,6 +417,9 @@ export default function GoogleContinentCountryMap({
     }
     // Also clear state labels when clearing state layer
     clearStateLabels();
+    
+    // FIX: Clear the currently highlighted state ref
+    currentlyHighlightedStateRef.current = null;
   }, [clearStateLabels]);
 
   // Cache for GeoJSON data to avoid re-fetching
@@ -410,37 +471,42 @@ export default function GoogleContinentCountryMap({
     let matchedFeature: google.maps.Data.Feature | null = null;
 
     stateLayer.forEach((feature) => {
-      // Try multiple possible property names
-      const possibleNames = [
-        feature.getProperty('name'),
-        feature.getProperty('NAME'),
-        feature.getProperty('NAME_1'),
-        feature.getProperty('admin_name'),
-        feature.getProperty('ADMIN_NAME'),
-      ].filter(Boolean);
-
-      for (const name of possibleNames) {
-        const normalized = normalizeStateName(String(name || ''));
-        if (normalized === normalizedTarget) {
-          matchedFeature = feature;
-          return; // Break forEach
-        }
+      // Your API standardizes to 'name' property only
+      const featureName = String(feature.getProperty('name') || '');
+      
+      const normalized = normalizeStateName(featureName);
+      if (normalized === normalizedTarget) {
+        matchedFeature = feature;
+        return; // Break forEach
       }
     });
 
     return matchedFeature;
   }, [normalizeStateName]);
 
-  // IMPROVED: Helper function to highlight a state by name
+  // FIX: Improved highlight function with better cleanup
   const highlightState = useCallback((
     stateLayer: google.maps.Data,
     stateName: string,
     shouldHighlight: boolean
   ) => {
+    if (!stateName) return;
+    
     const feature = findStateFeature(stateLayer, stateName);
 
     if (feature) {
       if (shouldHighlight) {
+        // First, unhighlight any previously highlighted state
+        const previouslyHighlighted = currentlyHighlightedStateRef.current;
+        if (previouslyHighlighted && previouslyHighlighted !== stateName) {
+          const prevFeature = findStateFeature(stateLayer, previouslyHighlighted);
+          if (prevFeature) {
+            stateLayer.revertStyle(prevFeature);
+            console.log(`✓ Cleaned up previous highlight: ${previouslyHighlighted}`);
+          }
+        }
+        
+        // Now highlight the new state
         stateLayer.overrideStyle(feature, {
           fillColor: MARKER_COLOR,
           fillOpacity: 0.4,
@@ -448,9 +514,13 @@ export default function GoogleContinentCountryMap({
           strokeWeight: 5,
           strokeOpacity: 1.0,
         });
+        currentlyHighlightedStateRef.current = stateName;
         console.log(`✓ Highlighted state: ${stateName}`);
       } else {
         stateLayer.revertStyle(feature);
+        if (currentlyHighlightedStateRef.current === stateName) {
+          currentlyHighlightedStateRef.current = null;
+        }
         console.log(`✓ Unhighlighted state: ${stateName}`);
       }
     } else {
@@ -571,20 +641,13 @@ export default function GoogleContinentCountryMap({
         };
       });
 
-      // Track selected state name for persistent highlighting
-      let currentSelectedState: string | null = null;
-
-      // Add hover effects - but don't override if it's the selected state
+      // FIX: Add hover effects - but respect currently highlighted state
       stateLayer.addListener('mouseover', (event: google.maps.Data.MouseEvent) => {
-        const hoveredName = String(
-          event.feature.getProperty('name') ||
-          event.feature.getProperty('NAME') ||
-          event.feature.getProperty('NAME_1') ||
-          ''
-        );
+        // Your API standardizes to 'name' property only
+        const hoveredName = String(event.feature.getProperty('name') || '');
 
-        // Don't change style if this is the selected state (it's already highlighted)
-        if (normalizeStateName(hoveredName) === normalizeStateName(currentSelectedState || '')) return;
+        // Don't change style if this is the currently highlighted state
+        if (normalizeStateName(hoveredName) === normalizeStateName(currentlyHighlightedStateRef.current || '')) return;
 
         stateLayer.overrideStyle(event.feature, {
           fillColor: MARKER_COLOR,
@@ -595,29 +658,21 @@ export default function GoogleContinentCountryMap({
       });
 
       stateLayer.addListener('mouseout', (event: google.maps.Data.MouseEvent) => {
-        const hoveredName = String(
-          event.feature.getProperty('name') ||
-          event.feature.getProperty('NAME') ||
-          event.feature.getProperty('NAME_1') ||
-          ''
-        );
+        // Your API standardizes to 'name' property only
+        const hoveredName = String(event.feature.getProperty('name') || '');
 
-        // Don't revert style if this is the selected state (keep it highlighted)
-        if (normalizeStateName(hoveredName) === normalizeStateName(currentSelectedState || '')) return;
+        // Don't revert style if this is the currently highlighted state
+        if (normalizeStateName(hoveredName) === normalizeStateName(currentlyHighlightedStateRef.current || '')) return;
 
         stateLayer.revertStyle(event.feature);
       });
 
-      // IMPROVED: Add click handler with better state matching
+      // FIX: Improved click handler with better state switching
       stateLayer.addListener('click', async (event: google.maps.Data.MouseEvent) => {
-        const stateName = String(
-          event.feature.getProperty('name') ||
-          event.feature.getProperty('NAME') ||
-          event.feature.getProperty('NAME_1') ||
-          'Unknown State'
-        );
+        // Your API standardizes to 'name' property only - read it directly
+        const stateName = String(event.feature.getProperty('name') || 'Unknown State');
 
-        console.log(`🖱️ Clicked state: ${stateName}`);
+        console.log(`🖱️ Clicked state boundary: ${stateName}`);
 
         // IMPORTANT: Cancel any pending country zoom timeout
         if (pendingZoomTimeoutRef.current) {
@@ -626,16 +681,10 @@ export default function GoogleContinentCountryMap({
           pendingZoomTimeoutRef.current = null;
         }
 
-        // Unhighlight previously selected state
-        if (currentSelectedState && currentSelectedState !== stateName) {
-          highlightState(stateLayer, currentSelectedState, false);
-        }
-
-        // Set new selected state and highlight it
-        currentSelectedState = stateName;
+        // Set new selected state
         setSelectedState(stateName);
 
-        // Highlight immediately
+        // Highlight immediately (this will also unhighlight previous state)
         highlightState(stateLayer, stateName, true);
 
         // Find matching state data
@@ -694,7 +743,8 @@ export default function GoogleContinentCountryMap({
       // Create state name labels at centroids
       clearStateLabels();
       for (const feature of geojson.features) {
-        const stateName = feature.properties?.name || feature.properties?.NAME || feature.properties?.NAME_1 || '';
+        // Your API standardizes to 'name' property only
+        const stateName = String(feature.properties?.name || '');
         if (!stateName) continue;
 
         const centroid = calculateCentroid(feature);
@@ -909,7 +959,7 @@ export default function GoogleContinentCountryMap({
     }
   }, [countryData, clearMarkers, fetchStateData, loadStateBoundaries, drill]);
 
-  // IMPROVED: State marker click handler - extracted for reuse
+  // FIX: Completely rewritten state marker click handler
   const handleStateMarkerClick = useCallback(async (
     state: { stateName: string; lat: number; lng: number; nonnaCount: number; nonnas: Nonna[] },
     stateName: string,
@@ -921,29 +971,34 @@ export default function GoogleContinentCountryMap({
 
     console.log(`🖱️ Clicked state marker: ${stateName}`);
 
+    // IMPORTANT: Cancel any pending country zoom timeout
+    if (pendingZoomTimeoutRef.current) {
+      console.log(`❌ Cancelling pending zoom timeout`);
+      clearTimeout(pendingZoomTimeoutRef.current);
+      pendingZoomTimeoutRef.current = null;
+    }
+
+    // FIX: Always set the new selected state (don't check old state)
+    setSelectedState(stateName);
+    
+    // FIX: Always highlight the new state (unhighlighting of old state happens automatically in highlightState)
+    const stateLayer = stateLayerRef.current;
+    if (stateLayer) {
+      highlightState(stateLayer, stateName, true);
+    }
+
+    // Always transition to state drill level
+    setIsTransitioning(true);
+    setDrill("state");
+
+    // Prevent zoom listener from interfering
+    ignoreZoomChangeRef.current = true;
+
     try {
-      // IMPORTANT: Cancel any pending country zoom timeout
-      if (pendingZoomTimeoutRef.current) {
-        console.log(`❌ Cancelling pending zoom timeout`);
-        clearTimeout(pendingZoomTimeoutRef.current);
-        pendingZoomTimeoutRef.current = null;
-      }
-
-      // Set selected state for persistent highlighting
-      setSelectedState(stateName);
-
-      setIsTransitioning(true);
-      setDrill("state");
-
-      // Prevent zoom listener from interfering
-      ignoreZoomChangeRef.current = true;
-
-      // IMPROVED: Use the stateLayer to highlight and zoom if available
-      const stateLayer = stateLayerRef.current;
+      // IMPROVED: Use the stateLayer to zoom if available
       if (stateLayer) {
-        console.log(`Using state layer for highlight and zoom`);
-        highlightState(stateLayer, stateName, true);
-
+        console.log(`Using state layer for zoom`);
+        
         // Small delay to ensure highlight renders
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -967,6 +1022,7 @@ export default function GoogleContinentCountryMap({
         setIsTransitioning(false);
       }, 1000);
 
+      // Update panel
       setPanel({
         open: true,
         region: stateName,
@@ -986,6 +1042,7 @@ export default function GoogleContinentCountryMap({
       });
 
       setIsTransitioning(false);
+      ignoreZoomChangeRef.current = false;
     }
   }, [highlightState, zoomToState]);
 
@@ -997,10 +1054,45 @@ export default function GoogleContinentCountryMap({
       const stateName = state.stateName;
       const count = state.nonnaCount;
 
-      // Skip states with 0 Nonnas - don't show empty markers
+      // FIX: Create invisible clickable markers for states with 0 Nonnas
       if (count === 0) {
-        continue;
+        const infoWindow = new google.maps.InfoWindow({
+          content: `<div style="padding: 8px; font-family: Arial, sans-serif;">
+            <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">No Nonnas yet</div>
+            <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to start discussion</div>
+          </div>`,
+          disableAutoPan: true,
+        });
+
+        const emptyStateMarker = new google.maps.Marker({
+          map,
+          position: { lat: state.lat, lng: state.lng },
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 0.1,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            strokeWeight: 0,
+          },
+          title: `${stateName}: No Nonnas yet - Click to start discussion`,
+          zIndex: 50,
+          clickable: true,
+          optimized: false,
+        });
+
+        emptyStateMarker.addListener("click", () => {
+          handleStateMarkerClick(state, stateName, country, map, infoWindow);
+        });
+
+        markersRef.current.push(emptyStateMarker);
+        continue; // Skip creating the visible marker
       }
+
+      // Skip states with 0 Nonnas - don't show empty markers
+      // if (count === 0) {
+      //   continue;
+      // }
 
       const size = Math.min(56, Math.max(40, 32 + count * 4));
 
@@ -1051,7 +1143,10 @@ export default function GoogleContinentCountryMap({
         // Highlight the state boundary on the GeoJSON layer
         const stateLayer = stateLayerRef.current;
         if (stateLayer) {
-          highlightState(stateLayer, stateName, true);
+          // FIX: Only highlight if it's not already the selected state
+          if (normalizeStateName(currentlyHighlightedStateRef.current || '') !== normalizeStateName(stateName)) {
+            highlightState(stateLayer, stateName, true);
+          }
         }
       });
 
@@ -1068,8 +1163,7 @@ export default function GoogleContinentCountryMap({
         });
         // Reset state boundary style ONLY if this state is not currently selected
         const stateLayer = stateLayerRef.current;
-        const isSelected = normalizeStateName(selectedState || '') === normalizeStateName(stateName);
-        if (stateLayer && !isSelected) {
+        if (stateLayer && normalizeStateName(currentlyHighlightedStateRef.current || '') !== normalizeStateName(stateName)) {
           highlightState(stateLayer, stateName, false);
         }
       });
@@ -1080,7 +1174,7 @@ export default function GoogleContinentCountryMap({
 
       markersRef.current.push(marker);
     }
-  }, [stateData, clearMarkers, handleStateMarkerClick, selectedState, highlightState, normalizeStateName]);
+  }, [stateData, clearMarkers, handleStateMarkerClick, highlightState, normalizeStateName]);
 
   // Create state markers from GeoJSON centroids (most accurate positioning)
   const createStateMarkersFromGeoJSON = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
@@ -1098,7 +1192,8 @@ export default function GoogleContinentCountryMap({
     console.log(`Creating markers from ${geojson.features.length} GeoJSON features`);
 
     for (const feature of geojson.features) {
-      const stateName = feature.properties?.name || feature.properties?.NAME || feature.properties?.NAME_1 || 'Unknown';
+      // Your API standardizes to 'name' property only - read it directly
+      const stateName = String(feature.properties?.name || 'Unknown');
 
       // Calculate centroid from geometry
       const centroid = calculateCentroid(feature);
@@ -1107,21 +1202,51 @@ export default function GoogleContinentCountryMap({
         continue;
       }
 
-      // IMPROVED: Find matching state data using normalized names
-      const normalizedStateName = normalizeStateName(String(stateName));
-      const matchedState = currentStateData.find(s => {
-        const normalizedApiName = normalizeStateName(s.stateName);
-        return normalizedApiName === normalizedStateName ||
-          normalizedApiName.includes(normalizedStateName) ||
-          normalizedStateName.includes(normalizedApiName);
-      });
+      // USE FUZZY MATCHING for better results
+      const matchedState = findMatchingState(stateName, currentStateData);
 
       const count = matchedState?.nonnaCount || 0;
 
-      // Skip states with 0 Nonnas - don't show empty markers
+      // FIX: Create invisible clickable markers for states with 0 Nonnas
       if (count === 0) {
-        continue;
+        // Create a minimal, nearly invisible marker that's still clickable
+        const emptyStateMarker = new google.maps.Marker({
+          map,
+          position: centroid,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 0.1, // Tiny invisible marker
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            strokeWeight: 0,
+          },
+          title: `${stateName}: No Nonnas yet - Click to start discussion`,
+          zIndex: 50, // Lower than states with content
+          clickable: true,
+          optimized: false,
+        });
+
+        // Create a state object for click handler
+        const stateForClick = {
+          stateName: String(stateName),
+          lat: centroid.lat,
+          lng: centroid.lng,
+          nonnaCount: 0,
+          nonnas: []
+        };
+
+        emptyStateMarker.addListener("click", () => {
+          handleStateMarkerClick(stateForClick, String(stateName), country, map, new google.maps.InfoWindow());
+        });
+
+        markersRef.current.push(emptyStateMarker);
+        continue; // Skip creating the visible marker
       }
+
+      // Skip states with 0 Nonnas - don't show empty markers
+      // if (count === 0) {
+      //   continue;
+      // }
 
       // Determine size based on count
       const size = Math.min(56, Math.max(40, 32 + count * 4));
@@ -1176,7 +1301,10 @@ export default function GoogleContinentCountryMap({
         // Highlight the state boundary on the GeoJSON layer
         const stateLayer = stateLayerRef.current;
         if (stateLayer) {
-          highlightState(stateLayer, String(stateName), true);
+          // FIX: Only highlight if it's not already the selected state
+          if (normalizeStateName(currentlyHighlightedStateRef.current || '') !== normalizeStateName(String(stateName))) {
+            highlightState(stateLayer, String(stateName), true);
+          }
         }
       });
 
@@ -1194,8 +1322,7 @@ export default function GoogleContinentCountryMap({
         });
         // Reset state boundary style ONLY if this state is not currently selected
         const stateLayer = stateLayerRef.current;
-        const isSelected = normalizeStateName(selectedState || '') === normalizeStateName(String(stateName));
-        if (stateLayer && !isSelected) {
+        if (stateLayer && normalizeStateName(currentlyHighlightedStateRef.current || '') !== normalizeStateName(String(stateName))) {
           highlightState(stateLayer, String(stateName), false);
         }
       });
@@ -1217,7 +1344,7 @@ export default function GoogleContinentCountryMap({
     }
 
     console.log(`✓ Created ${markersRef.current.length} state markers from GeoJSON centroids`);
-  }, [clearMarkers, calculateCentroid, handleStateMarkerClick, createStateMarkersFromAPI, selectedState, highlightState, normalizeStateName]);
+  }, [clearMarkers, calculateCentroid, handleStateMarkerClick, createStateMarkersFromAPI, highlightState, normalizeStateName]);
 
   // Main function to create state markers - uses GeoJSON centroids if available
   const createStateMarkers = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
@@ -1418,7 +1545,7 @@ export default function GoogleContinentCountryMap({
           };
         });
 
-        // Country click handler
+        // Country click handler - now works at country AND state levels
         dataLayer.addListener("click", async (e: google.maps.Data.MouseEvent) => {
           if (!isFeatureInRegion(e.feature)) return;
 
@@ -1427,6 +1554,73 @@ export default function GoogleContinentCountryMap({
             (e.feature.getProperty("NAME") as string | undefined) ?? "";
 
           if (!iso2 || !countryName) return;
+
+          // If clicking the same country at country level, do nothing
+          if (drill === "country" && selectedCountry?.code === iso2) {
+            console.log('Already viewing this country');
+            return;
+          }
+
+          // If at state level and clicking the same country, go back to country view
+          if (drill === "state" && selectedCountry?.code === iso2) {
+            console.log('Clicking same country from state level - going back to country view (NO RELOAD)');
+            
+            // CRITICAL FIX: Don't reload anything, just zoom out and update state
+            // FIX: Clear state highlighting properly
+            if (currentlyHighlightedStateRef.current && stateLayerRef.current) {
+              highlightState(stateLayerRef.current, currentlyHighlightedStateRef.current, false);
+            }
+            setSelectedState(null);
+            setDrill("country");
+            setIsTransitioning(true);
+
+            // Zoom back to country bounds WITHOUT reloading layers or markers
+            const countryBounds = new google.maps.LatLngBounds();
+            e.feature.getGeometry()?.forEachLatLng((latLng) => countryBounds.extend(latLng));
+
+            // Cancel any pending zooms
+            if (pendingZoomTimeoutRef.current) {
+              clearTimeout(pendingZoomTimeoutRef.current);
+              pendingZoomTimeoutRef.current = null;
+            }
+
+            ignoreZoomChangeRef.current = true;
+            setTimeout(() => {
+              map.fitBounds(countryBounds, {
+                top: 100,
+                bottom: 80,
+                left: 40,
+                right: 500,
+              });
+              setTimeout(() => {
+                ignoreZoomChangeRef.current = false;
+                setIsTransitioning(false);
+              }, 1000);
+            }, 50);
+
+            // Update panel to country level
+            const allNonnas = stateData.flatMap(s => s.nonnas);
+            setPanel({
+              open: true,
+              region: iso2,
+              regionDisplayName: countryName,
+              scope: 'country',
+              nonnas: allNonnas,
+            });
+            return; // CRITICAL: Exit early - don't execute the "switching to different country" code below
+          }
+
+          // Switching to a different country (from country or state level)
+          console.log(`Switching to country: ${countryName} from drill level: ${drill}`);
+
+          // Clear state layer if coming from state level
+          if (drill === "state") {
+            clearStateLayer();
+            setSelectedState(null);
+          }
+
+          // Clear existing markers
+          clearMarkers();
 
           setSelectedCountry({ code: iso2, name: countryName });
           setIsTransitioning(true);
@@ -1623,12 +1817,14 @@ export default function GoogleContinentCountryMap({
       cancelled = true;
       cleanupRef.current?.();
       clearMarkers();
+      clearStateLayer();
       mapRef.current = null;
       dataLayerRef.current = null;
       continentBoundsRef.current = null;
       mapInitializedRef.current = false; // Reset for next map load
+      currentlyHighlightedStateRef.current = null; // FIX: Clean up highlight ref
     };
-  }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, searchParams, fetchStateData, loadStateBoundaries, onBackToGlobe]);
+  }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, clearStateLayer, searchParams, fetchStateData, loadStateBoundaries, onBackToGlobe, highlightState]);
 
   // State boundaries are now handled by the GeoJSON layer (loadStateBoundaries function)
   // No Feature Layer needed - it requires special Google Cloud Console configuration
@@ -1774,11 +1970,11 @@ export default function GoogleContinentCountryMap({
       // Clear current markers before switching to country view
       clearMarkers();
 
-      // IMPROVED: Clear selected state and unhighlight
-      if (selectedState) {
+      // FIX: Clear selected state and unhighlight
+      if (currentlyHighlightedStateRef.current) {
         const stateLayer = stateLayerRef.current;
         if (stateLayer) {
-          highlightState(stateLayer, selectedState, false);
+          highlightState(stateLayer, currentlyHighlightedStateRef.current, false);
         }
       }
       setSelectedState(null);

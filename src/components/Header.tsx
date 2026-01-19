@@ -78,18 +78,7 @@ export const Header = ({
         />
       </Link>
       <div className={`items-center gap-1 relative ${navVisibilityClass}`}>
-        {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
-        {!isExplorePage && (
-          <Link href="/explore">
-            <Image
-              src="/globe.svg"
-              width={30}
-              height={30}
-              alt="Explore"
-              className="cursor-pointer hover:opacity-80 transition-opacity"
-            />
-          </Link>
-        )}
+        
 
         {setSearch ? (
           <div className="flex items-center gap-1 border-2 border-green-dark rounded-l-full pl-2">
@@ -133,6 +122,19 @@ export const Header = ({
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
+          </Link>
+        )}
+
+        {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
+        {!isExplorePage && (
+          <Link href="/explore">
+            <Image
+              src="/globe.svg"
+              width={30}
+              height={30}
+              alt="Explore"
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+            />
           </Link>
         )}
 

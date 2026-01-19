@@ -4,6 +4,7 @@ import { recipes } from "@/db/schema";
 import { eq, and, ilike, or } from "drizzle-orm";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
 import { countriesData } from "@/utils/countries";
+import { getStateCentroid } from "@/lib/stateCoordinates";
 
 const db = drizzle(process.env.DATABASE_URL!);
 
@@ -25,23 +26,6 @@ export type NonnasByState = {
   }[];
 };
 
-// Type for Google Geocoding API result
-interface GeocodeResult {
-  formatted_address: string;
-  place_id: string;
-  geometry: {
-    location: {
-      lat: number;
-      lng: number;
-    };
-  };
-  types?: string[];
-}
-
-interface GeocodeResponse {
-  status: string;
-  results: GeocodeResult[];
-}
 
 // Generate a deterministic "random" offset based on a string (to avoid marker position changes on refresh)
 // Helper function to normalize region names for better matching
@@ -382,7 +366,7 @@ export async function GET(
     // First, add all states from the predefined list (even if empty)
     for (const regionName of regionsList) {
       console.log(`[${code.toUpperCase()}] Processing region: "${regionName}"`);
-      
+
       // Check if we have nonnas for this state
       // We need to check case-insensitive matching against keys in stateMap
       let matchingStateName = "";
@@ -398,9 +382,9 @@ export async function GET(
       // First try hardcoded coordinates (most reliable)
       let coords: { lat: number; lng: number } | undefined;
       let placeId: string | undefined;
-      
+
       const normalizedRegion = normalizeRegionName(regionName);
-      
+
       // Try exact normalized match in hardcoded coordinates
       for (const [key, value] of Object.entries(stateCoords)) {
         if (normalizeRegionName(key) === normalizedRegion) {
@@ -421,34 +405,13 @@ export async function GET(
           }
         }
       }
-      
-      // Fall back to Google Geocoding API if no hardcoded coords
+
+      // Try GeoJSON data if no hardcoded coords
       if (!coords) {
-        try {
-          // Use components parameter to restrict search to the specific country
-          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(regionName)}&components=country:${code.toUpperCase()}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-          const geocodeRes = await fetch(geocodeUrl);
-          const geocodeData = await geocodeRes.json() as GeocodeResponse;
-          
-          if (geocodeData.status === 'OK' && geocodeData.results.length > 0) {
-            // Find the result that's an administrative area (state/province)
-            const result = geocodeData.results.find((r: GeocodeResult) => 
-              r.types?.includes('administrative_area_level_1') ||
-              r.types?.includes('administrative_area_level_2')
-            ) || geocodeData.results[0];
-            
-            const location = result.geometry.location;
-            coords = {
-              lat: location.lat,
-              lng: location.lng
-            };
-            placeId = result.place_id;
-            console.log(`  ✓ Geocoded "${regionName}" in ${code} → (${coords.lat}, ${coords.lng}) [${result.formatted_address}]`);
-          } else {
-            console.log(`  ✗ Geocoding failed for "${regionName}" in ${code}: ${geocodeData.status}`);
-          }
-        } catch (error) {
-          console.warn(`  ✗ Geocoding error for ${regionName}, ${countryName}:`, error);
+        const geoJsonCoords = getStateCentroid(code.toUpperCase(), regionName);
+        if (geoJsonCoords) {
+          coords = geoJsonCoords;
+          console.log(`  ✓ Found GeoJSON coords for "${regionName}" → (${coords.lat}, ${coords.lng})`);
         }
       }
 
