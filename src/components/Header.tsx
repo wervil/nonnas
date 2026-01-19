@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
+import { Settings } from 'lucide-react'
 
 export const button = (path: string, n: (key: string) => string, hasAdminAccess: boolean) => {
   if (path === '/add-recipe') {
@@ -17,7 +18,7 @@ export const button = (path: string, n: (key: string) => string, hasAdminAccess:
       </Link>
     )
   }
-  if(hasAdminAccess){
+  if (hasAdminAccess) {
     return ("")
   }
   return (
@@ -37,6 +38,7 @@ type Props = {
   search?: string
   setSearch?: Dispatch<SetStateAction<string>>
   user?: CurrentUser | CurrentInternalUser | null
+  isExplorePage?: boolean
 }
 
 export const Header = ({
@@ -47,17 +49,45 @@ export const Header = ({
   search,
   setSearch,
   user,
+  isExplorePage = false,
 }: Props) => {
   const n = useTranslations('navigation')
   const path = usePathname()
 
+  // Dynamic classes based on page type
+  const headerBgClass = isExplorePage ? 'bg-black/80 backdrop-blur-sm' : 'bg-white'
+  const iconColorClass = isExplorePage ? 'text-white' : 'text-gray-700'
+  const imageFilterClass = isExplorePage ? 'text-white' : 'text-[#5f5f13]';
+  // const logoSrc = isExplorePage ? "/logoMain.svg" : "/logoMain.svg" // Keep same logo, maybe invert if needed? assuming logo looks ok or needs specific invert
+
   return (
-    <header className="flex items-center justify-center md:justify-between px-3 md:px-20 pt-3 bg-white gap-4">
-      <a className="shrink-0" href="https://nonnasoftheworld.org/">
-        {/* <Image src="/logo_community.svg" width={75} height={63} alt="logo" /> */}
-        <Image src="/logoMain.svg" width={120} height={90} alt="logo" />
-      </a>
+    <header className={`flex items-center justify-center md:justify-between px-3 md:px-20 pt-3 gap-4 ${headerBgClass}`}>
+      <Link className="shrink-0" href="/">
+        {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
+            Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
+            Assuming logoMain.svg handles dark mode or we apply filter. Let's apply partial filter for visibility if needed.
+        */}
+        <Image
+          src="/logoMain.svg"
+          width={120}
+          height={90}
+          alt="logo"
+        />
+      </Link>
       <div className="items-center gap-1 relative hidden md:flex">
+        {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
+        {!isExplorePage && (
+          <Link href="/explore">
+            <Image
+              src="/globe.svg"
+              width={30}
+              height={30}
+              alt="Explore"
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+            />
+          </Link>
+        )}
+
         {setSearch ? (
           <div className="flex items-center gap-1 border-2 border-green-dark rounded-l-full pl-2">
             <Image src="/search.svg" width={20} height={20} alt="search icon" />
@@ -82,23 +112,38 @@ export const Header = ({
         ) : null}
       </div>
       <div className="gap-5 hidden md:flex items-center">
+        {/* Home Icon for Explore Page - placed next to Settings */}
+        {isExplorePage && (
+          <Link href="/">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="30"
+              height="30"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`cursor-pointer hover:opacity-80 transition-opacity ${iconColorClass}`}
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </Link>
+        )}
+
         {user ? (
           hasAdminAccess ? (
             <Link href="/dashboard">
-              <Image
-                src="/Gear-icon.svg"
-                width={30}
-                height={30}
-                alt="Go to dashboard"
+              <Settings
+                className={`w-[30px] h-[30px] ${imageFilterClass}`}
               />
             </Link>
           ) : (
             <Link href="/profile">
-              <Image
-                src="/Gear-icon.svg"
-                width={30}
-                height={30}
-                alt="Go to profile"
+              <Settings
+                className={`w-[30px] h-[30px] ${imageFilterClass}`}
               />
             </Link>
           )

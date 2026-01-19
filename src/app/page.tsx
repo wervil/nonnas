@@ -11,6 +11,7 @@ import { countriesReverseMap } from '@/utils/countries'
 import { Select } from '@/components/Select'
 import { Typography } from '@/components/ui/Typography'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { WelcomeOverlay } from '@/components/Book/WelcomeOverlay'
 import { useEffect, useState } from 'react'
 
 
@@ -28,10 +29,10 @@ export default function Recipes() {
   const countries = useCountries()
   const path = usePathname()
   const searchParams = useSearchParams()
-  
+
   // Get recipe ID from URL parameter (from map "View Recipe" button)
   const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null)
-  
+
   useEffect(() => {
     const recipeParam = searchParams.get('recipe')
     if (recipeParam) {
@@ -87,6 +88,7 @@ export default function Recipes() {
           user={user}
         />
         <main className="grow flex flex-col w-full object-top object-cover relative main-gradient min-h-svh">
+          <WelcomeOverlay />
           <Image
             src="/bg.webp"
             alt="Description"
@@ -95,19 +97,6 @@ export default function Recipes() {
             style={{ zIndex: -1 }}
           />
           <div className="items-center relative flex flex-col md:hidden p-8 w-full gap-3">
-            <div className="page-first cover page-first--mobile">
-              <div className="info-wrap">
-                <Typography size="h6" weight="bold" color="white">
-                  {l('infoTitle')}
-                </Typography>
-                <Typography size="body" color="white" className="mt-4">
-                  {l('infoDescr')}
-                </Typography>
-                <Typography size="body" color="white" className="mt-4">
-                  {l('infoDescrAdd')}
-                </Typography>
-              </div>
-            </div>
             {button(path, n as (key: string) => string, hasPermissions)}
             {setSearch ? (
               <div className="flex items-center gap-1 border-2 border-green-dark rounded-full px-2 w-full bg-white">
@@ -140,9 +129,9 @@ export default function Recipes() {
           {loading ? (
             <div></div>
           ) : (
-            <Book 
-              recipes={recipes} 
-              tableOfContents={tableOfContents} 
+            <Book
+              recipes={recipes}
+              tableOfContents={tableOfContents}
               initialRecipeId={initialRecipeId}
             />
           )}
