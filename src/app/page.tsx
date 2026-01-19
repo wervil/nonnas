@@ -9,7 +9,6 @@ import { useTranslations } from 'next-intl'
 import { useCountries } from '@/hooks/useCountries'
 import { countriesReverseMap } from '@/utils/countries'
 import { Select } from '@/components/Select'
-import { Typography } from '@/components/ui/Typography'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { WelcomeOverlay } from '@/components/Book/WelcomeOverlay'
 import { useEffect, useState } from 'react'
@@ -25,7 +24,7 @@ export type ClusterPoint = {
 
 export default function Recipes() {
   const n = useTranslations('navigation')
-  const l = useTranslations('labels')
+  // const l = useTranslations('labels')
   const countries = useCountries()
   const path = usePathname()
   const searchParams = useSearchParams()
