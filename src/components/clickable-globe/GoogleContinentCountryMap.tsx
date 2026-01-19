@@ -109,37 +109,92 @@ const REGION_COUNTRIES: Record<string, string[]> = {
 };
 
 // Load Google Maps API dynamically
+// let googleMapsPromise: Promise<void> | null = null;
+
 let googleMapsPromise: Promise<void> | null = null;
 
 function loadGoogleMapsAPI(apiKey: string): Promise<void> {
-  if (googleMapsPromise) return googleMapsPromise;
+  if (typeof window === "undefined") return Promise.reject(new Error("No window"));
 
-  if (typeof google !== "undefined" && google.maps) {
+  // ✅ If already ready, resolve immediately
+  if (window.google?.maps?.importLibrary) {
     return Promise.resolve();
   }
 
-  googleMapsPromise = new Promise((resolve, reject) => {
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      if (typeof google !== "undefined" && google.maps) {
+  // ✅ Reuse the same promise always
+  if (googleMapsPromise) return googleMapsPromise;
+
+  googleMapsPromise = new Promise<void>((resolve, reject) => {
+    const SCRIPT_ID = "google-maps-js";
+
+    const finish = async () => {
+      try {
+        // ✅ Wait until Maps is REALLY ready
+        if (!window.google?.maps?.importLibrary) {
+          reject(new Error("Google Maps loaded but importLibrary is unavailable"));
+          return;
+        }
+        // Import at least one lib to ensure system is initialized
+        await window.google.maps.importLibrary("maps");
         resolve();
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error("Failed to init Google Maps"));
+      }
+    };
+
+    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+
+    if (existing) {
+      // Script exists; it might still be loading
+      if (existing.getAttribute("data-loaded") === "true") {
+        void finish();
       } else {
-        existingScript.addEventListener("load", () => resolve());
+        existing.addEventListener("load", () => {
+          existing.setAttribute("data-loaded", "true");
+          void finish();
+        }, { once: true });
+        existing.addEventListener("error", () => {
+          googleMapsPromise = null;
+          reject(new Error("Failed to load Google Maps API"));
+        }, { once: true });
       }
       return;
     }
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async&v=weekly`;
+    script.id = SCRIPT_ID;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps API"));
+
+    // ✅ You can add &language=en if you want consistent labels
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+      apiKey
+    )}&libraries=places&loading=async&v=weekly`;
+
+    script.addEventListener(
+      "load",
+      () => {
+        script.setAttribute("data-loaded", "true");
+        void finish();
+      },
+      { once: true }
+    );
+
+    script.addEventListener(
+      "error",
+      () => {
+        googleMapsPromise = null; // ✅ allow retry
+        reject(new Error("Failed to load Google Maps API"));
+      },
+      { once: true }
+    );
+
     document.head.appendChild(script);
   });
 
   return googleMapsPromise;
 }
+
 
 type CountryData = {
   id: string;
@@ -182,7 +237,7 @@ export default function GoogleContinentCountryMap({
   const mapInitializedRef = useRef(false); // Track if map has finished initial setup
   const ignoreZoomChangeRef = useRef(false); // Track if we should ignore zoom changes (e.g. during programmatic moves)
   const pendingZoomTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track pending zoom timeouts to cancel them
-  
+
   // FIX: Track currently highlighted state globally to prevent conflicts
   const currentlyHighlightedStateRef = useRef<string | null>(null);
 
@@ -291,18 +346,18 @@ export default function GoogleContinentCountryMap({
     stateDataList: StateData[]
   ): StateData | undefined => {
     if (!geoJsonStateName || geoJsonStateName === 'Unknown') return undefined;
-    
+
     const normalized = normalizeStateName(geoJsonStateName);
-    
+
     // 1. Try exact match
-    let match = stateDataList.find(s => 
+    let match = stateDataList.find(s =>
       normalizeStateName(s.stateName) === normalized
     );
     if (match) {
       console.log(`✓ Exact match: "${geoJsonStateName}" = "${match.stateName}"`);
       return match;
     }
-    
+
     // 2. Try contains match
     match = stateDataList.find(s => {
       const n = normalizeStateName(s.stateName);
@@ -312,7 +367,7 @@ export default function GoogleContinentCountryMap({
       console.log(`✓ Contains match: "${geoJsonStateName}" ≈ "${match.stateName}"`);
       return match;
     }
-    
+
     // 3. Clean common suffixes and try again
     const cleanedGeoJson = normalized.replace(/(state|province|territory)$/, '');
     match = stateDataList.find(s => {
@@ -323,7 +378,7 @@ export default function GoogleContinentCountryMap({
       console.log(`✓ Suffix match: "${geoJsonStateName}" ≈ "${match.stateName}"`);
       return match;
     }
-    
+
     console.warn(`✗ No match found for: "${geoJsonStateName}"`);
     console.log('   Available states:', stateDataList.map(s => s.stateName).slice(0, 10).join(', '), '...');
     return undefined;
@@ -417,7 +472,7 @@ export default function GoogleContinentCountryMap({
     }
     // Also clear state labels when clearing state layer
     clearStateLabels();
-    
+
     // FIX: Clear the currently highlighted state ref
     currentlyHighlightedStateRef.current = null;
   }, [clearStateLabels]);
@@ -473,7 +528,7 @@ export default function GoogleContinentCountryMap({
     stateLayer.forEach((feature) => {
       // Your API standardizes to 'name' property only
       const featureName = String(feature.getProperty('name') || '');
-      
+
       const normalized = normalizeStateName(featureName);
       if (normalized === normalizedTarget) {
         matchedFeature = feature;
@@ -491,7 +546,7 @@ export default function GoogleContinentCountryMap({
     shouldHighlight: boolean
   ) => {
     if (!stateName) return;
-    
+
     const feature = findStateFeature(stateLayer, stateName);
 
     if (feature) {
@@ -505,7 +560,7 @@ export default function GoogleContinentCountryMap({
             console.log(`✓ Cleaned up previous highlight: ${previouslyHighlighted}`);
           }
         }
-        
+
         // Now highlight the new state
         stateLayer.overrideStyle(feature, {
           fillColor: MARKER_COLOR,
@@ -528,8 +583,9 @@ export default function GoogleContinentCountryMap({
     }
   }, [findStateFeature]);
 
+
   // IMPROVED: Helper function to zoom to a state by name
-  const zoomToState = useCallback((
+  const zoomToState = useCallback(async (
     map: google.maps.Map,
     stateLayer: google.maps.Data,
     stateName: string,
@@ -553,6 +609,10 @@ export default function GoogleContinentCountryMap({
 
       if (pointCount > 0 && !bounds.isEmpty()) {
         console.log(`✓ Zooming to state bounds: ${stateName}`, bounds.toJSON());
+
+        // ✅ FIX: Add small delay before fitBounds to ensure layer is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         map.fitBounds(bounds, {
           top: 100,
           bottom: 80,
@@ -707,9 +767,9 @@ export default function GoogleContinentCountryMap({
         ignoreZoomChangeRef.current = true;
 
         // IMPROVED: Zoom to the clicked state - wait a tiny bit for state updates
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-        const zoomSuccess = zoomToState(
+        const zoomSuccess = await zoomToState(
           map,
           stateLayer,
           stateName,
@@ -793,7 +853,8 @@ export default function GoogleContinentCountryMap({
             normalizedTarget.includes(normalized);
         });
 
-        const zoomSuccess = zoomToState(
+
+        const zoomSuccess = await zoomToState(
           map,
           stateLayer,
           targetStateName,
@@ -980,7 +1041,7 @@ export default function GoogleContinentCountryMap({
 
     // FIX: Always set the new selected state (don't check old state)
     setSelectedState(stateName);
-    
+
     // FIX: Always highlight the new state (unhighlighting of old state happens automatically in highlightState)
     const stateLayer = stateLayerRef.current;
     if (stateLayer) {
@@ -998,11 +1059,11 @@ export default function GoogleContinentCountryMap({
       // IMPROVED: Use the stateLayer to zoom if available
       if (stateLayer) {
         console.log(`Using state layer for zoom`);
-        
-        // Small delay to ensure highlight renders
-        await new Promise(resolve => setTimeout(resolve, 50));
 
-        const zoomSuccess = zoomToState(map, stateLayer, stateName, { lat: state.lat, lng: state.lng });
+        // ✅ FIX: Longer delay for first-time state clicks to ensure layer is ready
+        await new Promise(resolve => setTimeout(resolve, 150));
+
+        const zoomSuccess = await zoomToState(map, stateLayer, stateName, { lat: state.lat, lng: state.lng });
 
         if (!zoomSuccess) {
           console.warn(`Zoom via layer failed, using fallback coordinates`);
@@ -1564,7 +1625,7 @@ export default function GoogleContinentCountryMap({
           // If at state level and clicking the same country, go back to country view
           if (drill === "state" && selectedCountry?.code === iso2) {
             console.log('Clicking same country from state level - going back to country view (NO RELOAD)');
-            
+
             // CRITICAL FIX: Don't reload anything, just zoom out and update state
             // FIX: Clear state highlighting properly
             if (currentlyHighlightedStateRef.current && stateLayerRef.current) {
