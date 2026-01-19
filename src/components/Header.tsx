@@ -60,8 +60,11 @@ export const Header = ({
   const imageFilterClass = isExplorePage ? 'text-white' : 'text-[#5f5f13]';
   // const logoSrc = isExplorePage ? "/logoMain.svg" : "/logoMain.svg" // Keep same logo, maybe invert if needed? assuming logo looks ok or needs specific invert
 
+  const headerJustifyClass = isExplorePage ? 'justify-between' : 'justify-center md:justify-between'
+  const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
+
   return (
-    <header className={`flex items-center justify-center md:justify-between px-3 md:px-20 pt-3 gap-4 ${headerBgClass}`}>
+    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass}`}>
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
             Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
@@ -74,7 +77,7 @@ export const Header = ({
           alt="logo"
         />
       </Link>
-      <div className="items-center gap-1 relative hidden md:flex">
+      <div className={`items-center gap-1 relative ${navVisibilityClass}`}>
         {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
         {!isExplorePage && (
           <Link href="/explore">
@@ -111,7 +114,7 @@ export const Header = ({
           </>
         ) : null}
       </div>
-      <div className="gap-5 hidden md:flex items-center">
+      <div className={`gap-5 ${navVisibilityClass} items-center`}>
         {/* Home Icon for Explore Page - placed next to Settings */}
         {isExplorePage && (
           <Link href="/">
@@ -125,7 +128,7 @@ export const Header = ({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`cursor-pointer hover:opacity-80 transition-opacity ${iconColorClass}`}
+              className={`cursor-pointer hover:opacity-80 transition-opacity ${imageFilterClass}`}
             >
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
