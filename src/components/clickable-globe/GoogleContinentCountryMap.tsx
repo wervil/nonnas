@@ -116,8 +116,8 @@ let googleMapsPromise: Promise<void> | null = null;
 function loadGoogleMapsAPI(apiKey: string): Promise<void> {
   if (typeof window === "undefined") return Promise.reject(new Error("No window"));
 
-  // ✅ If already ready, resolve immediately
-  if (window.google?.maps?.importLibrary) {
+  // ✅ Check if the google.maps object exists and has importLibrary
+  if (window.google?.maps && "importLibrary" in window.google.maps) {
     return Promise.resolve();
   }
 
@@ -130,7 +130,7 @@ function loadGoogleMapsAPI(apiKey: string): Promise<void> {
     const finish = async () => {
       try {
         // ✅ Wait until Maps is REALLY ready
-        if (!window.google?.maps?.importLibrary) {
+        if (!window.google?.maps || !("importLibrary" in window.google.maps)) {
           reject(new Error("Google Maps loaded but importLibrary is unavailable"));
           return;
         }
@@ -166,7 +166,6 @@ function loadGoogleMapsAPI(apiKey: string): Promise<void> {
     script.async = true;
     script.defer = true;
 
-    // ✅ You can add &language=en if you want consistent labels
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
       apiKey
     )}&libraries=places&loading=async&v=weekly`;
@@ -183,7 +182,7 @@ function loadGoogleMapsAPI(apiKey: string): Promise<void> {
     script.addEventListener(
       "error",
       () => {
-        googleMapsPromise = null; // ✅ allow retry
+        googleMapsPromise = null;
         reject(new Error("Failed to load Google Maps API"));
       },
       { once: true }
