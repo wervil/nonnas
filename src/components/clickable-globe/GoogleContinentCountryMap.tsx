@@ -16,6 +16,12 @@ type Admin0FeatureProps = {
 // Single consistent color for all nonna markers and UI elements
 const MARKER_COLOR = "#d97706"; // Amber/gold color matching the brand
 
+// Map GeoJSON country names to API expected names
+const COUNTRY_NAME_API_MAP: Record<string, string> = {
+  "United States of America": "United States",
+  // Add more mappings as needed
+};
+
 type Admin0FC = GeoJSON.FeatureCollection<GeoJSON.Geometry, Admin0FeatureProps>;
 
 type Drill = "continent" | "country" | "state";
@@ -252,12 +258,14 @@ export default function GoogleContinentCountryMap({
     regionDisplayName: string;
     scope: 'country' | 'state';
     nonnas: Nonna[];
+    initialTab: 'discussion' | 'nonnas'; // NEW: Control which tab opens
   }>({
     open: false,
     region: "",
     regionDisplayName: "",
     scope: "country",
     nonnas: [],
+    initialTab: "discussion", // Default to discussion tab
   });
 
   // API data state
@@ -312,15 +320,23 @@ export default function GoogleContinentCountryMap({
   const fetchStateData = useCallback(async (countryCode: string, countryName: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch(
-        `/api/nonnas/country/${countryCode}?name=${encodeURIComponent(countryName)}`
-      );
+      // Map GeoJSON country name to API expected name
+      const apiCountryName = COUNTRY_NAME_API_MAP[countryName] || countryName;
+      if (COUNTRY_NAME_API_MAP[countryName]) {
+        console.log(`🔄 Country name mapping: "${countryName}" → "${apiCountryName}"`);
+      }
+      const url = `/api/nonnas/country/${countryCode}?name=${encodeURIComponent(apiCountryName)}`;
+      console.log(`📡 Fetching state data from: ${url}`);
+      const response = await fetch(url);
       const data: CountryApiResponse = await response.json();
+      console.log(`📡 API Response:`, data);
 
       if (data.success && data.data) {
+        console.log(`✅ Setting ${data.data.states.length} states to stateData`);
         setStateData(data.data.states);
         return data.data; // Return the data so it can be used
       }
+      console.warn(`⚠️ API returned no data or unsuccessful response`);
       return null;
     } catch (error) {
       console.error("Error fetching state data:", error);
@@ -415,6 +431,7 @@ export default function GoogleContinentCountryMap({
             regionDisplayName: `${countryName} • ${stateName}`,
             scope: 'state',
             nonnas: matchedState?.nonnas || [],
+            initialTab: 'nonnas',
           });
         };
 
@@ -433,6 +450,7 @@ export default function GoogleContinentCountryMap({
             regionDisplayName: countryName,
             scope: 'country',
             nonnas: allNonnas,
+            initialTab: 'nonnas',
           });
         };
 
@@ -521,19 +539,28 @@ export default function GoogleContinentCountryMap({
     stateLayer: google.maps.Data,
     targetStateName: string
   ): google.maps.Data.Feature | null => {
+    console.log(`🔎 Searching for state: "${targetStateName}"`);
     const normalizedTarget = normalizeStateName(targetStateName);
+    console.log(`   Normalized target: "${normalizedTarget}"`);
     let matchedFeature: google.maps.Data.Feature | null = null;
 
+    const featureNames: string[] = [];
     stateLayer.forEach((feature) => {
       // Your API standardizes to 'name' property only
       const featureName = String(feature.getProperty('name') || '');
+      featureNames.push(featureName);
 
       const normalized = normalizeStateName(featureName);
       if (normalized === normalizedTarget) {
+        console.log(`   ✅ MATCH! "${featureName}" (normalized: "${normalized}")`);
         matchedFeature = feature;
         return; // Break forEach
       }
     });
+
+    if (!matchedFeature) {
+      console.log(`   ❌ No match found. Available names:`, featureNames.slice(0, 5));
+    }
 
     return matchedFeature;
   }, [normalizeStateName]);
@@ -591,6 +618,7 @@ export default function GoogleContinentCountryMap({
     stateCoords?: { lat: number; lng: number }
   ) => {
     console.log(`🔍 zoomToState called for: ${stateName}`);
+    console.log(`📍 State layer exists:`, !!stateLayer);
 
     const feature = findStateFeature(stateLayer, stateName);
 
@@ -625,6 +653,15 @@ export default function GoogleContinentCountryMap({
       }
     } else {
       console.warn(`⚠️ Feature not found for ${stateName}`);
+      const featureNames: string[] = [];
+      let count = 0;
+      stateLayer?.forEach(f => {
+        if (count < 10) {
+          featureNames.push(String(f.getProperty('NAME') || f.getProperty('name') || ''));
+          count++;
+        }
+      });
+      console.log(`Available features:`, featureNames.filter(Boolean));
     }
 
     // Fallback: use provided coordinates
@@ -819,6 +856,7 @@ export default function GoogleContinentCountryMap({
           regionDisplayName: `${countryName} • ${stateName}`,
           scope: 'state',
           nonnas: matchedState?.nonnas || [],
+          initialTab: 'nonnas',
         });
       });
 
@@ -846,9 +884,9 @@ export default function GoogleContinentCountryMap({
           },
           label: {
             text: String(stateName),
-            color: '#1a1a1a',
-            fontSize: '10px',
-            fontWeight: '500',
+            color: '#666666',
+            fontSize: '12px',
+            fontWeight: '600',
             fontFamily: 'Arial, sans-serif',
           },
           clickable: false,
@@ -860,6 +898,7 @@ export default function GoogleContinentCountryMap({
       console.log(`✓ Created ${stateLabelsRef.current.length} state labels`);
 
       // Signal that GeoJSON is loaded for this country
+      console.log(`📍 Setting geojsonLoaded to: ${countryCode}`);
       setGeojsonLoaded(countryCode);
 
       // If a target state was specified, zoom to it now
@@ -955,7 +994,7 @@ export default function GoogleContinentCountryMap({
       setDrill("country");
 
       // Load state boundaries GeoJSON
-      loadStateBoundaries(map, countryCode, countryName);
+      await loadStateBoundaries(map, countryCode, countryName);
 
       // Fetch state data for the country
       try {
@@ -964,12 +1003,19 @@ export default function GoogleContinentCountryMap({
         // Aggregate all nonnas for the country level view
         const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
 
+        // Create markers immediately with the fresh data
+        if (data && geojsonLoaded === countryCode) {
+          console.log(`✓ Creating markers with ${data.states.length} states immediately after fetch`);
+          createStateMarkers(map, { code: countryCode, name: countryName }, data.states);
+        }
+
         setPanel({
           open: true,
           region: countryCode,
           regionDisplayName: countryName,
           scope: 'country',
           nonnas: allNonnas,
+          initialTab: 'nonnas',
         });
       } catch (error) {
         console.error('Failed to fetch state data for', countryName, error);
@@ -981,6 +1027,7 @@ export default function GoogleContinentCountryMap({
           regionDisplayName: countryName,
           scope: 'country',
           nonnas: [],
+          initialTab: 'nonnas',
         });
       }
 
@@ -1009,8 +1056,8 @@ export default function GoogleContinentCountryMap({
 
           pendingZoomTimeoutRef.current = setTimeout(() => {
             // Check if we're still in country view (user might have clicked state already)
-            if (drill !== "country") {
-              console.log('Skipping country fitBounds - drill changed to', drill);
+            if (drillRef.current !== "country") {
+              console.log('Skipping country fitBounds - drill changed to', drillRef.current);
               return;
             }
 
@@ -1116,6 +1163,7 @@ export default function GoogleContinentCountryMap({
         regionDisplayName: `${country.name} • ${stateName}`,
         scope: 'state',
         nonnas: state.nonnas || [],
+        initialTab: 'nonnas',
       });
     } catch (error) {
       console.error('Failed to navigate to state:', stateName, error);
@@ -1126,8 +1174,8 @@ export default function GoogleContinentCountryMap({
         regionDisplayName: `${country.name} • ${stateName}`,
         scope: 'state',
         nonnas: [],
+        initialTab: 'nonnas',
       });
-
       setIsTransitioning(false);
       ignoreZoomChangeRef.current = false;
     }
@@ -1264,7 +1312,8 @@ export default function GoogleContinentCountryMap({
   }, [stateData, clearMarkers, handleStateMarkerClick, highlightState, normalizeStateName]);
 
   // Create state markers from GeoJSON centroids (most accurate positioning)
-  const createStateMarkersFromGeoJSON = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
+  const createStateMarkersFromGeoJSON = useCallback((map: google.maps.Map, country: { code: string; name: string }, providedStateData?: StateData[]) => {
+    console.log(`🎯 createStateMarkersFromGeoJSON called for ${country.code}`);
     clearMarkers();
 
     const geojson = geojsonCacheRef.current[country.code];
@@ -1275,7 +1324,9 @@ export default function GoogleContinentCountryMap({
       return;
     }
 
-    const currentStateData = stateDataRef.current;
+    // Use provided data if available, otherwise fall back to ref
+    const currentStateData = providedStateData || stateDataRef.current;
+    console.log(`📊 stateData contains ${currentStateData.length} states:`, currentStateData.map(s => s.stateName));
     console.log(`Creating markers from ${geojson.features.length} GeoJSON features`);
 
     for (const feature of geojson.features) {
@@ -1428,16 +1479,17 @@ export default function GoogleContinentCountryMap({
       });
 
       markersRef.current.push(marker);
+      console.log(`✓ Added marker for ${stateName} at position (${centroid.lat}, ${centroid.lng})`);
     }
 
     console.log(`✓ Created ${markersRef.current.length} state markers from GeoJSON centroids`);
   }, [clearMarkers, calculateCentroid, handleStateMarkerClick, createStateMarkersFromAPI, highlightState, normalizeStateName]);
 
   // Main function to create state markers - uses GeoJSON centroids if available
-  const createStateMarkers = useCallback((map: google.maps.Map, country: { code: string; name: string }) => {
+  const createStateMarkers = useCallback((map: google.maps.Map, country: { code: string; name: string }, providedStateData?: StateData[]) => {
     // Try GeoJSON-based markers first (most accurate)
     if (geojsonCacheRef.current[country.code]?.features?.length > 0) {
-      createStateMarkersFromGeoJSON(map, country);
+      createStateMarkersFromGeoJSON(map, country, providedStateData);
     } else {
       // Fallback to API-based markers
       createStateMarkersFromAPI(map, country);
@@ -1693,6 +1745,7 @@ export default function GoogleContinentCountryMap({
               regionDisplayName: countryName,
               scope: 'country',
               nonnas: allNonnas,
+              initialTab: 'nonnas',
             });
             return; // CRITICAL: Exit early - don't execute the "switching to different country" code below
           }
@@ -1714,7 +1767,7 @@ export default function GoogleContinentCountryMap({
           setDrill("country");
 
           // Load state boundaries GeoJSON
-          loadStateBoundaries(map, iso2, countryName);
+          await loadStateBoundaries(map, iso2, countryName);
 
           // Fetch state data for the country
           try {
@@ -1730,6 +1783,7 @@ export default function GoogleContinentCountryMap({
               regionDisplayName: countryName,
               scope: 'country',
               nonnas: allNonnas,
+              initialTab: 'nonnas',
             });
           } catch (error) {
             console.error('Failed to fetch state data for', countryName, error);
@@ -1741,6 +1795,7 @@ export default function GoogleContinentCountryMap({
               regionDisplayName: countryName,
               scope: 'country',
               nonnas: [], // Empty nonnas array if data fetch fails
+              initialTab: 'nonnas',
             });
           }
 
@@ -1915,11 +1970,24 @@ export default function GoogleContinentCountryMap({
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
+    console.log(`🎨 Marker creation useEffect triggered:`, {
+      drill,
+      selectedCountry: selectedCountry?.code,
+      countryDataLength: countryData.length,
+      stateDataLength: stateData.length,
+      geojsonLoaded,
+      mapReady
+    });
+
     if (drill === "continent" && countryData.length > 0) {
+      console.log(`✓ Creating country markers (${countryData.length} countries)`);
       createCountryMarkers(map);
-    } else if (drill === "country" && selectedCountry && (stateData.length > 0 || geojsonLoaded === selectedCountry.code)) {
-      // Create markers when either stateData is available OR GeoJSON is loaded
+    } else if (drill === "country" && selectedCountry && geojsonLoaded === selectedCountry.code) {
+      // Create markers when GeoJSON is loaded (stateData might be empty if no nonnas yet)
+      console.log(`✓ Creating state markers for ${selectedCountry.code} (${stateData.length} states, geojson: ${geojsonLoaded === selectedCountry.code})`);
       createStateMarkers(map, selectedCountry);
+    } else {
+      console.log(`⚠️ Marker creation skipped - conditions not met`);
     }
   }, [drill, selectedCountry, mapReady, countryData, stateData, geojsonLoaded, createCountryMarkers, createStateMarkers, theme]);
 
@@ -2113,6 +2181,7 @@ export default function GoogleContinentCountryMap({
           regionDisplayName: selectedCountry.name,
           scope: 'country',
           nonnas: allNonnas,
+          initialTab: 'nonnas',
         });
       }
       return;
@@ -2137,6 +2206,7 @@ export default function GoogleContinentCountryMap({
         regionDisplayName: "",
         scope: "country",
         nonnas: [],
+        initialTab: 'discussion',
       });
 
       const map = mapRef.current;
@@ -2281,6 +2351,7 @@ export default function GoogleContinentCountryMap({
         regionDisplayName={panel.regionDisplayName}
         scope={panel.scope}
         nonnas={panel.nonnas}
+        initialTab={panel.initialTab}
       />
     </div>
   );

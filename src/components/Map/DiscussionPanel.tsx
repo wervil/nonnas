@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, ArrowLeft, MapPin, Users, MessageCircle, Sparkles } from "lucide-react";
 import ThreadList from "../Threads/ThreadList";
@@ -23,6 +23,7 @@ interface DiscussionPanelProps {
         photo?: string[] | null;
         origin?: string;
     }>;
+    initialTab?: "discussion" | "nonnas"; // NEW: Control which tab opens by default
 }
 
 export default function DiscussionPanel({
@@ -32,12 +33,18 @@ export default function DiscussionPanel({
     regionDisplayName,
     scope,
     nonnas,
+    initialTab = "discussion", // Default to discussion tab
 }: DiscussionPanelProps) {
     const router = useRouter();
     const user = useUser();
-    const [activeTab, setActiveTab] = useState<"discussion" | "nonnas">("discussion");
+    const [activeTab, setActiveTab] = useState<"discussion" | "nonnas">(initialTab);
     const [viewMode, setViewMode] = useState<"list" | "create" | "thread">("list");
     const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
+
+    // Reset tab when initialTab prop changes (e.g., when panel reopens)
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     const handleViewRecipe = (recipeId: string | number) => {
         router.push(`/?recipe=${recipeId}`);
@@ -70,7 +77,7 @@ export default function DiscussionPanel({
                 {/* Background decoration */}
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-600/20 via-orange-600/10 to-transparent" />
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
-                
+
                 <div className="relative px-6 py-5 border-b border-white/10">
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
@@ -87,11 +94,10 @@ export default function DiscussionPanel({
                                         {regionDisplayName}
                                     </h2>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                            scope === "country" 
-                                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" 
-                                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                        }`}>
+                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${scope === "country"
+                                            ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                            : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                            }`}>
                                             {scope === "country" ? "Country" : "State/Region"}
                                         </span>
                                     </div>
@@ -113,11 +119,10 @@ export default function DiscussionPanel({
             <div className="flex border-b border-white/10 bg-black/20">
                 <button
                     onClick={() => setActiveTab("discussion")}
-                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative ${
-                        activeTab === "discussion"
-                            ? "text-amber-400"
-                            : "text-gray-500 hover:text-gray-300"
-                    }`}
+                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative ${activeTab === "discussion"
+                        ? "text-amber-400"
+                        : "text-gray-500 hover:text-gray-300"
+                        }`}
                 >
                     <div className="flex items-center justify-center gap-2">
                         <MessageCircle className="w-4 h-4" />
@@ -129,11 +134,10 @@ export default function DiscussionPanel({
                 </button>
                 <button
                     onClick={() => setActiveTab("nonnas")}
-                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative ${
-                        activeTab === "nonnas"
-                            ? "text-amber-400"
-                            : "text-gray-500 hover:text-gray-300"
-                    }`}
+                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative ${activeTab === "nonnas"
+                        ? "text-amber-400"
+                        : "text-gray-500 hover:text-gray-300"
+                        }`}
                 >
                     <div className="flex items-center justify-center gap-2">
                         <Users className="w-4 h-4" />
