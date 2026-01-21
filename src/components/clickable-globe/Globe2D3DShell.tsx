@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import GoogleContinentCountryMap from "./GoogleContinentCountryMap";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
 const NaturalStyledGlobe = dynamic(() => import("./NaturalStyledGlobe"), {
@@ -21,15 +21,12 @@ type Mode = "globe" | "map";
 
 export default function Globe2D3DShell() {
   const searchParams = useSearchParams();
+
   const [mode, setMode] = useState<Mode>("globe");
   const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Track if globe has been loaded at least once (keep it mounted after first load)
-  const globeLoadedRef = useRef(false);
-  const [globeLoaded, setGlobeLoaded] = useState(false);
-
-  // Check URL for continent parameter (for testing)
+  // Support testing via URL: /explore?continent=North%20America
   useEffect(() => {
     const continent = searchParams.get("continent");
     if (continent) {
@@ -38,20 +35,12 @@ export default function Globe2D3DShell() {
     }
   }, [searchParams]);
 
-  // Mark globe as loaded once it's been rendered
-  useEffect(() => {
-    if (mode === "globe" && !globeLoadedRef.current) {
-      globeLoadedRef.current = true;
-      setGlobeLoaded(true);
-    }
-  }, [mode]);
-
   const handleContinentClick = useCallback((continent: string) => {
     setIsTransitioning(true);
     setSelectedContinent(continent);
 
-    // Smooth transition delay
-    setTimeout(() => {
+    // Smooth fade to map
+    window.setTimeout(() => {
       setMode("map");
       setIsTransitioning(false);
     }, 300);
@@ -60,35 +49,31 @@ export default function Globe2D3DShell() {
   const handleBackToGlobe = useCallback(() => {
     setIsTransitioning(true);
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setMode("globe");
       setSelectedContinent(null);
       setIsTransitioning(false);
-    }, 200); // Faster transition back since globe is already loaded
+    }, 200);
   }, []);
-
-  // Determine if globe should be rendered (keep mounted once loaded for instant return)
-  const shouldRenderGlobe = mode === "globe" || globeLoaded;
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#0a0a0a]">
       {/* Transition overlay */}
       <div
-        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${isTransitioning ? "opacity-100" : "opacity-0"
-          }`}
+        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${
+          isTransitioning ? "opacity-100" : "opacity-0"
+        }`}
       />
 
-      {/* 3D Globe View - stays mounted after first load for instant return */}
+      {/* ✅ 3D Globe View (MOUNT ONLY WHEN IN GLOBE MODE) */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${mode === "globe"
-          ? "opacity-100 z-10"
-          : "opacity-0 z-0 pointer-events-none"
-          }`}
-        style={{ visibility: mode === "globe" ? "visible" : "hidden" }}
+        className={`absolute inset-0 transition-opacity duration-300 ${
+          mode === "globe" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+        }`}
       >
-        {shouldRenderGlobe && (
+        {mode === "globe" && (
           <NaturalStyledGlobe
-            active={mode === "globe" && !isTransitioning}
+            active={!isTransitioning} // globe stops interaction during transitions
             onContinentClick={handleContinentClick}
           />
         )}
@@ -96,14 +81,13 @@ export default function Globe2D3DShell() {
 
       {/* 2D Map View */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${mode === "map"
-          ? "opacity-100 z-10"
-          : "opacity-0 z-0 pointer-events-none"
-          }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${
+          mode === "map" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+        }`}
       >
         {mode === "map" && selectedContinent && (
           <GoogleContinentCountryMap
-            active={mode === "map" && !isTransitioning}
+            active={!isTransitioning}
             selectedContinent={selectedContinent}
             onBackToGlobe={handleBackToGlobe}
           />

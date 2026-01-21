@@ -271,6 +271,18 @@ export default function GoogleContinentCountryMap({
   const ignoreZoomChangeRef = useRef(false); // Track if we should ignore zoom changes (e.g. during programmatic moves)
   const pendingZoomTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track pending zoom timeouts to cancel them
 
+  const gListenersRef = useRef<google.maps.MapsEventListener[]>([]);
+
+function track(l: google.maps.MapsEventListener) {
+  gListenersRef.current.push(l);
+  return l;
+}
+function clearAllTrackedListeners() {
+  for (const l of gListenersRef.current) l.remove();
+  gListenersRef.current = [];
+}
+
+
   // FIX: Track currently highlighted state globally to prevent conflicts
   const currentlyHighlightedStateRef = useRef<string | null>(null);
 
@@ -442,6 +454,8 @@ export default function GoogleContinentCountryMap({
       if (stateName) {
         console.log(`🎯 Direct navigation to state: ${stateName}`);
         setDrill("state");
+        dataLayerRef.current?.revertStyle();
+
         setSelectedState(stateName);
 
         const loadStateView = async () => {
@@ -467,6 +481,8 @@ export default function GoogleContinentCountryMap({
       } else {
         // Just country view
         setDrill("country");
+        dataLayerRef.current?.revertStyle();
+
 
         const loadData = async () => {
           const data = await fetchStateData(countryCode, countryName);
@@ -847,7 +863,7 @@ export default function GoogleContinentCountryMap({
       });
 
       // FIX: Add hover effects - but respect currently highlighted state
-      stateLayer.addListener('mouseover', (event: google.maps.Data.MouseEvent) => {
+      track( stateLayer.addListener('mouseover', (event: google.maps.Data.MouseEvent) => {
         // Your API standardizes to 'name' property only
         const hoveredName = String(event.feature.getProperty('name') || '');
 
@@ -860,9 +876,9 @@ export default function GoogleContinentCountryMap({
           strokeColor: MARKER_COLOR,
           strokeWeight: 4,
         });
-      });
+      }));
 
-      stateLayer.addListener('mouseout', (event: google.maps.Data.MouseEvent) => {
+      track(stateLayer.addListener('mouseout', (event: google.maps.Data.MouseEvent) => {
         // Your API standardizes to 'name' property only
         const hoveredName = String(event.feature.getProperty('name') || '');
 
@@ -870,10 +886,10 @@ export default function GoogleContinentCountryMap({
         if (normalizeStateName(hoveredName) === normalizeStateName(currentlyHighlightedStateRef.current || '')) return;
 
         stateLayer.revertStyle(event.feature);
-      });
+      }));
 
       // FIX: Improved click handler with better state switching
-      stateLayer.addListener('click', async (event: google.maps.Data.MouseEvent) => {
+      track(stateLayer.addListener('click', async (event: google.maps.Data.MouseEvent) => {
         // Your API standardizes to 'name' property only - read it directly
         const stateName = String(event.feature.getProperty('name') || 'Unknown State');
 
@@ -907,6 +923,8 @@ export default function GoogleContinentCountryMap({
 
         setIsTransitioning(true);
         setDrill("state");
+        dataLayerRef.current?.revertStyle();
+
 
         // Prevent zoom listener from interfering
         ignoreZoomChangeRef.current = true;
@@ -940,7 +958,7 @@ export default function GoogleContinentCountryMap({
           nonnas: matchedState?.nonnas || [],
           initialTab: 'nonnas',
         });
-      });
+      }));
 
       // Add the layer to the map
       stateLayer.setMap(map);
@@ -1074,6 +1092,8 @@ export default function GoogleContinentCountryMap({
       setSelectedCountry({ code: countryCode, name: countryName });
       setIsTransitioning(true);
       setDrill("country");
+      dataLayerRef.current?.revertStyle();
+
 
       // Load state boundaries GeoJSON
       await loadStateBoundaries(map, countryCode, countryName);
@@ -1206,6 +1226,8 @@ export default function GoogleContinentCountryMap({
     // Always transition to state drill level
     setIsTransitioning(true);
     setDrill("state");
+    dataLayerRef.current?.revertStyle();
+
 
     // Prevent zoom listener from interfering
     ignoreZoomChangeRef.current = true;
@@ -1651,28 +1673,45 @@ export default function GoogleContinentCountryMap({
         };
 
         // Zoom out listener - return to globe when zoomed out far enough
-        map.addListener("zoom_changed", () => {
-          // Only allow back-to-globe after initial map setup is complete
-          // And ensure we're not programmatically moving the map
-          if (!mapInitializedRef.current || ignoreZoomChangeRef.current) return;
+        // map.addListener("zoom_changed", () => {
+        //   // Only allow back-to-globe after initial map setup is complete
+        //   // And ensure we're not programmatically moving the map
+        //   if (!mapInitializedRef.current || ignoreZoomChangeRef.current) return;
 
-          const currentZoom = map.getZoom();
-          if (currentZoom !== undefined && currentZoom <= 2) {
-            // User zoomed out completely - return to globe
-            cleanupRef.current?.();
-            clearMarkers();
-            mapRef.current = null;
-            dataLayerRef.current = null;
-            continentBoundsRef.current = null;
-            setDrill("continent");
-            setSelectedCountry(null);
-            setStateData([]);
-            if(drill === 'continent'){
+        //   const currentZoom = map.getZoom();
+        //   if (currentZoom !== undefined && currentZoom <= 2) {
+        //     // User zoomed out completely - return to globe
+        //     cleanupRef.current?.();
+        //     clearMarkers();
+        //     mapRef.current = null;
+        //     dataLayerRef.current = null;
+        //     continentBoundsRef.current = null;
+        //     setDrill("continent");
+        //     setSelectedCountry(null);
+        //     setStateData([]);
+        //     if(drill === 'continent'){
+        //       onBackToGlobe();
+        //     }
+        //   }
+        // });
+
+        track(
+          map.addListener("zoom_changed", () => {
+            if (!mapInitializedRef.current || ignoreZoomChangeRef.current) return;
+        
+            const currentZoom = map.getZoom();
+            if (typeof currentZoom !== "number") return;
+        
+            // ✅ ONLY allow zoom-out-to-globe from continent level
+            if (currentZoom <= 2) {
+              if (drillRef.current !== "continent") return;
+        
+              // ✅ DO NOT cleanup refs here (prevents ghost state)
               onBackToGlobe();
             }
-          }
-        });
-
+          })
+        );
+        
         const dataLayer = new google.maps.Data({ map });
         dataLayerRef.current = dataLayer;
 
@@ -1758,7 +1797,7 @@ export default function GoogleContinentCountryMap({
         });
 
         // Country click handler - now works at country AND state levels
-        dataLayer.addListener("click", async (e: google.maps.Data.MouseEvent) => {
+        track( dataLayer.addListener("click", async (e: google.maps.Data.MouseEvent) => {
           if (!isFeatureInRegion(e.feature)) return;
 
           const iso2 = (e.feature.getProperty("ISO_A2") as string | undefined) ?? "";
@@ -1784,6 +1823,8 @@ export default function GoogleContinentCountryMap({
             }
             setSelectedState(null);
             setDrill("country");
+            dataLayerRef.current?.revertStyle();
+
             setIsTransitioning(true);
 
             // Zoom back to country bounds WITHOUT reloading layers or markers
@@ -1838,6 +1879,7 @@ export default function GoogleContinentCountryMap({
           setSelectedCountry({ code: iso2, name: countryName });
           setIsTransitioning(true);
           setDrill("country");
+          dataLayerRef.current?.revertStyle();
 
           // Load state boundaries GeoJSON
           await loadStateBoundaries(map, iso2, countryName);
@@ -1898,21 +1940,22 @@ export default function GoogleContinentCountryMap({
               setIsTransitioning(false);
             }, 1000);
           }, 50);
-        });
+        })
+      );
 
         // Hover effects
-        dataLayer.addListener("mouseover", (e: google.maps.Data.MouseEvent) => {
+        track(dataLayer.addListener("mouseover", (e: google.maps.Data.MouseEvent) => {
           if (!isFeatureInRegion(e.feature)) return;
 
           dataLayer.overrideStyle(e.feature, {
             fillOpacity: 0.7,
             strokeWeight: 2.5,
           });
-        });
+        }));
 
-        dataLayer.addListener("mouseout", (e: google.maps.Data.MouseEvent) => {
+        track( dataLayer.addListener("mouseout", (e: google.maps.Data.MouseEvent) => {
           dataLayer.revertStyle(e.feature);
-        });
+        }));
 
         // Check if we have initial country from URL params
         const urlCountryCode = searchParams.get("country");
@@ -2024,15 +2067,23 @@ export default function GoogleContinentCountryMap({
 
     return () => {
       cancelled = true;
+    
+      clearAllTrackedListeners(); // ✅ remove all google listeners
       cleanupRef.current?.();
+    
       clearMarkers();
       clearStateLayer();
+    
+      if (mapRef.current) google.maps.event.clearInstanceListeners(mapRef.current);
+      if (dataLayerRef.current) google.maps.event.clearInstanceListeners(dataLayerRef.current);
+    
       mapRef.current = null;
       dataLayerRef.current = null;
       continentBoundsRef.current = null;
-      mapInitializedRef.current = false; // Reset for next map load
-      currentlyHighlightedStateRef.current = null; // FIX: Clean up highlight ref
+      mapInitializedRef.current = false;
+      currentlyHighlightedStateRef.current = null;
     };
+    
   }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, clearStateLayer, searchParams, fetchStateData, loadStateBoundaries, onBackToGlobe, highlightState]);
 
   // State boundaries are now handled by the GeoJSON layer (loadStateBoundaries function)
@@ -2131,57 +2182,82 @@ export default function GoogleContinentCountryMap({
     }
 
     dataLayer.setStyle((feature) => {
-      const cont = (feature.getProperty("CONTINENT") as string | undefined) ?? "";
-      const countryName = (feature.getProperty("ADMIN") as string | undefined) ??
-        (feature.getProperty("NAME") as string | undefined) ?? "";
-      const iso2 = (feature.getProperty("ISO_A2") as string | undefined) ?? "";
-
-      // Check if feature belongs to this region
-      let isInRegion = false;
-
-      // Russia is transcontinental - always exclude from other regions
+      const cont = String(feature.getProperty("CONTINENT") || "");
+      const iso2 = String(feature.getProperty("ISO_A2") || "");
+      const countryName = String(
+        feature.getProperty("ADMIN") || feature.getProperty("NAME") || ""
+      );
+    
+      // ---------------------------
+      // ✅ SAME region logic you already use
+      // ---------------------------
       const isRussia = countryName === "Russia" || countryName === "Russian Federation";
-
-      // Special case: Russia is its own transcontinental region
+    
+      let isInRegion = false;
+    
+      // Special case: Russia is its own region
       if (selectedContinent === "Russia") {
         isInRegion = isRussia;
       } else if (isRussia) {
         // Exclude Russia from all other regions
         isInRegion = false;
       } else if (regionCountries) {
+        // Sub-region (e.g. South Asia)
         isInRegion = cont === parentContinent && regionCountries.includes(countryName);
       } else {
+        // Main continent (e.g. North America)
         isInRegion = cont === selectedContinent;
       }
-
-      const isSelected = drill === "country" && selectedCountry?.code === iso2;
-
+    
+      // ---------------------------
+      // ✅ OUTSIDE region = ALWAYS GREY (your screenshot behavior)
+      // ---------------------------
       if (!isInRegion) {
-        // Dim out-of-region countries with gray overlay
         return {
           visible: true,
           fillColor: "#808080",
-          fillOpacity: 0.6,
+          fillOpacity: 0.6, // ✅ Always grey outside the selected continent/region
           strokeColor: "#999999",
-          strokeOpacity: 0.3,
+          strokeOpacity: 0.25,
           strokeWeight: 0.5,
           clickable: false,
           cursor: "default",
         };
       }
-
-      // In-region: transparent to show natural map colors, subtle border
+    
+      // ---------------------------
+      // ✅ INSIDE region styles (keep natural basemap visible)
+      // ---------------------------
+      const isSelectedCountry = selectedCountry?.code === iso2;
+    
+      // Continent drill: subtle borders, clickable to drill into country
+      if (drill === "continent") {
+        return {
+          visible: true,
+          fillColor: "transparent",
+          fillOpacity: 0,
+          strokeColor: "#555555",
+          strokeOpacity: 0.5,
+          strokeWeight: 1,
+          clickable: true,
+          cursor: "pointer",
+        };
+      }
+    
+      // Country/State drill: keep the continent still “active”, but emphasize selected country
+      // (still show natural basemap)
       return {
         visible: true,
         fillColor: "transparent",
         fillOpacity: 0,
-        strokeColor: "#555555",
-        strokeOpacity: isSelected ? 0.7 : 0.5,
-        strokeWeight: isSelected ? 1.5 : 1,
-        clickable: !isSelected,
-        cursor: isSelected ? "default" : "pointer",
+        strokeColor: isSelectedCountry ? MARKER_COLOR : "#555555",
+        strokeOpacity: isSelectedCountry ? 0.85 : 0.25,
+        strokeWeight: isSelectedCountry ? 2 : 0.5,
+        clickable: !isSelectedCountry, // keep same behavior you had
+        cursor: isSelectedCountry ? "default" : "pointer",
       };
     });
+    
   }, [drill, selectedCountry, selectedContinent, parentContinent, regionCountries, mapReady]);
 
   // Back button handler
@@ -2202,6 +2278,9 @@ export default function GoogleContinentCountryMap({
       setSelectedState(null);
 
       setDrill("country");
+
+      dataLayerRef.current?.revertStyle();
+
 
       ignoreZoomChangeRef.current = true;
 

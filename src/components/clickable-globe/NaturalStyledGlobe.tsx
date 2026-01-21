@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
-// Global WebGL context tracker to prevent exceeding browser limits
+// ---------- Global guard (optional) ----------
 let activeGlobeInstances = 0;
-const MAX_ALLOWED_INSTANCES = 1; // Only allow 1 globe instance at a time
+const MAX_ALLOWED_INSTANCES = 1;
 
+// ---------- Types ----------
 type LatLng = { lat: number; lng: number };
 
 type GeoFeature = {
   type: "Feature";
-  properties: { CONTINENT?: string;[k: string]: unknown };
+  properties: { CONTINENT?: string; [k: string]: unknown };
   geometry: {
     type: "Polygon" | "MultiPolygon";
     coordinates: number[][][] | number[][][][];
@@ -19,43 +20,105 @@ type GeoFeature = {
 };
 type GeoFC = { type: "FeatureCollection"; features: GeoFeature[] };
 
-// Constants for consistent behavior
+type ThreeGlobeInstance = THREE.Object3D & {
+  globeImageUrl: (url: string) => ThreeGlobeInstance;
+  showAtmosphere: (v: boolean) => ThreeGlobeInstance;
+  atmosphereColor: (c: string) => ThreeGlobeInstance;
+  atmosphereAltitude: (a: number) => ThreeGlobeInstance;
+  polygonsData: (data: object[]) => ThreeGlobeInstance;
+  polygonAltitude: (alt: number | ((d: object) => number)) => ThreeGlobeInstance;
+  polygonStrokeColor: (fn: (d: object) => string) => ThreeGlobeInstance;
+  polygonSideColor: (fn: (d: object) => string) => ThreeGlobeInstance;
+  polygonCapColor: (fn: (d: object) => string) => ThreeGlobeInstance;
+  polygonsTransitionDuration: (ms: number) => ThreeGlobeInstance;
+};
+
+// ---------- Constants ----------
 const GLOBE_RADIUS = 40;
 const CAMERA_DISTANCE = 320;
 const ROTATION_SENSITIVITY = 0.004;
 const MAX_TILT = 1.2;
+
 const HIGHLIGHT_COLOR = "rgba(255, 255, 255, 0.35)";
 const BORDER_COLOR = "rgba(255, 255, 255, 0.15)";
 const DARK_BG_COLOR = 0x0a0a0a;
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
-// Map country to sub-region for Asia breakdown and GeoJSON corrections
+// Map country/admin names to region/sub-region labels
 const COUNTRY_TO_REGION: Record<string, string> = {
-  "Russia": "Russia",
+  Russia: "Russia",
   "Russian Federation": "Russia",
-  "Saudi Arabia": "Middle East", "United Arab Emirates": "Middle East", "Iran": "Middle East",
-  "Iraq": "Middle East", "Israel": "Middle East", "Jordan": "Middle East", "Lebanon": "Middle East",
-  "Syria": "Middle East", "Yemen": "Middle East", "Oman": "Middle East", "Qatar": "Middle East",
-  "Bahrain": "Middle East", "Kuwait": "Middle East", "Turkey": "Middle East", "Cyprus": "Middle East",
-  "Egypt": "Africa",
-  "India": "South Asia", "Pakistan": "South Asia", "Bangladesh": "South Asia",
-  "Sri Lanka": "South Asia", "Nepal": "South Asia", "Bhutan": "South Asia",
-  "Maldives": "South Asia", "Afghanistan": "South Asia",
-  "China": "East Asia", "Japan": "East Asia", "South Korea": "East Asia",
-  "North Korea": "East Asia", "Mongolia": "East Asia", "Taiwan": "East Asia",
-  "Republic of Korea": "East Asia", "Dem. Rep. Korea": "East Asia",
-  "Thailand": "Southeast Asia", "Vietnam": "Southeast Asia", "Indonesia": "Southeast Asia",
-  "Philippines": "Southeast Asia", "Malaysia": "Southeast Asia", "Singapore": "Southeast Asia",
-  "Myanmar": "Southeast Asia", "Cambodia": "Southeast Asia", "Laos": "Southeast Asia",
-  "Brunei": "Southeast Asia", "Timor-Leste": "Southeast Asia", "East Timor": "Southeast Asia",
-  "Kazakhstan": "Central Asia", "Uzbekistan": "Central Asia", "Turkmenistan": "Central Asia",
-  "Kyrgyzstan": "Central Asia", "Tajikistan": "Central Asia",
-  "Fiji": "Pacific Islands", "Papua New Guinea": "Pacific Islands", "Samoa": "Pacific Islands",
-  "Tonga": "Pacific Islands", "Vanuatu": "Pacific Islands", "Solomon Islands": "Pacific Islands",
-  "New Zealand": "Pacific Islands", "Micronesia": "Pacific Islands",
-  "Georgia": "Middle East", "Armenia": "Middle East", "Azerbaijan": "Middle East",
+
+  "Saudi Arabia": "Middle East",
+  "United Arab Emirates": "Middle East",
+  Iran: "Middle East",
+  Iraq: "Middle East",
+  Israel: "Middle East",
+  Jordan: "Middle East",
+  Lebanon: "Middle East",
+  Syria: "Middle East",
+  Yemen: "Middle East",
+  Oman: "Middle East",
+  Qatar: "Middle East",
+  Bahrain: "Middle East",
+  Kuwait: "Middle East",
+  Turkey: "Middle East",
+  Cyprus: "Middle East",
+
+  Egypt: "Africa",
+
+  India: "South Asia",
+  Pakistan: "South Asia",
+  Bangladesh: "South Asia",
+  "Sri Lanka": "South Asia",
+  Nepal: "South Asia",
+  Bhutan: "South Asia",
+  Maldives: "South Asia",
+  Afghanistan: "South Asia",
+
+  China: "East Asia",
+  Japan: "East Asia",
+  "South Korea": "East Asia",
+  "North Korea": "East Asia",
+  Mongolia: "East Asia",
+  Taiwan: "East Asia",
+  "Republic of Korea": "East Asia",
+  "Dem. Rep. Korea": "East Asia",
+
+  Thailand: "Southeast Asia",
+  Vietnam: "Southeast Asia",
+  Indonesia: "Southeast Asia",
+  Philippines: "Southeast Asia",
+  Malaysia: "Southeast Asia",
+  Singapore: "Southeast Asia",
+  Myanmar: "Southeast Asia",
+  Cambodia: "Southeast Asia",
+  Laos: "Southeast Asia",
+  Brunei: "Southeast Asia",
+  "Timor-Leste": "Southeast Asia",
+  "East Timor": "Southeast Asia",
+
+  Kazakhstan: "Central Asia",
+  Uzbekistan: "Central Asia",
+  Turkmenistan: "Central Asia",
+  Kyrgyzstan: "Central Asia",
+  Tajikistan: "Central Asia",
+
+  Fiji: "Pacific Islands",
+  "Papua New Guinea": "Pacific Islands",
+  Samoa: "Pacific Islands",
+  Tonga: "Pacific Islands",
+  Vanuatu: "Pacific Islands",
+  "Solomon Islands": "Pacific Islands",
+  "New Zealand": "Pacific Islands",
+  Micronesia: "Pacific Islands",
+
+  Georgia: "Middle East",
+  Armenia: "Middle East",
+  Azerbaijan: "Middle East",
 };
 
+// ---------- Helpers ----------
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -64,25 +127,25 @@ function normalizeLng(lng: number) {
   return ((((lng % 360) + 540) % 360) - 180);
 }
 
-function createRingTextTexture(text: string, fontSize: number = 64): THREE.Texture {
+function createRingTextTexture(text: string, fontSize = 64): THREE.Texture {
   const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not get 2D context");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get 2D context");
 
-  context.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
-  const metrics = context.measureText(text);
+  ctx.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
+  const metrics = ctx.measureText(text);
   const textWidth = metrics.width;
   const textHeight = fontSize * 1.3;
 
   canvas.width = Math.ceil(textWidth + 30);
   canvas.height = Math.ceil(textHeight + 20);
 
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillStyle = "#e8d5b7";
-  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#e8d5b7";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
@@ -92,6 +155,7 @@ function createRingTextTexture(text: string, fontSize: number = 64): THREE.Textu
   return texture;
 }
 
+// GeoJSON point-in-polygon helpers (lon=x, lat=y)
 function pointInRing(p: LatLng, ring: number[][]) {
   let inside = false;
   const x = p.lng;
@@ -148,30 +212,11 @@ function deepDisposeScene(scene: THREE.Scene) {
       if (mat.map) mat.map.dispose();
       mat.dispose();
     }
-    if (obj instanceof THREE.Group) {
-      [...obj.children].forEach(child => {
-        if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
-          obj.remove(child);
-        }
-      });
-    }
   });
   scene.clear();
 }
 
-type ThreeGlobeInstance = THREE.Object3D & {
-  globeImageUrl: (url: string) => ThreeGlobeInstance;
-  showAtmosphere: (v: boolean) => ThreeGlobeInstance;
-  atmosphereColor: (c: string) => ThreeGlobeInstance;
-  atmosphereAltitude: (a: number) => ThreeGlobeInstance;
-  polygonsData: (data: object[]) => ThreeGlobeInstance;
-  polygonAltitude: (alt: number | ((d: object) => number)) => ThreeGlobeInstance;
-  polygonStrokeColor: (fn: (d: object) => string) => ThreeGlobeInstance;
-  polygonSideColor: (fn: (d: object) => string) => ThreeGlobeInstance;
-  polygonCapColor: (fn: (d: object) => string) => ThreeGlobeInstance;
-  polygonsTransitionDuration: (ms: number) => ThreeGlobeInstance;
-};
-
+// ---------- Component ----------
 export default function NaturalStyledGlobe({
   active = true,
   onContinentClick,
@@ -180,6 +225,7 @@ export default function NaturalStyledGlobe({
   onContinentClick: (continent: string) => void;
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+
   const activeRef = useRef(active);
   const onClickRef = useRef(onContinentClick);
 
@@ -192,19 +238,24 @@ export default function NaturalStyledGlobe({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const globeRef = useRef<ThreeGlobeInstance | null>(null);
   const geoRef = useRef<GeoFC | null>(null);
-  const labelSpritesRef = useRef<THREE.Sprite[]>([]);
+
   const ringGroupRef = useRef<THREE.Group | null>(null);
 
   const isDraggingRef = useRef(false);
   const hasDraggedRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+
   const rotationRef = useRef({ x: 0.1, y: 0 });
   const targetRotationRef = useRef({ x: 0.1, y: 0 });
   const currentHoverRef = useRef<string | null>(null);
 
   const rafRef = useRef<number>(0);
-  const isInitializedRef = useRef(false);
-  const cleanupFunctionsRef = useRef<Array<() => void>>([]);
+
+  // Keep a cleanup registry for listeners (prevents “ghosting”)
+  const cleanupFnsRef = useRef<Array<() => void>>([]);
+
+  // A token to ignore stale async init (StrictMode / rapid remount)
+  const initTokenRef = useRef(0);
 
   useEffect(() => {
     activeRef.current = active;
@@ -214,8 +265,10 @@ export default function NaturalStyledGlobe({
     onClickRef.current = onContinentClick;
   }, [onContinentClick]);
 
+  // Load GeoJSON once
   useEffect(() => {
     let cancelled = false;
+
     fetch("/geo/ne_admin0_countries.geojson")
       .then((r) => {
         if (!r.ok) throw new Error(`GeoJSON not found: ${r.status}`);
@@ -231,60 +284,57 @@ export default function NaturalStyledGlobe({
         if (cancelled) return;
         setGeoStatus("fail");
       });
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const getAsiaSubRegion = useCallback((countryName: string | undefined, lat: number, lng: number): string => {
-    if (countryName && COUNTRY_TO_REGION[countryName]) {
-      return COUNTRY_TO_REGION[countryName];
-    }
+  const getAsiaSubRegion = useCallback(
+    (countryName: string | undefined, lat: number, lng: number): string => {
+      if (countryName && COUNTRY_TO_REGION[countryName]) return COUNTRY_TO_REGION[countryName];
 
-    if (lat >= 12 && lat <= 45 && lng >= 25 && lng <= 65) return "Middle East";
-    if (lat >= 5 && lat <= 38 && lng >= 65 && lng <= 95) return "South Asia";
-    if (lat >= -12 && lat <= 25 && lng >= 95 && lng <= 145) return "Southeast Asia";
-    if (lat >= 35 && lat <= 55 && lng >= 45 && lng <= 90) return "Central Asia";
-    if (lat >= 18 && lat <= 55 && lng >= 100 && lng <= 150) return "East Asia";
+      if (lat >= 12 && lat <= 45 && lng >= 25 && lng <= 65) return "Middle East";
+      if (lat >= 5 && lat <= 38 && lng >= 65 && lng <= 95) return "South Asia";
+      if (lat >= -12 && lat <= 25 && lng >= 95 && lng <= 145) return "Southeast Asia";
+      if (lat >= 35 && lat <= 55 && lng >= 45 && lng <= 90) return "Central Asia";
+      if (lat >= 18 && lat <= 55 && lng >= 100 && lng <= 150) return "East Asia";
 
-    return "East Asia";
-  }, []);
+      return "East Asia";
+    },
+    []
+  );
 
-  const findContinentAtLatLng = useCallback((lat: number, lng: number): string | null => {
-    const geo = geoRef.current;
-    if (!geo) return null;
+  const findContinentAtLatLng = useCallback(
+    (lat: number, lng: number): string | null => {
+      const geo = geoRef.current;
+      if (!geo) return null;
 
-    for (const f of geo.features) {
-      const cont = f.properties?.CONTINENT as string | undefined;
-      if (!cont) continue;
+      for (const f of geo.features) {
+        const cont = f.properties?.CONTINENT as string | undefined;
+        if (!cont) continue;
 
-      if (pointInFeature({ lat, lng }, f)) {
-        const countryName = f.properties?.NAME as string | undefined;
-        const adminName = f.properties?.ADMIN as string | undefined;
+        if (pointInFeature({ lat, lng }, f)) {
+          const countryName = f.properties?.NAME as string | undefined;
+          const adminName = f.properties?.ADMIN as string | undefined;
 
-        if (countryName && COUNTRY_TO_REGION[countryName]) {
-          return COUNTRY_TO_REGION[countryName];
-        }
-        if (adminName && COUNTRY_TO_REGION[adminName]) {
-          return COUNTRY_TO_REGION[adminName];
-        }
+          if (countryName && COUNTRY_TO_REGION[countryName]) return COUNTRY_TO_REGION[countryName];
+          if (adminName && COUNTRY_TO_REGION[adminName]) return COUNTRY_TO_REGION[adminName];
 
-        if (cont === "Asia") {
-          return getAsiaSubRegion(countryName, lat, lng);
-        }
+          if (cont === "Asia") return getAsiaSubRegion(countryName, lat, lng);
 
-        if (cont === "Oceania") {
-          if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") {
-            return "Pacific Islands";
+          if (cont === "Oceania") {
+            if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") return "Pacific Islands";
+            if (lng > 150 || lng < -150) return "Pacific Islands";
           }
-          if (lng > 150 || lng < -150) {
-            return "Pacific Islands";
-          }
-        }
 
-        return cont;
+          return cont;
+        }
       }
-    }
-    return null;
-  }, [getAsiaSubRegion]);
+      return null;
+    },
+    [getAsiaSubRegion]
+  );
 
   const worldToLatLng = useCallback((point: THREE.Vector3): LatLng => {
     const r = point.length();
@@ -295,321 +345,258 @@ export default function NaturalStyledGlobe({
     return { lat, lng };
   }, []);
 
-  const raycastContinent = useCallback((clientX: number, clientY: number): { continent: string | null; point: THREE.Vector3 | null } => {
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    const globe = globeRef.current;
+  // ✅ FIXED: no TS "never" issue, and worldToLocal is safe
+  const raycastContinent = useCallback(
+    (clientX: number, clientY: number): { continent: string | null; point: THREE.Vector3 | null } => {
+      const renderer = rendererRef.current;
+      const camera = cameraRef.current;
+      const globe = globeRef.current;
 
-    if (!renderer || !camera || !globe) return { continent: null, point: null };
+      if (!renderer || !camera || !globe) return { continent: null, point: null };
 
-    const rect = renderer.domElement.getBoundingClientRect();
-    const mouseNdc = new THREE.Vector2(
-      ((clientX - rect.left) / rect.width) * 2 - 1,
-      -(((clientY - rect.top) / rect.height) * 2 - 1)
-    );
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouseNdc = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -(((clientY - rect.top) / rect.height) * 2 - 1)
+      );
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouseNdc, camera);
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouseNdc, camera);
 
-    let globeSphere: THREE.Mesh | null = null;
-    globe.traverse((obj) => {
-      if (obj instanceof THREE.Mesh && obj.geometry instanceof THREE.SphereGeometry) {
-        if (!globeSphere || obj.geometry.parameters.radius > (globeSphere.geometry as THREE.SphereGeometry).parameters.radius) {
-          globeSphere = obj;
+      // Find the largest sphere mesh inside ThreeGlobe
+      let best: THREE.Mesh<THREE.SphereGeometry, THREE.Material | THREE.Material[]> | null = null;
+
+      globe.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.geometry instanceof THREE.SphereGeometry) {
+          const mesh = obj as THREE.Mesh<THREE.SphereGeometry, THREE.Material | THREE.Material[]>;
+          if (!best || mesh.geometry.parameters.radius > best.geometry.parameters.radius) {
+            best = mesh;
+          }
+        }
+      });
+
+      if (!best) return { continent: null, point: null };
+
+      const intersects = raycaster.intersectObject(best, false);
+      if (intersects.length === 0) return { continent: null, point: null };
+
+      const hit = intersects[0];
+
+      // Convert to local space for lat/lng calc
+      const localPoint = hit.point.clone();
+      (best as THREE.Mesh).worldToLocal(localPoint);
+
+      const { lat, lng } = worldToLatLng(localPoint);
+      const continent = findContinentAtLatLng(lat, lng);
+
+      return { continent, point: hit.point };
+    },
+    [findContinentAtLatLng, worldToLatLng]
+  );
+
+  const getFeatureRegion = useCallback(
+    (f: GeoFeature): string | null => {
+      const cont = f.properties?.CONTINENT as string | undefined;
+      if (!cont) return null;
+
+      const countryName = f.properties?.NAME as string | undefined;
+      const adminName = f.properties?.ADMIN as string | undefined;
+
+      if (countryName && COUNTRY_TO_REGION[countryName]) return COUNTRY_TO_REGION[countryName];
+      if (adminName && COUNTRY_TO_REGION[adminName]) return COUNTRY_TO_REGION[adminName];
+
+      if (cont === "Asia") {
+        const coords = (f.geometry.type === "Polygon"
+          ? (f.geometry.coordinates as number[][][])[0]
+          : (f.geometry.coordinates as number[][][][])[0]?.[0]) as number[][] | undefined;
+
+        if (coords && coords.length > 0) {
+          const avgLng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+          const avgLat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+          return getAsiaSubRegion(countryName, avgLat, avgLng);
         }
       }
-    });
 
-    if (!globeSphere) return { continent: null, point: null };
-
-    const sphere = globeSphere as THREE.Mesh;
-    const intersects = raycaster.intersectObject(sphere, false);
-    if (intersects.length === 0) return { continent: null, point: null };
-
-    const hit = intersects[0];
-    const localPoint = hit.point.clone();
-    sphere.worldToLocal(localPoint);
-
-    const { lat, lng } = worldToLatLng(localPoint);
-    const continent = findContinentAtLatLng(lat, lng);
-
-    return { continent, point: hit.point };
-  }, [worldToLatLng, findContinentAtLatLng]);
-
-  const getFeatureRegion = useCallback((f: GeoFeature): string | null => {
-    const cont = f.properties?.CONTINENT as string | undefined;
-    if (!cont) return null;
-
-    const countryName = f.properties?.NAME as string | undefined;
-    const adminName = f.properties?.ADMIN as string | undefined;
-
-    if (countryName && COUNTRY_TO_REGION[countryName]) {
-      return COUNTRY_TO_REGION[countryName];
-    }
-    if (adminName && COUNTRY_TO_REGION[adminName]) {
-      return COUNTRY_TO_REGION[adminName];
-    }
-
-    if (cont === "Asia") {
-      const coords = (f.geometry.type === "Polygon"
-        ? f.geometry.coordinates[0]
-        : f.geometry.coordinates[0]?.[0]) as number[][] | undefined;
-      if (coords && coords.length > 0) {
-        const avgLng = coords.reduce((sum, c) => sum + (c[0] as number), 0) / coords.length;
-        const avgLat = coords.reduce((sum, c) => sum + (c[1] as number), 0) / coords.length;
-        return getAsiaSubRegion(countryName, avgLat, avgLng);
+      if (cont === "Oceania") {
+        if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") return "Pacific Islands";
       }
-    }
 
-    if (cont === "Oceania") {
-      if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") {
-        return "Pacific Islands";
-      }
-    }
-
-    return cont;
-  }, [getAsiaSubRegion]);
+      return cont;
+    },
+    [getAsiaSubRegion]
+  );
 
   const highlightedRegionRef = useRef<string | null>(null);
 
-  const updatePolygonColors = useCallback((highlightedRegion: string | null) => {
-    const globe = globeRef.current;
-    const geo = geoRef.current;
-    if (!globe || !geo) return;
+  const updatePolygonColors = useCallback(
+    (highlightedRegion: string | null) => {
+      const globe = globeRef.current;
+      const geo = geoRef.current;
+      if (!globe || !geo) return;
 
-    highlightedRegionRef.current = highlightedRegion;
+      highlightedRegionRef.current = highlightedRegion;
 
-    globe.polygonCapColor((obj: object) => {
-      const currentHighlight = highlightedRegionRef.current;
-      if (!currentHighlight) return TRANSPARENT;
+      globe.polygonCapColor((obj: object) => {
+        const currentHighlight = highlightedRegionRef.current;
+        if (!currentHighlight) return TRANSPARENT;
 
-      const f = obj as GeoFeature;
-      const region = getFeatureRegion(f);
+        const f = obj as GeoFeature;
+        const region = getFeatureRegion(f);
+        return region === currentHighlight ? HIGHLIGHT_COLOR : TRANSPARENT;
+      });
 
-      if (region === currentHighlight) {
-        return HIGHLIGHT_COLOR;
-      }
+      globe.polygonsData(geo.features as object[]);
+    },
+    [getFeatureRegion]
+  );
 
-      return TRANSPARENT;
+  // ---------- Single cleanup function to prevent “ghosting” ----------
+  const fullCleanup = useCallback(() => {
+    // stop RAF
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+
+    // remove listeners
+    cleanupFnsRef.current.forEach((fn) => {
+      try {
+        fn();
+      } catch {}
     });
+    cleanupFnsRef.current = [];
 
-    globe.polygonsData(geo.features as object[]);
-  }, [getFeatureRegion]);
+    // dispose scene
+    if (sceneRef.current) {
+      deepDisposeScene(sceneRef.current);
+      sceneRef.current = null;
+    }
 
+    // dispose renderer + force lose context
+    if (rendererRef.current) {
+      try {
+        const gl = rendererRef.current.getContext();
+        const lose = gl?.getExtension("WEBGL_lose_context");
+        lose?.loseContext();
+      } catch {}
+
+      try {
+        rendererRef.current.dispose();
+        rendererRef.current.forceContextLoss();
+      } catch {}
+
+      rendererRef.current = null;
+    }
+
+    cameraRef.current = null;
+    globeRef.current = null;
+    ringGroupRef.current = null;
+    currentHoverRef.current = null;
+
+    // clear hover UI
+    setHoveredContinent(null);
+
+    // clear DOM
+    if (mountRef.current) mountRef.current.innerHTML = "";
+  }, []);
+
+  // ---------- Main init effect ----------
   useEffect(() => {
+    if (!active) {
+      fullCleanup();
+      return;
+    }
+
     const mount = mountRef.current;
     if (!mount) return;
 
-    // CRITICAL: Force cleanup of any existing instances BEFORE checking initialization flag
-    if (isInitializedRef.current) {
-      console.log('⚠️ Component remounting detected');
+    const token = ++initTokenRef.current;
+    let cancelled = false;
 
-      // FORCE CLEANUP OF OLD INSTANCE
-      console.log('🧹 Forcing cleanup of old WebGL instance...');
-
-      // Cancel any running animation
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
-      }
-
-      // Run all cleanup functions
-      cleanupFunctionsRef.current.forEach(fn => {
-        try {
-          fn();
-        } catch (err) {
-          console.error('Cleanup error:', err);
-        }
-      });
-      cleanupFunctionsRef.current = [];
-
-      // Dispose scene
-      if (sceneRef.current) {
-        deepDisposeScene(sceneRef.current);
-        sceneRef.current = null;
-      }
-
-      // Force lose WebGL context
-      if (rendererRef.current) {
-        try {
-          const gl = rendererRef.current.getContext();
-          if (gl) {
-            const loseContext = gl.getExtension('WEBGL_lose_context');
-            if (loseContext) {
-              loseContext.loseContext();
-              console.log('✓ Forced WebGL context loss');
-            }
-          }
-          rendererRef.current.dispose();
-          rendererRef.current.forceContextLoss();
-        } catch (err) {
-          console.error('Renderer disposal error:', err);
-        }
-        rendererRef.current = null;
-      }
-
-      // Clear all refs
-      cameraRef.current = null;
-      globeRef.current = null;
-      ringGroupRef.current = null;
-      labelSpritesRef.current = [];
-
-      // Clear mount container
-      mount.innerHTML = "";
-
-      // Reset initialization flag to allow re-initialization
-      isInitializedRef.current = false;
-
-      console.log('✓ Old instance cleaned up, allowing re-initialization');
-
-      // Give browser time to release WebGL context (crucial!)
-      const timeoutId = setTimeout(() => {
-        // Trigger re-render after cleanup
-        setWebglError(null);
-      }, 150);
-
-      return () => clearTimeout(timeoutId);
+    // Guard: global instance limit
+    if (activeGlobeInstances >= MAX_ALLOWED_INSTANCES) {
+      setWebglError("Another globe instance is active. Close other globe tabs and refresh.");
+      return;
     }
 
-    let cancelled = false;
-    const localCleanupFunctions: Array<() => void> = [];
+    activeGlobeInstances++;
+    setWebglError(null);
 
     const addCleanup = (fn: () => void) => {
-      localCleanupFunctions.push(fn);
-      cleanupFunctionsRef.current.push(fn);
+      cleanupFnsRef.current.push(fn);
     };
 
     const init = async () => {
-      // Check global instance limit BEFORE creating
-      if (activeGlobeInstances >= MAX_ALLOWED_INSTANCES) {
-        console.error(`❌ Cannot create globe: ${activeGlobeInstances} instances already active (max: ${MAX_ALLOWED_INSTANCES})`);
-        setWebglError('Another globe instance is active. Please close other tabs or windows with the globe.');
-        isInitializedRef.current = false;
-        return;
-      }
-
-      isInitializedRef.current = true;
-      activeGlobeInstances++;
-      console.log(`📈 Active globe instances: ${activeGlobeInstances}/${MAX_ALLOWED_INSTANCES}`);
-
       try {
-        // Simple WebGL check WITHOUT creating contexts (just check if API exists)
-        const isWebGLSupported = 'WebGLRenderingContext' in window;
-
-        if (!isWebGLSupported) {
-          const errorMsg = 'Your browser does not support WebGL. Please update Chrome or try a different browser.';
-          console.error('WebGL Initialization Failed:', {
-            webglSupported: false,
-            userAgent: navigator.userAgent,
-          });
-
-          setWebglError(errorMsg);
-          isInitializedRef.current = false;
-          activeGlobeInstances--;
+        if (!("WebGLRenderingContext" in window)) {
+          setWebglError("Your browser does not support WebGL.");
           return;
         }
 
-        console.log('✓ WebGL API available, proceeding with initialization');
+        if (cancelled || token !== initTokenRef.current) return;
 
         const mod = await import("three-globe");
         const ThreeGlobe = mod.default as unknown as new () => ThreeGlobeInstance;
 
-        if (cancelled) return;
+        if (cancelled || token !== initTokenRef.current) return;
 
         mount.innerHTML = "";
 
+        // Scene
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(DARK_BG_COLOR);
         sceneRef.current = scene;
 
-        const camera = new THREE.PerspectiveCamera(
-          50,
-          mount.clientWidth / mount.clientHeight,
-          1,
-          2000
-        );
+        // Camera
+        const camera = new THREE.PerspectiveCamera(50, mount.clientWidth / mount.clientHeight, 1, 2000);
         camera.position.set(0, 0, CAMERA_DISTANCE);
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera;
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambientLight);
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        directionalLight.position.set(-200, 150, 400);
-        scene.add(directionalLight);
+        const directional = new THREE.DirectionalLight(0xffffff, 1.5);
+        directional.position.set(-200, 150, 400);
+        scene.add(directional);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        fillLight.position.set(200, -100, -200);
-        scene.add(fillLight);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.4);
+        fill.position.set(200, -100, -200);
+        scene.add(fill);
 
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
-        backLight.position.set(0, -200, -300);
-        scene.add(backLight);
+        const back = new THREE.DirectionalLight(0xffffff, 0.3);
+        back.position.set(0, -200, -300);
+        scene.add(back);
 
-        // CRITICAL: Small delay to ensure previous WebGL context is fully released
-        // This prevents "BindToCurrentSequence failed" errors in Chrome
-        await new Promise(resolve => setTimeout(resolve, 50));
-        console.log('⏱️ Waited for WebGL context cleanup...');
-
-        let renderer: THREE.WebGLRenderer;
-        try {
-          renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: false,
-            powerPreference: "high-performance",
-            failIfMajorPerformanceCaveat: false,
-          });
-
-          // Log successful WebGL context creation
-          const gl = renderer.getContext();
-          console.log('✓ WebGL renderer created successfully', {
-            version: gl.getParameter(gl.VERSION),
-            vendor: gl.getParameter(gl.VENDOR),
-            renderer: gl.getParameter(gl.RENDERER),
-          });
-        } catch (error) {
-          console.error('WebGL renderer creation failed:', error);
-          setWebglError('Failed to create WebGL context. Too many WebGL contexts active. Please close other tabs with 3D graphics and refresh.');
-          isInitializedRef.current = false;
-          activeGlobeInstances--;
-          return;
-        }
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: false,
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false,
+        });
 
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(mount.clientWidth, mount.clientHeight);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
+
         mount.appendChild(renderer.domElement);
         rendererRef.current = renderer;
 
-        const rendererCanvas = renderer.domElement;
+        // WebGL context lost handler => FULL CLEANUP to prevent ghosting
+        const canvas = renderer.domElement;
 
         const handleContextLost = (event: Event) => {
           event.preventDefault();
-          console.warn('WebGL context lost - pausing animation');
-          if (rafRef.current) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = 0;
-          }
-          setWebglError('Graphics context lost. The page will attempt to restore it...');
+          console.warn("WebGL context lost - full cleanup");
+          fullCleanup();
+          setWebglError("Graphics context lost. Refresh the page.");
         };
 
-        const handleContextRestored = () => {
-          console.log('WebGL context restored - resuming animation');
-          setWebglError(null);
-          if (!cancelled && rendererRef.current && sceneRef.current && cameraRef.current) {
-            animate();
-          }
-        };
+        canvas.addEventListener("webglcontextlost", handleContextLost, false);
+        addCleanup(() => canvas.removeEventListener("webglcontextlost", handleContextLost));
 
-        rendererCanvas.addEventListener('webglcontextlost', handleContextLost, false);
-        rendererCanvas.addEventListener('webglcontextrestored', handleContextRestored, false);
-
-        addCleanup(() => {
-          rendererCanvas.removeEventListener('webglcontextlost', handleContextLost);
-          rendererCanvas.removeEventListener('webglcontextrestored', handleContextRestored);
-        });
-
+        // Globe
         const globe = new ThreeGlobe()
           .globeImageUrl("/textures/earth_day_clouds.jpg")
           .showAtmosphere(true)
@@ -619,6 +606,7 @@ export default function NaturalStyledGlobe({
         scene.add(globe);
         globeRef.current = globe;
 
+        // Ring
         const ringGroup = new THREE.Group();
         const ringRadius = GLOBE_RADIUS + 80;
         const ringText = "NONNAS OF THE WORLD ";
@@ -630,6 +618,7 @@ export default function NaturalStyledGlobe({
 
           const angle = (i / totalChars) * Math.PI * 2;
           const texture = createRingTextTexture(char, 80);
+
           const geometry = new THREE.PlaneGeometry(24, 32);
           const material = new THREE.MeshBasicMaterial({
             map: texture,
@@ -650,28 +639,33 @@ export default function NaturalStyledGlobe({
 
         scene.add(ringGroup);
         ringGroupRef.current = ringGroup;
-        labelSpritesRef.current = [];
 
         globe.rotation.x = rotationRef.current.x;
         globe.rotation.y = rotationRef.current.y;
 
-        const waitForGeo = () => {
-          if (geoRef.current) {
-            globe
-              .polygonsData(geoRef.current.features as object[])
-              .polygonAltitude(0.008)
-              .polygonStrokeColor(() => BORDER_COLOR)
-              .polygonSideColor(() => "rgba(0,0,0,0)")
-              .polygonsTransitionDuration(200);
-            updatePolygonColors(null);
-          } else {
-            setTimeout(waitForGeo, 100);
+        // Apply polygons when geo is ready
+        const applyGeo = () => {
+          if (cancelled || token !== initTokenRef.current) return;
+          const geo = geoRef.current;
+          if (!geo) {
+            setTimeout(applyGeo, 100);
+            return;
           }
-        };
-        waitForGeo();
 
+          globe
+            .polygonsData(geo.features as object[])
+            .polygonAltitude(0.008)
+            .polygonStrokeColor(() => BORDER_COLOR)
+            .polygonSideColor(() => "rgba(0,0,0,0)")
+            .polygonsTransitionDuration(200);
+
+          updatePolygonColors(null);
+        };
+        applyGeo();
+
+        // Animation
         const animate = () => {
-          if (cancelled) return;
+          if (cancelled || token !== initTokenRef.current) return;
           rafRef.current = requestAnimationFrame(animate);
 
           if (!isDraggingRef.current && activeRef.current) {
@@ -685,14 +679,13 @@ export default function NaturalStyledGlobe({
           globe.rotation.x = rotationRef.current.x;
           globe.rotation.y = rotationRef.current.y;
 
-          if (ringGroupRef.current) {
-            ringGroupRef.current.rotation.z += 0.001;
-          }
+          if (ringGroupRef.current) ringGroupRef.current.rotation.z += 0.001;
 
           renderer.render(scene, camera);
         };
         animate();
 
+        // Events
         const onPointerDown = (e: PointerEvent) => {
           if (!activeRef.current) return;
           isDraggingRef.current = true;
@@ -700,9 +693,7 @@ export default function NaturalStyledGlobe({
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
           try {
             renderer.domElement.setPointerCapture(e.pointerId);
-          } catch {
-            // Ignore pointer capture errors
-          }
+          } catch {}
         };
 
         const onPointerMove = (e: PointerEvent) => {
@@ -712,9 +703,7 @@ export default function NaturalStyledGlobe({
             const dx = e.clientX - lastMouseRef.current.x;
             const dy = e.clientY - lastMouseRef.current.y;
 
-            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-              hasDraggedRef.current = true;
-            }
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDraggedRef.current = true;
 
             targetRotationRef.current.y += dx * ROTATION_SENSITIVITY;
             targetRotationRef.current.x += dy * ROTATION_SENSITIVITY;
@@ -726,7 +715,6 @@ export default function NaturalStyledGlobe({
             setHoveredContinent(null);
           } else {
             const { continent } = raycastContinent(e.clientX, e.clientY);
-
             if (continent !== currentHoverRef.current) {
               currentHoverRef.current = continent;
               setHoveredContinent(continent);
@@ -741,15 +729,11 @@ export default function NaturalStyledGlobe({
 
           try {
             renderer.domElement.releasePointerCapture(e.pointerId);
-          } catch {
-            // Ignore pointer capture errors
-          }
+          } catch {}
 
           if (!hasDraggedRef.current && activeRef.current) {
             const { continent } = raycastContinent(e.clientX, e.clientY);
-            if (continent) {
-              onClickRef.current(continent);
-            }
+            if (continent) onClickRef.current(continent);
           }
         };
 
@@ -767,12 +751,12 @@ export default function NaturalStyledGlobe({
         };
 
         const onResize = () => {
-          if (!camera || !renderer) return;
-          const w = mount.clientWidth;
-          const h = mount.clientHeight;
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
-          renderer.setSize(w, h);
+          if (!cameraRef.current || !rendererRef.current || !mountRef.current) return;
+          const w = mountRef.current.clientWidth;
+          const h = mountRef.current.clientHeight;
+          cameraRef.current.aspect = w / h;
+          cameraRef.current.updateProjectionMatrix();
+          rendererRef.current.setSize(w, h);
         };
 
         renderer.domElement.addEventListener("pointerdown", onPointerDown);
@@ -782,25 +766,15 @@ export default function NaturalStyledGlobe({
         renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
         window.addEventListener("resize", onResize);
 
-        addCleanup(() => {
-          renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-          renderer.domElement.removeEventListener("pointermove", onPointerMove);
-          renderer.domElement.removeEventListener("pointerup", onPointerUp);
-          renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
-          renderer.domElement.removeEventListener("wheel", onWheel);
-          window.removeEventListener("resize", onResize);
-        });
-
+        addCleanup(() => renderer.domElement.removeEventListener("pointerdown", onPointerDown));
+        addCleanup(() => renderer.domElement.removeEventListener("pointermove", onPointerMove));
+        addCleanup(() => renderer.domElement.removeEventListener("pointerup", onPointerUp));
+        addCleanup(() => renderer.domElement.removeEventListener("pointerleave", onPointerLeave));
+        addCleanup(() => renderer.domElement.removeEventListener("wheel", onWheel));
+        addCleanup(() => window.removeEventListener("resize", onResize));
       } catch (err) {
         console.error("Globe init error:", err);
-        setWebglError('Failed to initialize globe. Please refresh the page.');
-        isInitializedRef.current = false;
-
-        // Decrement counter on error
-        if (activeGlobeInstances > 0) {
-          activeGlobeInstances--;
-          console.log(`📉 Active globe instances after error: ${activeGlobeInstances}/${MAX_ALLOWED_INSTANCES}`);
-        }
+        setWebglError("Failed to initialize globe. Refresh the page.");
       }
     };
 
@@ -808,64 +782,12 @@ export default function NaturalStyledGlobe({
 
     return () => {
       cancelled = true;
-      isInitializedRef.current = false;
 
-      // Decrement global instance counter
-      if (activeGlobeInstances > 0) {
-        activeGlobeInstances--;
-        console.log(`📉 Active globe instances after cleanup: ${activeGlobeInstances}/${MAX_ALLOWED_INSTANCES}`);
-      }
+      if (activeGlobeInstances > 0) activeGlobeInstances--;
 
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
-      }
-
-      localCleanupFunctions.forEach(fn => {
-        try {
-          fn();
-        } catch (err) {
-          console.error('Cleanup function error:', err);
-        }
-      });
-
-      if (sceneRef.current) {
-        deepDisposeScene(sceneRef.current);
-        sceneRef.current = null;
-      }
-
-      if (rendererRef.current) {
-        try {
-          // CRITICAL: Force lose context using extension
-          const gl = rendererRef.current.getContext();
-          if (gl) {
-            const loseContextExt = gl.getExtension('WEBGL_lose_context');
-            if (loseContextExt) {
-              loseContextExt.loseContext();
-              console.log('✓ Forced WebGL context loss via extension');
-            }
-          }
-
-          rendererRef.current.dispose();
-          rendererRef.current.forceContextLoss();
-          console.log('✓ Renderer disposed and context loss forced');
-        } catch (err) {
-          console.error('Renderer disposal error:', err);
-        }
-        rendererRef.current = null;
-      }
-
-      cameraRef.current = null;
-      globeRef.current = null;
-      ringGroupRef.current = null;
-      labelSpritesRef.current = [];
-      cleanupFunctionsRef.current = [];
-
-      if (mount) {
-        mount.innerHTML = "";
-      }
+      fullCleanup();
     };
-  }, [raycastContinent, updatePolygonColors]);
+  }, [active, fullCleanup, raycastContinent, updatePolygonColors]);
 
   if (webglError) {
     return (
@@ -908,7 +830,7 @@ export default function NaturalStyledGlobe({
             onClick={() => window.location.reload()}
             className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors font-medium"
           >
-            Refresh Page
+            Refresh Page or try reopening the browser
           </button>
         </div>
       </div>
@@ -920,7 +842,10 @@ export default function NaturalStyledGlobe({
       {geoStatus !== "ok" && (
         <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-gray-700">
           <div className="text-xs text-gray-400">
-            Data: <span className={geoStatus === "fail" ? "text-red-400" : "text-amber-400"}>{geoStatus}</span>
+            Data:{" "}
+            <span className={geoStatus === "fail" ? "text-red-400" : "text-amber-400"}>
+              {geoStatus}
+            </span>
           </div>
         </div>
       )}
@@ -931,7 +856,7 @@ export default function NaturalStyledGlobe({
             className="text-2xl md:text-3xl font-bold tracking-wide text-amber-400"
             style={{
               fontFamily: '"Bell MT", "Georgia", serif',
-              textShadow: '0 0 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.6)'
+              textShadow: "0 0 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.6)",
             }}
           >
             Click to explore {hoveredContinent}
