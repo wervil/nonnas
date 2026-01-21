@@ -171,12 +171,21 @@ export default function DiscussionPanel({
                                             Connect with the community
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={handleStartDiscussion}
-                                        className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all duration-200 text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-105 active:scale-95"
-                                    >
-                                        + Start Discussion
-                                    </button>
+                                    {user ? (
+                                        <button
+                                            onClick={handleStartDiscussion}
+                                            className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all duration-200 text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-105 active:scale-95"
+                                        >
+                                            + Start Discussion
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => router.push("/handler/sign-in")}
+                                            className="px-4 py-2.5 bg-white/5 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/10 transition-all duration-200 text-sm font-semibold"
+                                        >
+                                            Log in to start discussion
+                                        </button>
+                                    )}
                                 </div>
                                 <ThreadList
                                     region={region}
