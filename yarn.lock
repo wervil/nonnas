@@ -1538,6 +1538,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lottiefiles/dotlottie-react@npm:^0.17.13":
+  version: 0.17.13
+  resolution: "@lottiefiles/dotlottie-react@npm:0.17.13"
+  dependencies:
+    "@lottiefiles/dotlottie-web": "npm:0.61.0"
+  peerDependencies:
+    react: ^17 || ^18 || ^19
+  checksum: 10c0/6fe92063aa46b385d87fa6cdeaa63a9a4ca06f36fad652bf27647effbc392c5db25e38fae4297bebaf1164cff06c4b361fcd55a812418fbf11d682599c6c59dc
+  languageName: node
+  linkType: hard
+
+"@lottiefiles/dotlottie-web@npm:0.61.0":
+  version: 0.61.0
+  resolution: "@lottiefiles/dotlottie-web@npm:0.61.0"
+  checksum: 10c0/d98e33a44c7bd84111a2bd1df34c01a9d6e133733b622cf5b763c06aa155b849151f34f632ee3fab76b685ecbaabdc97bf4633295829c9cc23fff54e82a2f7a0
+  languageName: node
+  linkType: hard
+
 "@napi-rs/wasm-runtime@npm:^0.2.11, @napi-rs/wasm-runtime@npm:^0.2.12":
   version: 0.2.12
   resolution: "@napi-rs/wasm-runtime@npm:0.2.12"
@@ -4545,6 +4563,7 @@ __metadata:
     "@lexical/html": "npm:^0.34.0"
     "@lexical/list": "npm:^0.34.0"
     "@lexical/react": "npm:^0.34.0"
+    "@lottiefiles/dotlottie-react": "npm:^0.17.13"
     "@neondatabase/serverless": "npm:^1.0.1"
     "@radix-ui/react-dialog": "npm:^1.1.15"
     "@radix-ui/react-hover-card": "npm:^1.1.15"

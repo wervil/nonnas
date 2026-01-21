@@ -9,6 +9,9 @@ import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
 import { Settings } from 'lucide-react'
+import DotLottieGlobe from './LottieGlobe'
+
+
 
 export const button = (path: string, n: (key: string) => string, hasAdminAccess: boolean) => {
   if (path === '/add-recipe') {
@@ -127,16 +130,18 @@ export const Header = ({
 
         {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
         {!isExplorePage && (
-          <Link href="/explore">
-            <Image
-              src="/globe.svg"
-              width={30}
-              height={30}
-              alt="Explore"
-              className="cursor-pointer hover:opacity-80 transition-opacity"
-            />
+          <Link href="/explore" aria-label="Explore" className="inline-flex items-center">
+            <span className="inline-flex items-center justify-center w-[40px] h-[40px]">
+              <DotLottieGlobe
+                src="/lottie/earth-lottie.json"
+                size={40}
+                className="w-[40px] h-[40px] cursor-pointer hover:opacity-80 transition-opacity"
+              />
+            </span>
           </Link>
         )}
+
+
 
         {user ? (
           hasAdminAccess ? (
