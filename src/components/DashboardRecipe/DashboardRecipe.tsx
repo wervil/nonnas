@@ -109,7 +109,7 @@ export const DashboardRecipe = ({
     <div className="w-full mx-auto">
       <div className="flex gap-4 p-4 action-buttons">
         <Button onClick={goBack}>{b('goBack')}</Button>
-        <div className="mb-2">
+        <div className=" flex items-center justify-center">
           <b>{l('published')}:</b>{' '}
           {sanitizedRecipe.published ? d('yes') : d('no')}
         </div>
