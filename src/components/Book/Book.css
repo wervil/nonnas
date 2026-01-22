@@ -191,6 +191,7 @@
     font-size: 18px;
   }
 }
+
 .text-description--long {
   text-align: left;
 }
@@ -270,13 +271,20 @@
   background: var(--color-yellow-light) !important;
 }
 
-.swiper-button-prev::after {
-  font-size: 34px !important;
-  color: var(--color-yellow-light);
+/* Swiper navigation size override */
+.swiper {
+  --swiper-navigation-size: 20px !important;
 }
 
+@media (min-width: 768px) {
+  .swiper {
+    --swiper-navigation-size: 30px !important;
+  }
+}
+
+.swiper-button-prev::after,
 .swiper-button-next::after {
-  font-size: 34px !important;
+  font-size: var(--swiper-navigation-size) !important;
   color: var(--color-yellow-light);
 }
 

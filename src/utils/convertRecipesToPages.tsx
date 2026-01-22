@@ -83,7 +83,7 @@ export const convertRecipesToPages = (
                   navigation
                   pagination={{ clickable: true }}
                   loop={recipe.photo.length > 1}
-                  className="w-full h-full cursor-pointer"
+                  className="w-full h-full cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
                   style={
                     {
                       '--swiper-navigation-sides-offset': '0px',
@@ -94,9 +94,8 @@ export const convertRecipesToPages = (
                     <SwiperSlide key={index}>
                       <Image
                         src={image}
-                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${
-                          index + 1
-                        }`}
+                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${index + 1
+                          }`}
                         fill
                         style={{ objectFit: 'cover' }}
                         className="object-cover"
@@ -134,7 +133,7 @@ export const convertRecipesToPages = (
                   !!recipe.geo_history,
                   contentHeight
                 )}
-              type="intro"
+                type="intro"
               />
             ) : null}
           </div>
@@ -145,13 +144,13 @@ export const convertRecipesToPages = (
       <div className="page-content">
         <div className="pokemon-container h-[100%]">
           {/* <div className='h-[50%]'>  */}
-            <RecipeSection
-              title={recipe.recipeTitle}
-              images={recipe.recipe_image}
-              ingredientsText={recipe.recipe}
-              directionsText={recipe.directions}
-              setImages={setImages}
-            />
+          <RecipeSection
+            title={recipe.recipeTitle}
+            images={recipe.recipe_image}
+            ingredientsText={recipe.recipe}
+            directionsText={recipe.directions}
+            setImages={setImages}
+          />
           {/* </div> */}
 
           <div className="page-info h-[49%]">

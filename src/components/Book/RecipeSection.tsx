@@ -63,7 +63,7 @@ export const RecipeSection = ({
                 navigation
                 pagination={{ clickable: true }}
                 loop={images?.length > 1}
-                className="w-full h-full rounded-lg cursor-pointer"
+                className="w-full h-full rounded-lg cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
                 style={
                   {
                     '--swiper-navigation-sides-offset': '0px',
@@ -127,68 +127,68 @@ export const RecipeSection = ({
       </div>
       {isOpen
         ? createPortal(
-            <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
-              <button
-                onClick={closeModal}
-                className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
-              >
-                <X size={30} />
-              </button>
-              <div className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
-                <div className="relative overflow-auto">
-                  {images?.length ? (
-                    <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[320px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
-                      <Swiper
-                        modules={[Navigation, Pagination]}
-                        navigation
-                        pagination={{ clickable: true }}
-                        loop={images?.length > 1}
-                        className="w-full h-full rounded-lg cursor-pointer"
-                        style={
-                          {
-                            '--swiper-navigation-sides-offset': '0px',
-                          } as React.CSSProperties
-                        }
-                      >
-                        {images?.map((image, index) => (
-                          <SwiperSlide key={index}>
-                            <Image
-                              src={image}
-                              alt={`${title} - photo ${index + 1}`}
-                              fill
-                              style={{ objectFit: 'cover' }}
-                              className="object-cover"
-                            />
-                          </SwiperSlide>
-                        ))}
-                      </Swiper>
-                    </div>
-                  ) : null}
-                  <h4
-                    className={`text-federant text-brown-light text-center text-m xl:text-xl`}
-                  >
-                    {title}
-                  </h4>
-                  <div
-                    className="text-description text-description--long"
-                    style={{ overflow: 'visible' }}
-                    dangerouslySetInnerHTML={{ __html: ingredientsText }}
-                  />
-                  <div
-                    className="text-description text-description--long mt-2"
-                    style={{ overflow: 'visible' }}
-                    dangerouslySetInnerHTML={{ __html: directionsText }}
-                  />
-                </div>
-
-                <div className="corner corner--big lt" />
-                <div className="corner corner--big rt" />
-                <div className="corner corner--big lb" />
-                <div className="corner corner--big rb" />
+          <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
+            <button
+              onClick={closeModal}
+              className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
+            >
+              <X size={30} />
+            </button>
+            <div className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
+              <div className="relative overflow-auto">
+                {images?.length ? (
+                  <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[320px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
+                    <Swiper
+                      modules={[Navigation, Pagination]}
+                      navigation
+                      pagination={{ clickable: true }}
+                      loop={images?.length > 1}
+                      className="w-full h-full rounded-lg cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
+                      style={
+                        {
+                          '--swiper-navigation-sides-offset': '0px',
+                        } as React.CSSProperties
+                      }
+                    >
+                      {images?.map((image, index) => (
+                        <SwiperSlide key={index}>
+                          <Image
+                            src={image}
+                            alt={`${title} - photo ${index + 1}`}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                            className="object-cover"
+                          />
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                  </div>
+                ) : null}
+                <h4
+                  className={`text-federant text-brown-light text-center text-m xl:text-xl`}
+                >
+                  {title}
+                </h4>
+                <div
+                  className="text-description text-description--long"
+                  style={{ overflow: 'visible' }}
+                  dangerouslySetInnerHTML={{ __html: ingredientsText }}
+                />
+                <div
+                  className="text-description text-description--long mt-2"
+                  style={{ overflow: 'visible' }}
+                  dangerouslySetInnerHTML={{ __html: directionsText }}
+                />
               </div>
-            </div>,
-            document.body
-          )
+
+              <div className="corner corner--big lt" />
+              <div className="corner corner--big rt" />
+              <div className="corner corner--big lb" />
+              <div className="corner corner--big rb" />
+            </div>
+          </div>,
+          document.body
+        )
         : null}
     </>
   )
