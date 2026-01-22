@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Phase C User Flows</title>
+    <style>
+        @page { margin: 0.5in; size: letter; }
+        body { font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.3; margin: 0; padding: 0; }
+        h1 { font-size: 14pt; margin: 10px 0 5px 0; page-break-after: avoid; }
+        h2 { font-size: 11pt; margin: 8px 0 3px 0; page-break-after: avoid; }
+        p { margin: 2px 0; }
+        .arrow { margin: 1px 0; }
+        .flow { margin-bottom: 8px; page-break-inside: avoid; }
+        table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 5px 0; }
+        th, td { border: 1px solid #000; padding: 3px; text-align: left; }
+        th { background: #ddd; }
+    </style>
+</head>
+<body>
+
+<h1>Phase C: Threaded Social Ecosystem - User Flows</h1>
+<p><strong>Project:</strong> Nonnas of the World | <strong>Date:</strong> January 8, 2026</p>
+
+<div class="flow">
+<h2>FLOW 1: Discussion Hub Access</h2>
+<p>Globe View (/) → User clicks continent → 2D Map opens → NonnaModal shows [Recipes] and [Community] tabs → User clicks [Community] → Discussion Hub displays (thread list, category filters, sort options) → User clicks thread → Thread View opens (post content, nested replies, [Reply] and [Like] buttons if logged in)</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 2: Creating a Thread</h2>
+<p>Discussion Hub → User clicks [+ Start Discussion] → IF not logged in: redirect to /handler/sign-in → IF logged in: Create Thread Form opens (title, category, content, [Post] button) → User submits → API: POST /api/threads → Redirect to Thread View</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 3: Replying to Posts</h2>
+<p>Thread View → User clicks [Reply] → IF not logged in: show "Sign in to reply" prompt → IF logged in: reply editor opens inline → User writes reply and clicks [Submit] → API: POST /api/posts (with thread_id, parent_post_id, user_id, depth) → Reply appears nested under parent</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 4: Direct Messaging</h2>
+<p><strong>Option A:</strong> NonnaModal → Recipe card shows [💬 Message] button → User clicks → IF not logged in: redirect to /handler/sign-in → IF logged in: redirect to /messages?recipient=[user_id]</p>
+<p><strong>Option B:</strong> Profile page (/profile/[id]) → [Send Message] button → Same auth flow as Option A</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 5: Messaging Interface</h2>
+<p>/messages page (auth required) → Left sidebar: conversation list with avatars, names, previews, unread badges → Right panel: selected conversation with message history and input box → User clicks conversation → API: GET /api/messages?conversation_id=[id] → Messages display → User types and clicks [Send] → API: POST /api/messages → Message appears immediately</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 6: Liking Content</h2>
+<p>Thread View → User sees [❤ Like] button with count → User clicks → IF not logged in: show tooltip "Sign in to like" → IF logged in: API: POST /api/likes → IF already liked: remove like → IF not liked: add like → Button updates (color change, count increment)</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 7: Recipe Discussion Integration</h2>
+<p>Home page (/) → Virtual Flipbook → User viewing recipe → [💬 Discuss Recipe] button appears → User clicks → Discussion Modal opens (shows threads tagged with recipe_id, [Start Discussion] button) → User clicks thread: opens Thread View OR clicks [Start Discussion]: Create Thread with auto-filled category="Recipes" and recipe_id link</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 8: Enhanced Map Integration</h2>
+<p>2D Map View → NonnaModal with 3 tabs:</p>
+<p><strong>TAB 1 [Recipes]:</strong> List of recipes, [View Recipe] buttons (existing)</p>
+<p><strong>TAB 2 [Community]:</strong> Thread list for region, category filters, [+ Start Discussion] button, sorting (Top/Newest/Relevant)</p>
+<p><strong>TAB 3 [Connect]:</strong> User cards showing avatars, names, recipe counts, [View Profile] and [Message] buttons</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 9: User Profile</h2>
+<p>Header → User clicks avatar → Dropdown: "My Profile", "My Discussions", "My Messages", "Settings", "Logout" → User clicks "My Profile" → /profile/[user_id] shows: About section (name, location, cultural background, [Edit Profile] if own), Recipes Contributed (grid of cards), Community Activity (discussions, replies, likes), Privacy Settings (messaging preferences, block list)</p>
+</div>
+
+<div class="flow">
+<h2>FLOW 10: Admin Moderation</h2>
+<p>Admin Dashboard (/dashboard) → New sidebar item: [Community] → Opens with 4 tabs:</p>
+<p><strong>TAB 1 [Flagged Content]:</strong> Reported posts with [Approve], [Delete], [Warn User], [Ban User] buttons</p>
+<p><strong>TAB 2 [Recent Activity]:</strong> All threads/posts chronologically, quick delete button, filters</p>
+<p><strong>TAB 3 [User Management]:</strong> Most active users, stats, warning/ban controls</p>
+<p><strong>TAB 4 [Analytics]:</strong> Total threads/posts, engagement rate, active regions, popular categories, daily active users</p>
+</div>
+
+<h2>New UI Elements</h2>
+<table>
+<tr><th>Location</th><th>Element</th><th>Action</th><th>Auth</th></tr>
+<tr><td>NonnaModal</td><td>[Community] tab</td><td>Opens Discussion Hub</td><td>No</td></tr>
+<tr><td>NonnaModal</td><td>[Connect] tab</td><td>Shows user directory</td><td>No</td></tr>
+<tr><td>Recipe Card</td><td>[💬 Message] button</td><td>/messages?recipient=X</td><td>Yes</td></tr>
+<tr><td>Flipbook</td><td>[💬 Discuss Recipe]</td><td>Discussion modal</td><td>No (read)</td></tr>
+<tr><td>Thread Posts</td><td>[Reply] button</td><td>Reply editor inline</td><td>Yes</td></tr>
+<tr><td>Thread Posts</td><td>[❤ Like] button</td><td>Toggle like</td><td>Yes</td></tr>
+<tr><td>Header</td><td>💬 Messages</td><td>/messages</td><td>Yes</td></tr>
+<tr><td>Profile</td><td>[Send Message]</td><td>/messages?recipient=X</td><td>Yes</td></tr>
+<tr><td>Discussion Hub</td><td>[+ Start Discussion]</td><td>/community/create</td><td>Yes</td></tr>
+</table>
+
+<h2>New Routes</h2>
+<table>
+<tr><th>Route</th><th>Access</th><th>Purpose</th></tr>
+<tr><td>/community/[region]</td><td>Public</td><td>Discussion hub (read-only)</td></tr>
+<tr><td>/community/create</td><td>Auth Required</td><td>Create thread form</td></tr>
+<tr><td>/community/thread/[id]</td><td>Public</td><td>Thread view</td></tr>
+<tr><td>/messages</td><td>Auth Required</td><td>Messaging inbox</td></tr>
+<tr><td>/messages/[conversationId]</td><td>Auth Required</td><td>Conversation view</td></tr>
+<tr><td>/profile/[id]</td><td>Public</td><td>User profile</td></tr>
+<tr><td>/settings</td><td>Auth Required</td><td>Privacy settings</td></tr>
+</table>
+
+<h2>API Endpoints</h2>
+<table>
+<tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Purpose</th></tr>
+<tr><td>/api/threads</td><td>GET</td><td>No</td><td>Fetch threads</td></tr>
+<tr><td>/api/threads</td><td>POST</td><td>Yes</td><td>Create thread</td></tr>
+<tr><td>/api/threads/[id]</td><td>GET</td><td>No</td><td>Fetch thread</td></tr>
+<tr><td>/api/posts</td><td>POST</td><td>Yes</td><td>Create reply</td></tr>
+<tr><td>/api/posts/[id]</td><td>PATCH</td><td>Yes (owner)</td><td>Edit post</td></tr>
+<tr><td>/api/posts/[id]</td><td>DELETE</td><td>Yes (owner)</td><td>Delete post</td></tr>
+<tr><td>/api/likes</td><td>POST</td><td>Yes</td><td>Toggle like</td></tr>
+<tr><td>/api/messages</td><td>GET</td><td>Yes</td><td>Fetch conversations</td></tr>
+<tr><td>/api/messages</td><td>POST</td><td>Yes</td><td>Send message</td></tr>
+<tr><td>/api/favorites</td><td>POST</td><td>Yes</td><td>Toggle favorite</td></tr>
+<tr><td>/api/report</td><td>POST</td><td>Yes</td><td>Report content</td></tr>
+</table>
+
+</body>
+</html>
