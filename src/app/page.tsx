@@ -15,6 +15,10 @@ import { useEffect, useState } from 'react'
 
 
 
+import { SearchResultsModal } from '@/components/SearchResultsModal'
+import { BookHandle } from '@/components/Book/Book'
+import { useRef } from 'react'
+
 export type ClusterPoint = {
   id: string;
   lat: number;
@@ -28,6 +32,7 @@ export default function Recipes() {
   const countries = useCountries()
   const path = usePathname()
   const searchParams = useSearchParams()
+  const bookRef = useRef<BookHandle>(null)
 
   // Get recipe ID from URL parameter (from map "View Recipe" button)
   const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null)
@@ -57,6 +62,7 @@ export default function Recipes() {
   const {
     loading,
     recipes,
+    filteredRecipes,
     tableOfContents,
     selectedCountry,
     setSelectedCountry,
@@ -71,21 +77,42 @@ export default function Recipes() {
     hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
   }
 
+  const handleSelectRecipe = (recipeId: number) => {
+    // 1. Close modal (clear filters)
+    setSearch('')
+    setSelectedCountry({ value: '', label: n('all') })
+
+    // 2. Navigate Book
+    if (bookRef.current) {
+      bookRef.current.goToRecipe(recipeId)
+    }
+  }
+
+  const showSearchResults = (search.length > 0 || selectedCountry.value !== '') && !loading
+
   return (
     <>
-
-
-
+      <SearchResultsModal
+        isOpen={showSearchResults}
+        onClose={() => {
+          setSearch('')
+          setSelectedCountry({ value: '', label: n('all') })
+        }}
+        results={filteredRecipes}
+        onSelect={handleSelectRecipe}
+      />
       <div className="min-h-svh flex flex-col overflow-hidden">
-        <Header
-          hasAdminAccess={hasPermissions}
-          countriesOptions={countriesOptions}
-          selectedCountry={selectedCountry}
-          setSelectedCountry={setSelectedCountry}
-          search={search}
-          setSearch={setSearch}
-          user={user}
-        />
+        <div className="relative z-[60]">
+          <Header
+            hasAdminAccess={hasPermissions}
+            countriesOptions={countriesOptions}
+            selectedCountry={selectedCountry}
+            setSelectedCountry={setSelectedCountry}
+            search={search}
+            setSearch={setSearch}
+            user={user}
+          />
+        </div>
         <main className="grow flex flex-col w-full object-top object-cover relative main-gradient min-h-svh">
           <WelcomeOverlay />
           <Image
@@ -129,6 +156,7 @@ export default function Recipes() {
             <div></div>
           ) : (
             <Book
+              ref={bookRef}
               recipes={recipes}
               tableOfContents={tableOfContents}
               initialRecipeId={initialRecipeId}

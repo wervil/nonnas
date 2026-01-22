@@ -22,72 +22,80 @@ export const useRecipes = () => {
     value: string
   }>({ value: '', label: n('all') })
   const [search, setSearch] = useState('')
-  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [recipes, setRecipes] = useState<Recipe[]>([]) // These are now ALL recipes
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]) // These are subsets
   const [loading, setLoading] = useState(true)
   const [tableOfContents, setTableOfContents] = useState<
     Record<string, Recipe[]>
   >({})
   const [lang] = useState('en-US')
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  const fetchRecipes = async (
-    lang: string,
-    search: string,
-    country: string
-  ) => {
+  // Fetch all recipes once
+  const fetchRecipes = async (lang: string) => {
     setLoading(true)
-    let url = `/api/recipes?published=true&lang=${lang}`
-    if (search) {
-      url += `&search=${encodeURIComponent(search)}`
+    const url = `/api/recipes?published=true&lang=${lang}`
+
+    try {
+      const res = await fetch(url)
+      const data = await res.json()
+
+      if (Array.isArray(data.recipes)) {
+        const convertedRecipes = data.recipes.map(convertRecipe)
+        setRecipes(convertedRecipes)
+      } else {
+        const sortedRecipes: Record<string, Recipe[]> = Object.keys(data.recipes)
+          .sort()
+          .reduce((acc, key) => {
+            acc[key] = data.recipes[key]
+            return acc
+          }, {} as Record<string, Recipe[]>)
+
+        setTableOfContents(sortedRecipes)
+
+        const allRecipes = Object.values(sortedRecipes).flat() as Recipe[]
+        const convertedRecipes = allRecipes.map(convertRecipe)
+
+        setRecipes(convertedRecipes)
+      }
+    } catch (error) {
+      console.error("Failed to fetch recipes", error)
+    } finally {
+      setLoading(false)
     }
-    if (!!country) {
-      url += `&country=${encodeURIComponent(country)}`
-    }
-
-    const res = await fetch(url)
-    const data = await res.json()
-
-    if (Array.isArray(data.recipes)) {
-      const convertedRecipes = data.recipes.map(convertRecipe)
-      setRecipes(convertedRecipes)
-    } else {
-      const sortedRecipes: Record<string, Recipe[]> = Object.keys(data.recipes)
-        .sort()
-        .reduce((acc, key) => {
-          acc[key] = data.recipes[key]
-          return acc
-        }, {} as Record<string, Recipe[]>)
-
-      setTableOfContents(sortedRecipes)
-
-      const allRecipes = Object.values(sortedRecipes).flat() as Recipe[]
-      const convertedRecipes = allRecipes.map(convertRecipe)
-
-      setRecipes(convertedRecipes)
-    }
-
-    setLoading(false)
   }
 
+  // Filter recipes when search or country changes
   useEffect(() => {
-    fetchRecipes(lang, search, selectedCountry.value)
+    let result = recipes
+
+    if (search) {
+      const lowerSearch = search.toLowerCase()
+      result = result.filter(r =>
+        r.recipeTitle.toLowerCase().includes(lowerSearch) ||
+        r.firstName.toLowerCase().includes(lowerSearch) ||
+        r.lastName.toLowerCase().includes(lowerSearch) ||
+        (r.grandmotherTitle && r.grandmotherTitle.toLowerCase().includes(lowerSearch))
+      )
+    }
+
+    if (selectedCountry.value) {
+      result = result.filter(r => r.country === selectedCountry.value)
+    }
+
+    setFilteredRecipes(result)
+  }, [recipes, search, selectedCountry])
+
+  useEffect(() => {
+    fetchRecipes(lang)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang])
 
-  useEffect(() => {
-    if (searchTimeout.current) clearTimeout(searchTimeout.current)
-    searchTimeout.current = setTimeout(() => {
-      fetchRecipes(lang, search, selectedCountry.value)
-    }, 400)
-    return () => {
-      if (searchTimeout.current) clearTimeout(searchTimeout.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, selectedCountry.value])
+  // NOTE: Removed the debounce search fetch because we filter client side now.
 
   return {
     loading,
-    recipes,
+    recipes, // Passing ALL recipes to the book
+    filteredRecipes, // Passing filtered recipes to the modal
     tableOfContents,
     selectedCountry,
     setSelectedCountry,
