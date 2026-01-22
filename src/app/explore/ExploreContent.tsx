@@ -14,7 +14,7 @@ export default function ExploreContent() {
     }
 
     return (
-        <div className="flex flex-col h-screen w-screen bg-[#0a0a0a] overflow-hidden">
+        <div className="flex flex-col h-screen w-full bg-[#0a0a0a] overflow-hidden">
             {/* Header with high z-index to stay above map elements if needed */}
             <div className="z-49 relative">
                 <Header
