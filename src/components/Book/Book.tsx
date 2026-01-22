@@ -43,8 +43,8 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
     'landscape'
   )
   const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null)
-  // const [pageRanges, setPageRanges] = useState<Record<string, string>>({})
-  // const [recipesPerPage, setRecipesPerPage] = useState(14)
+  const [currentPage, setCurrentPage] = useState(0)
+  const totalPages = 1 + (recipes.length * 2)
 
   const getCurrentLayout = () => {
     if (flipbookRef.current) {
@@ -130,6 +130,11 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
     flipbookRef.current?.pageFlip()?.flipPrev()
   }
 
+  const isPrevDisabled = currentPage === 0
+  const isNextDisabled = isMobile
+    ? currentPage >= totalPages - 1
+    : currentPage + 1 >= totalPages - 1
+
   const goToPage = (pageNumber: number) => {
     if (flipbookRef.current) {
       flipbookRef.current.pageFlip()?.flip(pageNumber)
@@ -174,8 +179,12 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       <div className="wrap">
         <div className="custom-container flex">
           <button
-            className="cursor-pointer rotate-135 md:rotate-355 relative md:top-[15svh] left-[10px] md:left-0 z-1000"
+            className={`rotate-135 md:rotate-355 relative md:top-[15svh] left-[10px] md:left-0 z-1000 ${isPrevDisabled
+              ? 'opacity-30 cursor-not-allowed pointer-events-none'
+              : 'cursor-pointer'
+              }`}
             onClick={prevPage}
+            disabled={isPrevDisabled}
             style={{ color: 'white', fontSize: 20 }}
           >
             {window.innerWidth > 768 ? (
@@ -227,10 +236,11 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               disableFlipByClick={false}
               onFlip={(e) => {
                 // e.data contains the current page number
-                const currentPage = e.data
-                console.log('Page flipped to:', currentPage, 'PAGES_BEFORE_RECIPES:', PAGES_BEFORE_RECIPES)
+                const currentPageNum = e.data
+                setCurrentPage(currentPageNum)
+                console.log('Page flipped to:', currentPageNum, 'PAGES_BEFORE_RECIPES:', PAGES_BEFORE_RECIPES)
 
-                if (currentPage < PAGES_BEFORE_RECIPES) {
+                if (currentPageNum < PAGES_BEFORE_RECIPES) {
                   // On cover page, clear current recipe
                   console.log('On cover page, clearing recipe')
                   setCurrentRecipeId(null)
@@ -239,7 +249,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
                   // Each recipe has 2 pages, and there's 1 cover page before recipes
                   // If currentPage is 1 (left page of first recipe), index should be 0
                   // If currentPage is 2 (right page of first recipe), index should be 0
-                  const recipeIndex = Math.floor((currentPage - PAGES_BEFORE_RECIPES) / 2)
+                  const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
                   console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
 
                   if (recipeIndex >= 0 && recipeIndex < recipes.length) {
@@ -279,8 +289,12 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
             </HTMLFlipBook>
           </div>
           <button
-            className="cursor-pointer rotate-315 md:rotate-10 relative md:top-[15svh] button right-[10px] md:right-0"
+            className={`rotate-315 md:rotate-10 relative md:top-[15svh] button right-[10px] md:right-0 ${isNextDisabled
+              ? 'opacity-30 cursor-not-allowed pointer-events-none'
+              : 'cursor-pointer'
+              }`}
             onClick={nextPage}
+            disabled={isNextDisabled}
             style={{ color: 'white', fontSize: 20 }}
           >
             {window.innerWidth > 768 ? (
