@@ -322,7 +322,7 @@ export const AddRecipe = ({
               >
                 {l('releaseSignature')}
                 <a
-                  href="/terms-of-use"
+                  href="https://nonnasoftheworld.com/terms-conditions/"
                   target="_blank"
                 >
                   {l('termsAndConditions')}
