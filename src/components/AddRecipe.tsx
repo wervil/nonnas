@@ -27,12 +27,12 @@ const getTextContent = (html: string): string => {
 }
 
 const recipeSchema = z.object({
-  grandmotherTitle: z.string().min(1, 'Grandmother Title is required').max(80, 'Grandmother Title must be 80 characters or less'),
-  firstName: z.string().min(1, 'First Name is required').max(60, 'First Name must be 60 characters or less'),
-  lastName: z.string().min(1, 'Last Name is required').max(60, 'Last Name must be 60 characters or less'),
+  grandmotherTitle: z.string().min(1, 'Grandmother Title is required').max(80, 'Grandmother Title must be 80 characters or less').regex(/^[^0-9]*$/, 'Grandmother Title cannot contain numbers'),
+  firstName: z.string().min(1, 'First Name is required').max(60, 'First Name must be 60 characters or less').regex(/^[^0-9]*$/, 'First Name cannot contain numbers'),
+  lastName: z.string().min(1, 'Last Name is required').max(60, 'Last Name must be 60 characters or less').regex(/^[^0-9]*$/, 'Last Name cannot contain numbers'),
   country: z.string().min(1, 'Country is required'),
   history: z.string().min(1, 'Biography is required').max(700, 'Biography must be 700 characters or less'),
-  recipeTitle: z.string().min(1, 'Recipe Title is required').max(80, 'Recipe Title must be 80 characters or less'),
+  recipeTitle: z.string().min(1, 'Recipe Title is required').max(80, 'Recipe Title must be 80 characters or less').regex(/^[^0-9]*$/, 'Recipe Title cannot contain numbers'),
   recipe: z.string().min(1, 'Ingredients are required').refine((val) => getTextContent(val).length <= 1000, {
     message: 'Ingredients must be 1000 characters or less',
   }),
@@ -159,23 +159,23 @@ export const AddRecipe = ({
 
       const response = recipe
         ? await fetch('/api/recipes', {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ...sanitizedData,
-              id: recipe.id,
-              published: recipe.published,
-            }),
-          })
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...sanitizedData,
+            id: recipe.id,
+            published: recipe.published,
+          }),
+        })
         : await fetch('/api/recipes', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(sanitizedData),
-          })
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sanitizedData),
+        })
 
       if (!response.ok) {
         const errorData = await response.json()

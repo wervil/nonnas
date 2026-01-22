@@ -44,7 +44,7 @@ function InitialContentPlugin({ initialHtml }: { initialHtml?: string }) {
         const parser = new DOMParser()
         const dom = parser.parseFromString(initialHtml, 'text/html')
         const nodes = $generateNodesFromDOM(editor, dom)
-        
+
         // Clear existing content and insert new nodes
         const root = $getRoot()
         root.clear()
@@ -107,6 +107,7 @@ export const TextEditor = <T extends FieldValues>({
   maxLength,
 }: TextEditorProps<T>) => {
   const getTextContent = (html: string): string => {
+    if (typeof window === 'undefined') return html
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
     return doc.body.textContent || ''
