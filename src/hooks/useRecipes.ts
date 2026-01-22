@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { sanitizeHtml } from '@/utils/utils'
 import { Recipe } from '@/db/schema'
 import { useTranslations } from 'next-intl'
