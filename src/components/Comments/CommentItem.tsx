@@ -150,7 +150,8 @@ export default function CommentItem({
                             {/* Message Icon after 1 hour */}
                             {userId && userId !== comment.user_id && (!comment.created_at || (Date.now() - new Date(comment.created_at).getTime() > 3600000)) && (
                                 <Link
-                                    href={`/?chatWith=${comment.user_id}`}
+                                    href={`/messages?chatWith=${comment.user_id}`}
+                                    target="_blank"
                                     className="text-[var(--color-text-pale)] hover:text-[var(--color-primary-main)] transition-colors ml-1"
                                     title="Message User"
                                 >

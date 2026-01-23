@@ -148,7 +148,8 @@ export default function PostItem({
                             {/* Message Icon after 1 hour */}
                             {isAuthenticated && (!post.created_at || (Date.now() - new Date(post.created_at).getTime() > 3600000)) && currentUserId !== post.user_id && (
                                 <Link
-                                    href={`/?chatWith=${post.user_id}`}
+                                    href={`/messages?chatWith=${post.user_id}`}
+                                    target="_blank"
                                     className="ml-2 text-gray-500 hover:text-amber-400 transition-colors"
                                     title="Message User"
                                 >

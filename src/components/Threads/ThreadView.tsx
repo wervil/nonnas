@@ -255,7 +255,8 @@ export default function ThreadView({
                         {/* Message Icon after 1 hour */}
                         {isAuthenticated && (!thread.created_at || (Date.now() - new Date(thread.created_at).getTime() > 3600000)) && currentUserId !== thread.user_id && (
                             <Link
-                                href={`/?chatWith=${thread.user_id}`}
+                                href={`/messages?chatWith=${thread.user_id}`}
+                                target="_blank"
                                 className="text-gray-500 hover:text-amber-400 transition-colors ml-1"
                                 title="Message User"
                             >

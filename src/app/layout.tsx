@@ -11,7 +11,7 @@ import { StackProvider, StackTheme } from "@stackframe/stack"
 import { stackServerApp } from "../stack"
 import { Footer } from "@/components/Footer"
 import { Toaster } from 'sonner'
-import { MessagingDrawer } from "@/components/messaging/MessagingDrawer"
+
 
 export const metadata: Metadata = {
   title: "Cook Book App",
@@ -46,9 +46,6 @@ export default async function RootLayout({
             <StackTheme>
               <div className="min-h-svh">{children}</div>
               <Footer />
-              <Suspense fallback={null}>
-                <MessagingDrawer />
-              </Suspense>
             </StackTheme>
           </StackProvider>
         </NextIntlClientProvider>

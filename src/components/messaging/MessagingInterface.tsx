@@ -6,15 +6,14 @@ import { io, Socket } from 'socket.io-client';
 import { Conversation, Message, AttachmentType } from './types';
 import { ConversationList } from './ConversationList';
 import { ChatWindow } from './ChatWindow';
-import { X, MessageCircle } from 'lucide-react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
-export const MessagingDrawer = () => {
+export const MessagingInterface = () => {
     const user = useUser();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const [isOpen, setIsOpen] = useState(false);
+    // No isOpen state needed for page view
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConvo, setActiveConvo] = useState<Conversation | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -31,14 +30,7 @@ export const MessagingDrawer = () => {
     }, [searchParams, user]);
 
     const startChat = async (targetId: string) => {
-        setIsOpen(true);
-        // Clean URL
-        if (searchParams) {
-            const params = new URLSearchParams(searchParams.toString());
-            params.delete('chatWith');
-            router.replace(`${pathname}?${params.toString()}`);
-        }
-
+        // No setIsOpen needed
         try {
             const res = await fetch('/api/conversations', {
                 method: 'POST',
@@ -48,6 +40,11 @@ export const MessagingDrawer = () => {
                 const convo = await res.json();
                 setActiveConvo(convo);
                 fetchConversations(); // refresh list
+
+                // Optional: Clean URL after successful load
+                // const params = new URLSearchParams(searchParams.toString());
+                // params.delete('chatWith');
+                // router.replace(`${pathname}?${params.toString()}`);
             }
         } catch (e) {
             console.error(e);
@@ -103,12 +100,12 @@ export const MessagingDrawer = () => {
         }
     }, [socket, activeConvo]);
 
-    // Fetch conversations when drawer opens
+    // Fetch conversations on mount
     useEffect(() => {
-        if (isOpen && user) {
+        if (user) {
             fetchConversations();
         }
-    }, [isOpen, user]);
+    }, [user]);
 
     // Fetch messages when entering chat
     useEffect(() => {
@@ -166,50 +163,50 @@ export const MessagingDrawer = () => {
         }
     }
 
-    if (!user) return null;
+    if (!user) return <div className="p-8 text-center text-gray-500">Please sign in to view messages.</div>;
 
     return (
-        <>
-            {/* Trigger Button */}
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-4 right-4 z-[9999] p-4 bg-amber-600 text-white rounded-full shadow-lg hover:bg-amber-700 transition"
-            >
-                <MessageCircle size={24} />
-            </button>
+        <div className="flex flex-1 h-full bg-gray-50">
+            {/* Sidebar List - Hidden on mobile if activeConvo is selected */}
+            <div className={`
+                w-full md:w-80 lg:w-96 border-r bg-white flex flex-col
+                ${activeConvo ? 'hidden md:flex' : 'flex'}
+            `}>
+                <div className="p-4 border-b">
+                    <h2 className="font-bold text-xl text-gray-800">Messages</h2>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    <ConversationList
+                        conversations={conversations}
+                        currentUserId={user.id}
+                        onSelect={setActiveConvo}
+                        isLoading={loading}
+                    />
+                </div>
+            </div>
 
-            {/* Drawer Overlay */}
-            {isOpen && (
-                <div className="fixed inset-0 z-[10000] flex justify-end bg-black/20 backdrop-blur-sm" onClick={() => setIsOpen(false)}>
-                    <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-                        {!activeConvo && (
-                            <div className="p-4 border-b flex justify-between items-center">
-                                <h2 className="font-bold text-lg">Messages</h2>
-                                <button onClick={() => setIsOpen(false)}><X /></button>
-                            </div>
-                        )}
-
-                        <div className="flex-1 overflow-hidden relative">
-                            {activeConvo ? (
-                                <ChatWindow
-                                    messages={messages}
-                                    currentUserId={user.id}
-                                    otherUserId={activeConvo.user1_id === user.id ? activeConvo.user2_id : activeConvo.user1_id}
-                                    onBack={() => setActiveConvo(null)}
-                                    onSendMessage={handleSendMessage}
-                                />
-                            ) : (
-                                <ConversationList
-                                    conversations={conversations}
-                                    currentUserId={user.id}
-                                    onSelect={setActiveConvo}
-                                    isLoading={loading}
-                                />
-                            )}
+            {/* Chat Area - Hidden on mobile if no activeConvo */}
+            <div className={`
+                flex-1 flex flex-col bg-white
+                ${!activeConvo ? 'hidden md:flex' : 'flex'}
+            `}>
+                {activeConvo ? (
+                    <ChatWindow
+                        messages={messages}
+                        currentUserId={user.id}
+                        otherUserId={activeConvo.user1_id === user.id ? activeConvo.user2_id : activeConvo.user1_id}
+                        onBack={() => setActiveConvo(null)}
+                        onSendMessage={handleSendMessage}
+                    />
+                ) : (
+                    <div className="flex-1 flex items-center justify-center text-gray-400 bg-gray-50">
+                        <div className="text-center">
+                            <p className="text-lg font-medium">Select a conversation</p>
+                            <p className="text-sm">Choose a chat from the list to start messaging</p>
                         </div>
                     </div>
-                </div>
-            )}
-        </>
+                )}
+            </div>
+        </div>
     )
 }
