@@ -212,7 +212,7 @@ export default function ThreadView({
     return (
         <div className="max-w-4xl mx-auto">
             {/* Back Button */}
-            {!hideBackButton && (
+            {/* {!hideBackButton && (
                 onBack ? (
                     <button
                         onClick={onBack}
@@ -230,31 +230,31 @@ export default function ThreadView({
                         <span className="font-medium">Back to discussions</span>
                     </Link>
                 )
-            )}
+            )} */}
 
             {/* Thread Header */}
             <div className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/10 rounded-xl p-5 mb-4">
                 {/* Badges */}
-                <div className="flex flex-wrap items-center gap-2 mb-3">
+                <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-full !bg-gray-300">
                     <span
                         className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${thread.scope === 'country'
-                            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            ? 'bg-blue-500/20 text-blue-800 border-blue-500/30'
+                            : 'bg-emerald-500/20 text-emerald-800 border-emerald-500/30'
                             }`}
                     >
                         {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
                     </span>
-                    <span className="px-2.5 py-0.5 bg-white/10 text-gray-300 rounded-full text-xs font-medium">
+                    <span className="px-2.5 py-0.5 bg-white  rounded-full text-xs font-medium">
                         {thread.category}
                     </span>
-                    <span className="text-gray-500 text-xs">{thread.region}</span>
+                    <span className="text-gray-800 text-xs">{thread.region}</span>
                 </div>
 
                 {/* Title - smaller and more compact */}
-                <h2 className="text-lg font-bold  mb-2" style={{ color: 'white' }}>{thread.title}</h2>
+                <h2 className="text-lg font-bold  mb-2 text-black-600 capitalize" >{thread.title}</h2>
 
                 {/* Content */}
-                <p className="text-gray-300 text-sm whitespace-pre-wrap mb-4 leading-relaxed">{thread.content}</p>
+                <p className="text-gray-600 text-sm whitespace-pre-wrap mb-4 leading-relaxed">{thread.content}</p>
 
                 {/* Meta info - more compact */}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-3 pb-3 border-b border-white/10">
@@ -316,7 +316,7 @@ export default function ThreadView({
                             : 'Sign in to join the discussion'
                     }
                     disabled={!isAuthenticated}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-amber rounded-lg text-grey-700 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <div className="flex justify-between items-center">
                     <span className={`text-xs ${replyContent.length > 4500 ? 'text-amber-400' : 'text-gray-500'}`}>

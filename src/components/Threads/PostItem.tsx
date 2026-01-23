@@ -139,7 +139,7 @@ export default function PostItem({
             className="pl-3 py-1"
             style={{ marginLeft: `${(post.depth || 0) * 12}px` }}
         >
-            <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-lg p-3 border border-white/10 hover:border-white/20 transition-colors">
+            <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-lg p-3 border border-grey/50 hover:border-grey/20 transition-colors">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 text-xs">
@@ -263,7 +263,7 @@ export default function PostItem({
                         rows={3}
                         placeholder={isAuthenticated ? 'Write your reply...' : 'Sign in to reply'}
                         disabled={!isAuthenticated}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 bg-white/5 border border-grey/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div className="flex justify-between items-center">
                         <span className={`text-xs ${replyContent.length > 4500 ? 'text-amber-400' : 'text-gray-500'}`}>
