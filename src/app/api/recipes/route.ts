@@ -15,6 +15,8 @@ import { eq, sql, and, ilike, inArray } from 'drizzle-orm'
 //   }, {})
 // }
 
+import { moderateContent } from '@/services/moderation'
+
 // Database connection using Neon
 const db = drizzle(process.env.DATABASE_URL!)
 
@@ -38,6 +40,28 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { message: 'Fill all required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Content Moderation
+    const contentToCheck = [
+      body.grandmotherTitle,
+      body.firstName,
+      body.lastName,
+      body.recipeTitle,
+      body.history,
+      body.geo_history,
+      body.recipe,
+      body.directions,
+      body.influences,
+      body.traditions
+    ].filter(Boolean).join('\n');
+
+    const isFlagged = await moderateContent(contentToCheck);
+    if (isFlagged) {
+      return NextResponse.json(
+        { message: 'Content flagged as inappropriate.' },
         { status: 400 }
       )
     }
@@ -254,6 +278,30 @@ export async function PATCH(request: NextRequest) {
         { message: 'Invalid id or published value' },
         { status: 400 }
       )
+    }
+
+    // Content Moderation for Updates
+    const contentToCheck = [
+      body.grandmotherTitle,
+      body.firstName,
+      body.lastName,
+      body.recipeTitle,
+      body.history,
+      body.geo_history,
+      body.recipe,
+      body.directions,
+      body.influences,
+      body.traditions
+    ].filter(Boolean).join('\n');
+
+    if (contentToCheck) {
+      const isFlagged = await moderateContent(contentToCheck);
+      if (isFlagged) {
+        return NextResponse.json(
+          { message: 'Content flagged as inappropriate.' },
+          { status: 400 }
+        )
+      }
     }
 
     const updatedRecipe = {

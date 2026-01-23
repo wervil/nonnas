@@ -116,7 +116,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Content moderation
+        // Content moderation
+        console.log('Moderating comment content:', content);
         const isFlagged = await moderateContent(content)
+        console.log('Moderation result:', isFlagged);
         if (isFlagged) {
             return NextResponse.json(
                 { error: 'Content flagged as inappropriate.' },

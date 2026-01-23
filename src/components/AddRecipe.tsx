@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -179,6 +180,14 @@ export const AddRecipe = ({
 
       if (!response.ok) {
         const errorData = await response.json()
+
+        // Handle moderation/validation errors gracefully
+        if (response.status === 400) {
+          toast.error(errorData.message || 'Invalid request')
+          setIsSubmitting(false)
+          return
+        }
+
         throw new Error(errorData.message || 'Failed to save recipe')
       }
 
@@ -187,6 +196,7 @@ export const AddRecipe = ({
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message || 'An error occurred while saving the recipe')
+        toast.error(err.message || 'An error occurred while saving the recipe')
       }
       console.error('Error saving recipe:', err)
     } finally {
