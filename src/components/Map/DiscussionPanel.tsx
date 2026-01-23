@@ -234,8 +234,8 @@ export default function DiscussionPanel({
                                     threadId={selectedThreadId}
                                     currentUserId={user?.id}
                                     isAuthenticated={!!user}
-                                    onBack={handleBackToList}
-                                    hideBackButton={true}
+                                    // onBack={handleBackToList}
+                                    // hideBackButton={true}
                                 />
                             </div>
                         )}

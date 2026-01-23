@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Thread, Post } from '@/db/schema'
 import PostItem from './PostItem'
 import LikeButton from '../LikeButton'
-import { ArrowLeft, MessageSquare, Eye, Calendar, Loader2, Send } from 'lucide-react'
+import { MessageSquare, Eye, Calendar, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -27,8 +27,8 @@ export default function ThreadView({
     threadId,
     currentUserId,
     isAuthenticated,
-    onBack,
-    hideBackButton,
+    // onBack,
+    // hideBackButton,
 }: ThreadViewProps) {
     const [thread, setThread] = useState<EnrichedThread | null>(null)
     const [posts, setPosts] = useState<Post[]>([])

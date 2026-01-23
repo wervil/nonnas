@@ -1,7 +1,7 @@
 'use client'
 
 import { RecipesList } from '@/components/RecipesList'
-import Button from '@/components/ui/Button'
+// import Button from '@/components/ui/Button'
 import { Recipe } from '@/db/schema'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
@@ -25,6 +25,7 @@ export default function CreatorProfile({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     params.then((p) => {
       setUserId(p.id)
+      console.log(userId)
       fetchCreatorRecipes(p.id)
         .then((data) => {
           setRecipes(data || [])
