@@ -6,6 +6,7 @@ import LikeButton from '../LikeButton'
 import Link from 'next/link'
 import { Reply, Trash2, Edit2, Loader2, Check, X, Send, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
+import Button from '../ui/Button'
 
 interface PostItemProps {
     post: Post & { replies?: PostItemProps['post'][] }
@@ -139,23 +140,23 @@ export default function PostItem({
             className="pl-3 py-1"
             style={{ marginLeft: `${(post.depth || 0) * 12}px` }}
         >
-            <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-lg p-3 border border-grey/50 hover:border-grey/20 transition-colors">
+            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/60 via-[var(--color-brown-pale)]/40 to-[var(--color-brown-light)]/30 rounded-lg p-3 border border-[var(--color-primary-border)]/20 hover:border-[var(--color-primary-border)]/40 transition-colors shadow-sm">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 text-xs">
                         {/* Avatar with Initials */}
-                        <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-[10px] uppercase">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--color-green-dark)] to-[var(--color-success-main)] flex items-center justify-center text-[var(--color-yellow-light)] font-bold text-[10px] uppercase">
                             {(post.author_name || post.user_id || '??').slice(0, 2)}
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <span className="font-medium text-white text-xs">
+                            <span className="font-medium text-[var(--color-yellow-light)] text-xs font-[var(--font-bell)]">
                                 {post.author_name || (post.user_id ? `${post.user_id.slice(0, 8)}...` : 'Unknown')}
                             </span>
-                            <span className="text-gray-500">
+                            <span className="text-[var(--color-text-pale)] font-[var(--font-bell)]">
                                 • {formatDate(post.created_at)}
                                 {post.updated_at && post.updated_at !== post.created_at && (
-                                    <span className="text-gray-600 ml-1">(edited)</span>
+                                    <span className="text-[var(--color-text-pale)]/70 ml-1">(edited)</span>
                                 )}
                             </span>
                             {/* Message Icon after 1 hour */}
@@ -163,7 +164,7 @@ export default function PostItem({
                                 <Link
                                     href={`/messages?chatWith=${post.user_id}`}
                                     target="_blank"
-                                    className="ml-2 text-gray-500 hover:text-amber-400 transition-colors"
+                                    className="ml-2 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
                                     title="Message User"
                                 >
                                     <MessageSquare className="w-3.5 h-3.5" />
@@ -177,14 +178,14 @@ export default function PostItem({
                         <div className="flex items-center gap-0.5">
                             <button
                                 onClick={() => setIsEditing(true)}
-                                className="p-1.5 text-gray-500 hover:text-amber-400 hover:bg-white/5 rounded transition-all"
+                                className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
                                 title="Edit"
                             >
                                 <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 onClick={handleDelete}
-                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded transition-all"
+                                className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-danger-main)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
                                 title="Delete"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -201,13 +202,15 @@ export default function PostItem({
                             onChange={(e) => setEditContent(e.target.value)}
                             maxLength={5000}
                             rows={3}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none"
+                            aria-label="Edit post content"
+                            placeholder="Edit your post..."
+                            className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none font-[var(--font-bell)]"
                         />
                         <div className="flex gap-2">
                             <button
                                 onClick={handleEdit}
                                 disabled={isSubmitting}
-                                className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded text-xs font-medium flex items-center gap-1.5 transition-all"
+                                className="px-3 py-1.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)] text-[var(--color-yellow-light)] rounded text-xs font-medium font-[var(--font-bell)] flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-50"
                             >
                                 {isSubmitting ? (
                                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -221,7 +224,7 @@ export default function PostItem({
                                     setIsEditing(false)
                                     setEditContent(post.content)
                                 }}
-                                className="px-3 py-1.5 bg-white/10 text-gray-300 rounded text-xs font-medium flex items-center gap-1.5 transition-all"
+                                className="px-3 py-1.5 bg-[var(--color-brown-light)]/50 text-[var(--color-text-pale)] rounded text-xs font-medium font-[var(--font-bell)] flex items-center gap-1.5 transition-all hover:bg-[var(--color-brown-light)]/70 border border-[var(--color-primary-border)]/30"
                             >
                                 <X className="w-3 h-3" />
                                 Cancel
@@ -229,12 +232,12 @@ export default function PostItem({
                         </div>
                     </div>
                 ) : (
-                    <p className="text-gray-300 text-sm mb-2 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+                    <p className="text-[var(--color-text-pale)] text-sm mb-2 whitespace-pre-wrap leading-relaxed font-[var(--font-bell)]">{post.content}</p>
                 )}
 
                 {/* Footer */}
                 {!isEditing && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-primary-border)]/10">
                         <LikeButton
                             likeableId={post.id}
                             likeableType="post"
@@ -243,7 +246,7 @@ export default function PostItem({
                         {canReply && (
                             <button
                                 onClick={() => setShowReplyForm(!showReplyForm)}
-                                className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 text-gray-400 hover:bg-white/10 hover:text-amber-400 transition-all text-xs font-medium"
+                                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--color-brown-light)]/30 text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 hover:text-[var(--color-yellow-light)] transition-all text-xs font-medium font-[var(--font-bell)] border border-[var(--color-primary-border)]/20"
                             >
                                 <Reply className="w-3 h-3" />
                                 <span>{showReplyForm ? 'Cancel' : 'Reply'}</span>
@@ -255,7 +258,7 @@ export default function PostItem({
 
             {/* Inline Reply Form */}
             {showReplyForm && (
-                <div className="mt-3 ml-3 bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-lg p-3">
+                <div className="mt-3 ml-3 bg-gradient-to-br from-[var(--color-brown-pale)]/50 via-[var(--color-brown-pale)]/30 to-[var(--color-brown-light)]/20 border border-[var(--color-primary-border)]/20 rounded-lg p-3 shadow-sm">
                     <textarea
                         value={replyContent}
                         onChange={(e) => setReplyContent(e.target.value)}
@@ -263,16 +266,19 @@ export default function PostItem({
                         rows={3}
                         placeholder={isAuthenticated ? 'Write your reply...' : 'Sign in to reply'}
                         disabled={!isAuthenticated}
-                        className="w-full px-3 py-2 bg-white/5 border border-grey/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none mb-2 disabled:opacity-50 disabled:cursor-not-allowed font-[var(--font-bell)]"
                     />
                     <div className="flex justify-between items-center">
-                        <span className={`text-xs ${replyContent.length > 4500 ? 'text-amber-400' : 'text-gray-500'}`}>
+                        <span className={`text-xs font-[var(--font-bell)] ${replyContent.length > 4500 ? 'text-[var(--color-yellow-light)]' : 'text-[var(--color-text-pale)]'}`}>
                             {replyContent.length}/5000
                         </span>
-                        <button
+                        <Button
+                            variant="primary"
+                            size={"shrink"}
+                            className='gap-2 text-sm w-fit disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1.5'
                             onClick={handleInlineReply}
                             disabled={!isAuthenticated || !replyContent.trim() || isReplySubmitting}
-                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-lg hover:from-amber-400 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 disabled:shadow-none flex items-center gap-1.5"
+
                         >
                             {isReplySubmitting ? (
                                 <>
@@ -285,14 +291,14 @@ export default function PostItem({
                                     Post Reply
                                 </>
                             )}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
 
             {/* Nested Replies */}
             {localReplies && localReplies.length > 0 && (
-                <div className="mt-2 border-l-2 border-amber-500/20">
+                <div className="mt-2 border-l-2 border-[var(--color-green-dark)]/30">
                     {localReplies.map((reply) => (
                         <PostItem
                             key={reply.id}

@@ -7,6 +7,7 @@ import LikeButton from '../LikeButton'
 import { MessageSquare, Eye, Calendar, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import Button from '../ui/Button'
 
 interface ThreadViewProps {
     threadId: number
@@ -190,10 +191,10 @@ export default function ThreadView({
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4">
-                    <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-green-dark)]/20 to-[var(--color-success-main)]/20 flex items-center justify-center mb-4">
+                    <Loader2 className="w-6 h-6 text-[var(--color-yellow-light)] animate-spin" />
                 </div>
-                <p className="text-gray-500 text-sm">Loading discussion...</p>
+                <p className="text-[var(--color-text-pale)] text-sm font-[var(--font-bell)]">Loading discussion...</p>
             </div>
         )
     }
@@ -201,10 +202,10 @@ export default function ThreadView({
     if (error || !thread) {
         return (
             <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-danger-main)]/10 flex items-center justify-center">
                     <span className="text-2xl">⚠️</span>
                 </div>
-                <p className="text-red-400 font-medium">{error || 'Thread not found'}</p>
+                <p className="text-[var(--color-danger-main)] font-medium font-[var(--font-bell)]">{error || 'Thread not found'}</p>
             </div>
         )
     }
@@ -233,37 +234,37 @@ export default function ThreadView({
             )} */}
 
             {/* Thread Header */}
-            <div className="bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/10 rounded-xl p-5 mb-4">
+            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/80 via-[var(--color-brown-pale)]/60 to-[var(--color-brown-light)]/40 border border-[var(--color-primary-border)]/20 rounded-xl p-5 mb-4 shadow-lg">
                 {/* Badges */}
-                <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-full !bg-gray-300">
+                <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-lg bg-[var(--color-brown-light)]/50">
                     <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${thread.scope === 'country'
-                            ? 'bg-blue-500/20 text-blue-800 border-blue-500/30'
-                            : 'bg-emerald-500/20 text-emerald-800 border-emerald-500/30'
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium font-[var(--font-bell)] border ${thread.scope === 'country'
+                            ? 'bg-[var(--color-info-main)]/30 text-[var(--color-info-main)] border-[var(--color-info-main)]/50'
+                            : 'bg-[var(--color-success-main)]/30 text-[var(--color-success-main)] border-[var(--color-success-main)]/50'
                             }`}
                     >
                         {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
                     </span>
-                    <span className="px-2.5 py-0.5 bg-white  rounded-full text-xs font-medium">
+                    <span className="px-2.5 py-0.5 bg-[var(--color-primary-border)]/30 text-[var(--color-yellow-light)] rounded-full text-xs font-medium font-[var(--font-bell)] border border-[var(--color-primary-border)]/50">
                         {thread.category}
                     </span>
-                    <span className="text-gray-800 text-xs">{thread.region}</span>
+                    <span className="text-[var(--color-text-pale)] text-xs font-[var(--font-bell)]">{thread.region}</span>
                 </div>
 
                 {/* Title - smaller and more compact */}
-                <h2 className="text-lg font-bold  mb-2 text-black-600 capitalize" >{thread.title}</h2>
+                <h2 className="text-lg font-bold mb-2 text-[var(--color-yellow-light)] capitalize font-[var(--font-bell)]">{thread.title}</h2>
 
                 {/* Content */}
-                <p className="text-gray-600 text-sm whitespace-pre-wrap mb-4 leading-relaxed">{thread.content}</p>
+                <p className="text-[var(--color-text-pale)] text-sm whitespace-pre-wrap mb-4 leading-relaxed font-[var(--font-bell)]">{thread.content}</p>
 
                 {/* Meta info - more compact */}
-                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-3 pb-3 border-b border-white/10">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-pale)] mb-3 pb-3 border-b border-[var(--color-primary-border)]/20">
                     {/* Avatar and Name */}
                     <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-[9px] uppercase">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[var(--color-green-dark)] to-[var(--color-success-main)] flex items-center justify-center text-[var(--color-yellow-light)] font-bold text-[9px] uppercase">
                             {(thread.author_name || thread.user_id || '??').slice(0, 2)}
                         </div>
-                        <span className="text-gray-400 truncate max-w-[150px] font-medium">
+                        <span className="text-[var(--color-text-pale)] truncate max-w-[150px] font-medium font-[var(--font-bell)]">
                             {thread.author_name || (thread.user_id ? `${thread.user_id.slice(0, 8)}...` : 'Unknown')}
                         </span>
 
@@ -272,7 +273,7 @@ export default function ThreadView({
                             <Link
                                 href={`/messages?chatWith=${thread.user_id}`}
                                 target="_blank"
-                                className="text-gray-500 hover:text-amber-400 transition-colors ml-1"
+                                className="text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors ml-1"
                                 title="Message User"
                             >
                                 <MessageSquare className="w-3.5 h-3.5" />
@@ -280,11 +281,11 @@ export default function ThreadView({
                         )}
                     </div>
 
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-[var(--font-bell)]">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{formatDate(thread.created_at)}</span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-[var(--font-bell)]">
                         <Eye className="w-3.5 h-3.5" />
                         <span>{thread.view_count || 0} views</span>
                     </span>
@@ -300,9 +301,9 @@ export default function ThreadView({
             </div>
 
             {/* Reply Form */}
-            <div className="bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-xl p-4 mb-4">
-                <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-amber-400" />
+            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/60 via-[var(--color-brown-pale)]/40 to-[var(--color-brown-light)]/30 border border-[var(--color-primary-border)]/20 rounded-xl p-4 mb-4 shadow-lg">
+                <h2 className="text-sm font-semibold text-[var(--color-yellow-light)] mb-3 flex items-center gap-2 font-[var(--font-bell)]">
+                    <MessageSquare className="w-4 h-4 text-[var(--color-yellow-light)]" />
                     Reply to this discussion
                 </h2>
                 <textarea
@@ -316,16 +317,18 @@ export default function ThreadView({
                             : 'Sign in to join the discussion'
                     }
                     disabled={!isAuthenticated}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-amber rounded-lg text-grey-700 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2.5 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none mb-3 disabled:opacity-50 disabled:cursor-not-allowed font-[var(--font-bell)]"
                 />
                 <div className="flex justify-between items-center">
-                    <span className={`text-xs ${replyContent.length > 4500 ? 'text-amber-400' : 'text-gray-500'}`}>
+                    <span className={`text-xs font-[var(--font-bell)] ${replyContent.length > 4500 ? 'text-[var(--color-yellow-light)]' : 'text-[var(--color-text-pale)]'}`}>
                         {replyContent.length}/5000
                     </span>
-                    <button
+                    <Button
+                        variant="primary"
+                        size={"shrink"}
+                        className='gap-2 text-sm w-fit disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1.5'
                         onClick={() => handleReply()}
                         disabled={!isAuthenticated || !replyContent.trim() || isSubmitting}
-                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm rounded-lg hover:from-amber-400 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 disabled:shadow-none flex items-center gap-2"
                     >
                         {isSubmitting ? (
                             <>
@@ -338,7 +341,7 @@ export default function ThreadView({
                                 Post Reply
                             </>
                         )}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -346,11 +349,11 @@ export default function ThreadView({
             <div className="space-y-3">
                 {posts.length === 0 ? (
                     <div className="text-center py-8">
-                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-amber-500/10 to-orange-500/10 flex items-center justify-center">
-                            <MessageSquare className="w-6 h-6 text-amber-500/50" />
+                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-[var(--color-green-dark)]/20 to-[var(--color-success-main)]/20 flex items-center justify-center">
+                            <MessageSquare className="w-6 h-6 text-[var(--color-yellow-light)]/50" />
                         </div>
-                        <p className="text-gray-400 text-sm font-medium">No replies yet</p>
-                        <p className="text-gray-500 text-xs mt-1">Be the first to reply!</p>
+                        <p className="text-[var(--color-text-pale)] text-sm font-medium font-[var(--font-bell)]">No replies yet</p>
+                        <p className="text-[var(--color-text-pale)]/70 text-xs mt-1 font-[var(--font-bell)]">Be the first to reply!</p>
                     </div>
                 ) : (
                     posts.map((post) => (
