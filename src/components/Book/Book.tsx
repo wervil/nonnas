@@ -34,10 +34,10 @@ const PAGES_BEFORE_RECIPES = 1 // Just cover page, TOC is commented out
 export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, initialRecipeId }, ref) => {
   const l = useTranslations('labels')
   const user = useUser()
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const [contentHeight, setContentHeight] = useState(
-    window.innerHeight - HEADER_HEIGHT
-  )
+  const [isMobile, setIsMobile] = useState(false)
+  const [isSinglePage, setIsSinglePage] = useState(false)
+  const [contentHeight, setContentHeight] = useState(0)
+
   const [images, setImages] = useState<string[] | null>(null)
   // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
   const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null)
@@ -84,6 +84,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768)
+      setIsSinglePage(window.innerWidth < 1700)
       setContentHeight(window.innerHeight - HEADER_HEIGHT)
       // Call layout check after screen size changes
       setTimeout(getCurrentLayout, 100)
@@ -202,7 +203,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
             className="book-container"
             style={{
               transition: 'transform 1000ms ease',
-              transform: !isMobile && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
+              transform: !isSinglePage && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
             }}
           >
             {/* {orientation == 'landscape' ? (
@@ -219,6 +220,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
             ) : null} */}
 
             <HTMLFlipBook
+              key={isSinglePage ? 'single' : 'double'}
               width={isMobile ? 300 : contentHeight * 0.75}
               height={isMobile ? 550 : contentHeight}
               minHeight={isMobile ? 550 : contentHeight}
@@ -230,11 +232,11 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               ref={flipbookRef}
               className=""
               startPage={0}
-              minWidth={isMobile ? 300 : contentHeight * 1.5}
-              maxWidth={isMobile ? 440 : contentHeight * 1.5}
+              minWidth={isSinglePage ? (isMobile ? 300 : contentHeight * 0.75) : contentHeight * 1.5}
+              maxWidth={isSinglePage ? (isMobile ? 440 : contentHeight * 0.75) : contentHeight * 1.5}
               maxHeight={isMobile ? 550 : contentHeight}
               flippingTime={1000}
-              usePortrait={true}
+              usePortrait={isSinglePage}
               startZIndex={0}
               autoSize={true}
               swipeDistance={30}

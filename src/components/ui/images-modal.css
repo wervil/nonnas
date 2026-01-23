@@ -1,5 +1,7 @@
 .swiper {
     --swiper-navigation-size: 20px !important;
+    --swiper-navigation-color: #5f5f13 !important;
+    --swiper-pagination-color: #5f5f13 !important;
 }
 
 @media (min-width: 768px) {
