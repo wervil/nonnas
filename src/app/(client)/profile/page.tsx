@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import { Recipe } from '@/db/schema'
 import { useUser } from '@stackframe/stack'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Loader2, BookOpen, Heart, MessageCircle } from 'lucide-react'
 import { Header } from '@/components/Header'
 
@@ -16,6 +16,7 @@ export default function Profile() {
   const [myRecipes, setMyRecipes] = useState<Recipe[]>([])
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
+  const hasInitializedTab = useRef(false)
   // const l = useTranslations('labels') // Unused currently?
   const b = useTranslations('buttons')
   const user = useUser()
@@ -26,14 +27,17 @@ export default function Profile() {
     hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
   }
 
+  // Initialize tab only once when user loads and has permissions
+  useEffect(() => {
+    if (user && hasPermissions && !hasInitializedTab.current) {
+      setActiveTab('saved')
+      hasInitializedTab.current = true
+    }
+  }, [user, hasPermissions])
+
+  // Load data when tab changes
   useEffect(() => {
     if (user) {
-
-      if(hasPermissions){
-        setActiveTab('saved')
-        
-      }
-
       if (activeTab === 'my_recipes') {
         loadMyRecipes(user.id)
       } else if (activeTab === 'saved') {
@@ -72,12 +76,13 @@ export default function Profile() {
   if (!user) return null
 
   return (
-    <div className="flex flex-col min-h-svh w-full relative">
+    <div className="flex flex-col min-h-svh w-full relative bg-[var(--color-brown-dark)]">
 
-      <div className="relative z-10 w-full bg-transparent">
+      <div className="relative z-10 w-full ">
         <Header
           hasAdminAccess={hasPermissions}
           user={user}
+          className="!bg-[var(--color-brown-dark)]/80  border-b border-[var(--color-primary-border)]/20"
         />
       </div>
 
@@ -85,14 +90,13 @@ export default function Profile() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 mt-4">
           <div className="text-center md:text-left">
-            <h1 className="text-4xl md:text-5xl border-primary-main text-primary-main font-[var(--font-bell)] mb-2">{user.displayName || 'Profile'}</h1>
-            <p className="text-gray-500 font-light tracking-wide">Manage your recipes and activity</p>
+            <h1 className="text-4xl md:text-5xl font-bold !text-[var(--color-yellow-light)] font-[var(--font-bell)] mb-2">{user.displayName || 'Profile'}</h1>
+            <p className="text-[var(--color-text-pale)] font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
           </div>
           <div className="flex gap-3">
             <Button
               onClick={() => user?.signOut()}
-              // variant="ghost"
-              className="!bg-[#f98600] hover:opacity-80"
+              className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
             >
               {b('logOut')}
             </Button>
@@ -100,64 +104,74 @@ export default function Profile() {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-white/10 mb-8 overflow-x-auto justify-center md:justify-start">
-        {!hasPermissions && (
-          <button
-            onClick={() => setActiveTab('my_recipes')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all relative whitespace-nowrap bg-transparent ${activeTab === 'my_recipes' ? 'text-amber-400' : 'text-gray-400 hover:text-amber-400'
-              }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            My Recipes
-            {activeTab === 'my_recipes' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-400" />
-            )}
-          </button>
-        )}
+        <div className="flex border-b border-[var(--color-primary-border)]/20 mb-8 overflow-x-auto justify-center md:justify-start">
+          {!hasPermissions && (
+            <button
+              onClick={() => setActiveTab('my_recipes')}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'my_recipes'
+                ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
+                : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
+                }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              My Recipes
+              {activeTab === 'my_recipes' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
+              )}
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('saved')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all relative whitespace-nowrap bg-transparent ${activeTab === 'saved' ? 'text-amber-400' : 'text-gray-400 hover:text-amber-400'
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'saved'
+              ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
+              : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
               }`}
           >
             <Heart className="w-4 h-4" />
             Saved Recipes
             {activeTab === 'saved' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-400" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
             )}
           </button>
           <button
             onClick={() => setActiveTab('activity')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all relative whitespace-nowrap bg-transparent ${activeTab === 'activity' ? 'text-amber-400' : 'text-gray-400 hover:text-amber-400'
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'activity'
+              ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
+              : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
               }`}
           >
             <MessageCircle className="w-4 h-4" />
             My Activity
             {activeTab === 'activity' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-400" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
             )}
           </button>
         </div>
 
         {/* Content */}
         <div className="min-h-[400px]">
-        {!hasPermissions && activeTab === 'my_recipes' && (
+          {!hasPermissions && activeTab === 'my_recipes' && (
             loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-amber-400" />
+                <Loader2 className="animate-spin text-[var(--color-yellow-light)] w-8 h-8" />
               </div>
             ) : (
               <RecipesList recipes={myRecipes} />
             )
           )}
 
-        
+
           {activeTab === 'saved' && (
             loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-amber-400" /></div>
+              <div className="flex justify-center py-12">
+                <Loader2 className="animate-spin text-[var(--color-yellow-light)] w-8 h-8" />
+              </div>
             ) : (
               <>
                 {savedRecipes.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 font-light">You haven&apos;t saved any recipes yet.</div>
+                  <div className="text-center py-12 text-[var(--color-text-pale)] font-light font-[var(--font-bell)]">
+                    You haven&apos;t saved any recipes yet.
+                  </div>
                 ) : (
                   <RecipesList recipes={savedRecipes} />
                 )}
@@ -166,8 +180,8 @@ export default function Profile() {
           )}
 
           {activeTab === 'activity' && (
-            <div className=" mx-auto md:mx-0">
-              <h3 className="text-xl font-bold text-white mb-6 font-[var(--font-bell)]">Values & Discussions</h3>
+            <div className="mx-auto md:mx-0">
+              <h3 className="text-xl font-bold text-[var(--color-yellow-light)] mb-6 font-[var(--font-bell)]">Values & Discussions</h3>
               <ThreadList userId={user.id} />
             </div>
           )}

@@ -42,6 +42,7 @@ type Props = {
   setSearch?: Dispatch<SetStateAction<string>>
   user?: CurrentUser | CurrentInternalUser | null
   isExplorePage?: boolean
+  className?: string
 }
 
 export const Header = ({
@@ -53,6 +54,7 @@ export const Header = ({
   setSearch,
   user,
   isExplorePage = false,
+  className,
 }: Props) => {
   const n = useTranslations('navigation')
   const path = usePathname()
@@ -67,7 +69,7 @@ export const Header = ({
   const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
 
   return (
-    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass}`}>
+    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className}`}>
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
             Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
@@ -152,28 +154,28 @@ export const Header = ({
                 />
               </Link>
               <Link href="/profile">
-              <User
-                className={`w-[30px] h-[30px] ${imageFilterClass}`}
-              />
-            </Link>
-            <Link href="/messages">
-              <MessageCircle
-                className={`w-[30px] h-[30px] ${imageFilterClass}`}
-              />
-            </Link>
-           </>
+                <User
+                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                />
+              </Link>
+              <Link href="/messages">
+                <MessageCircle
+                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                />
+              </Link>
+            </>
           ) : (
             <>
-            <Link href="/profile">
-              <Settings
-                className={`w-[30px] h-[30px] ${imageFilterClass}`}
-              />
-            </Link>
-            <Link href="/messages">
-              <MessageCircle
-                className={`w-[30px] h-[30px] ${imageFilterClass}`}
-              />
-            </Link>
+              <Link href="/profile">
+                <Settings
+                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                />
+              </Link>
+              <Link href="/messages">
+                <MessageCircle
+                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                />
+              </Link>
             </>
           )
         ) : null}
