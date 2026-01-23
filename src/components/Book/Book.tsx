@@ -10,7 +10,7 @@ import { useTranslations } from 'next-intl'
 import { ImagesModal } from '../ui/ImagesModal'
 import Image from 'next/image'
 // import { generateTOCpages } from '@/utils/generateTOCpages'
-import { Typography } from '../ui/Typography'
+// import { Typography } from '../ui/Typography'
 import { useUser } from '@stackframe/stack'
 import CommentSection from '../Comments/CommentSection'
 
@@ -39,18 +39,16 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
     window.innerHeight - HEADER_HEIGHT
   )
   const [images, setImages] = useState<string[] | null>(null)
-  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>(
-    'landscape'
-  )
+  // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
   const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const totalPages = 1 + (recipes.length * 2)
 
   const getCurrentLayout = () => {
     if (flipbookRef.current) {
-      setOrientation(
-        flipbookRef.current.pageFlip()?.getOrientation() || 'landscape'
-      )
+      // setOrientation(
+      //   flipbookRef.current.pageFlip()?.getOrientation() || 'landscape'
+      // )
     }
   }
 
@@ -150,7 +148,9 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }, [recipes])
 
   const goToRecipe = useCallback((recipeId: number) => {
+    console.log('Book: goToRecipe called for ID:', recipeId)
     const pageNumber = getPageNumberForRecipe(recipeId)
+    console.log('Book: Calculated page number:', pageNumber)
     goToPage(pageNumber)
   }, [getPageNumberForRecipe, goToPage])
 
@@ -198,8 +198,14 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               <div className="navigation-arrow" />
             )}
           </button>
-          <div className="book-container">
-            {orientation == 'landscape' ? (
+          <div
+            className="book-container"
+            style={{
+              transition: 'transform 1000ms ease',
+              transform: !isMobile && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
+            }}
+          >
+            {/* {orientation == 'landscape' ? (
               <div className="page-first cover page-first--desktop">
                 <div className="info-wrap">
                   <Typography size="h6" weight="bold" color="white">
@@ -210,7 +216,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
                   </Typography>
                 </div>
               </div>
-            ) : null}
+            ) : null} */}
 
             <HTMLFlipBook
               width={isMobile ? 300 : contentHeight * 0.75}

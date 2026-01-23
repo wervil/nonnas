@@ -96,7 +96,7 @@ export default function CommentSection({
 
                 <div className="flex-1">
                     <h3 className="font-[var(--font-imprint)] text-2xl text-[var(--color-yellow-light)] tracking-wide">
-                        Family Notes
+                        Discussions
                     </h3>
                     <p className="text-sm text-[var(--color-text-pale)] font-[var(--font-bell)] italic mt-0.5">
                         {count === 0 ? 'Be the first to share your thoughts' : `${count} note${count !== 1 ? 's' : ''} shared`}
@@ -125,14 +125,13 @@ export default function CommentSection({
                         href="/handler/sign-in"
                         className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-primary-secondary)] 
                                  text-[var(--color-primary-main)] rounded-lg border border-[var(--color-primary-border)]
-                                 hover:bg-[var(--color-primary-focus)] transition-all duration-200 
-                                 font-[var(--font-bell)] text-sm shadow-sm hover:shadow-md no-underline cursor-pointer
-                                 relative z-20"
+                                 hover:bg-[var(--color-primary-focus)] transition-all duration-200
+                                 font-[var(--font-bell)] text-sm shadow-sm hover:shadow-md group no-underline"
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="#5f5f13">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                         </svg>
-                        <span className="hidden sm:inline">Sign in to comment</span>
+                        <span className="hidden sm:inline text-[#5f5f13]">Sign in to comment</span>
                         <span className="sm:hidden">Sign in</span>
                     </Link>
                 )}

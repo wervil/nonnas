@@ -83,9 +83,16 @@ export default function Recipes() {
     setSelectedCountry({ value: '', label: n('all') })
 
     // 2. Navigate Book
-    if (bookRef.current) {
-      bookRef.current.goToRecipe(recipeId)
-    }
+    // Use timeout to allow state updates (clearing search) to settle and Book to re-render if needed
+    // This prevents the flipbook from resetting or ignoring the command during an update cycle
+    setTimeout(() => {
+      if (bookRef.current) {
+        console.log('Page: Calling bookRef.goToRecipe (delayed)', recipeId)
+        bookRef.current.goToRecipe(recipeId)
+      } else {
+        console.error('Page: bookRef is null')
+      }
+    }, 300)
   }
 
   const showSearchResults = (search.length > 0 || selectedCountry.value !== '') && !loading
