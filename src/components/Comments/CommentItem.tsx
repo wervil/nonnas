@@ -45,10 +45,7 @@ const formatDate = (dateString: string) => {
     }
 }
 
-// Generate initials from user ID
-const getInitials = (userId: string) => {
-    return userId.slice(0, 2).toUpperCase()
-}
+
 
 // Generate a consistent color based on user ID
 const getAvatarColor = (userId: string) => {

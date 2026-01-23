@@ -38,7 +38,7 @@ export default function Recipes() {
   const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null)
 
   useEffect(() => {
-    const recipeParam = searchParams.get('recipe')
+    const recipeParam = searchParams?.get('recipe')
     if (recipeParam) {
       const recipeId = parseInt(recipeParam, 10)
       if (!isNaN(recipeId)) {
@@ -123,7 +123,7 @@ export default function Recipes() {
             style={{ zIndex: -1 }}
           />
           <div className="items-center relative flex flex-col md:hidden p-8 w-full gap-3">
-            {button(path, n as (key: string) => string, hasPermissions)}
+            {button(path || '', n as (key: string) => string, hasPermissions)}
             {setSearch ? (
               <div className="flex items-center gap-1 border-2 border-green-dark rounded-full px-2 w-full bg-white">
                 <Image

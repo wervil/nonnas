@@ -81,7 +81,7 @@ export const Header = ({
         />
       </Link>
       <div className={`items-center gap-1 relative ${navVisibilityClass}`}>
-        
+
 
         {setSearch ? (
           <div className="flex items-center gap-1 border-2 border-green-dark rounded-l-full pl-2">
@@ -158,7 +158,7 @@ export const Header = ({
             </Link>
           )
         ) : null}
-        {button(path, n as (key: string) => string, hasAdminAccess)}
+        {button(path || '', n as (key: string) => string, hasAdminAccess)}
       </div>
     </header>
   )

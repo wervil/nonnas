@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Message, AttachmentType } from './types';
-import { Paperclip, Send, X, FileAudio, FileVideo, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Paperclip, Send, X, FileAudio, Link as LinkIcon } from 'lucide-react';
 
 interface ChatWindowProps {
     messages: Message[];

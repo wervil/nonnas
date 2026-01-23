@@ -7,7 +7,7 @@ import { stackServerApp } from '@/stack';
 
 const db = drizzle(process.env.DATABASE_URL!);
 
-export async function GET(request: Request) {
+export async function GET() {
     const user = await stackServerApp.getUser();
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

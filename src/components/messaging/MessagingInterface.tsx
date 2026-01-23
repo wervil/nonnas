@@ -6,12 +6,11 @@ import { io, Socket } from 'socket.io-client';
 import { Conversation, Message, AttachmentType } from './types';
 import { ConversationList } from './ConversationList';
 import { ChatWindow } from './ChatWindow';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 export const MessagingInterface = () => {
     const user = useUser();
-    const router = useRouter();
-    const pathname = usePathname();
+
     const searchParams = useSearchParams();
     // No isOpen state needed for page view
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -23,7 +22,7 @@ export const MessagingInterface = () => {
     // Deep link handler
     useEffect(() => {
         if (!searchParams) return;
-        const chatWith = searchParams.get('chatWith');
+        const chatWith = searchParams?.get('chatWith');
         if (chatWith && user && !activeConvo) {
             startChat(chatWith);
         }

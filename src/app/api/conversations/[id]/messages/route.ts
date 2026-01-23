@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { conversations, messages } from '@/db/schema';
-import { eq, or, and, asc } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { stackServerApp } from '@/stack';
 
 const db = drizzle(process.env.DATABASE_URL!);

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
 
         // Advanced Query with Joins for Sorting
-        let query = db
+        const query = db
             .select({
                 ...getTableColumns(threads),
                 like_count: count(likes.id),

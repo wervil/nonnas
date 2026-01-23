@@ -273,14 +273,14 @@ export default function GoogleContinentCountryMap({
 
   const gListenersRef = useRef<google.maps.MapsEventListener[]>([]);
 
-function track(l: google.maps.MapsEventListener) {
-  gListenersRef.current.push(l);
-  return l;
-}
-function clearAllTrackedListeners() {
-  for (const l of gListenersRef.current) l.remove();
-  gListenersRef.current = [];
-}
+  function track(l: google.maps.MapsEventListener) {
+    gListenersRef.current.push(l);
+    return l;
+  }
+  function clearAllTrackedListeners() {
+    for (const l of gListenersRef.current) l.remove();
+    gListenersRef.current = [];
+  }
 
 
   // FIX: Track currently highlighted state globally to prevent conflicts
@@ -442,9 +442,9 @@ function clearAllTrackedListeners() {
   // Check URL for country parameter (for testing)
   useEffect(() => {
     if (initialCountrySetRef.current) return;
-    const countryCode = searchParams.get("country");
-    const countryName = searchParams.get("countryName");
-    const stateName = searchParams.get("state"); // NEW: Support direct state navigation
+    const countryCode = searchParams?.get("country");
+    const countryName = searchParams?.get("countryName");
+    const stateName = searchParams?.get("state"); // NEW: Support direct state navigation
 
     if (countryCode && countryName) {
       initialCountrySetRef.current = true;
@@ -745,7 +745,7 @@ function clearAllTrackedListeners() {
   //   ) => {
   //     const bounds = new google.maps.LatLngBounds();
   //     let found = false;
-  
+
   //     dataLayer.forEach((feature) => {
   //       const iso2 = String(feature.getProperty("ISO_A2") || "");
   //       if (iso2 === countryCode) {
@@ -753,17 +753,17 @@ function clearAllTrackedListeners() {
   //         feature.getGeometry()?.forEachLatLng((latLng) => bounds.extend(latLng));
   //       }
   //     });
-  
+
   //     if (!found || bounds.isEmpty()) return false;
-  
+
   //     await new Promise((r) => setTimeout(r, 80));
-  
+
   //     map.fitBounds(bounds, padding || { top: 100, bottom: 80, left: 40, right: 500 });
   //     return true;
   //   },
   //   []
   // );
-  
+
 
   // ✅ Helper function to zoom to continent bounds
   const zoomToContinent = useCallback(
@@ -773,10 +773,10 @@ function clearAllTrackedListeners() {
       padding?: { top?: number; bottom?: number; left?: number; right?: number }
     ) => {
       if (!bounds || bounds.isEmpty()) return false;
-  
+
       // panel-aware padding (right side)
       const rightPad = padding?.right ?? (panel.open ? 520 : 80);
-  
+
       // keep it tight (small padding feels better)
       const opts: google.maps.Padding = {
         top: padding?.top ?? 60,
@@ -784,23 +784,23 @@ function clearAllTrackedListeners() {
         left: padding?.left ?? 60,
         right: rightPad,
       };
-  
+
       // tiny extra degrees padding (avoid edge clipping without “zooming out” too much)
       const padded = padBounds(bounds, 1.2);
-  
+
       // ✅ clamp zoom so continent doesn’t look too far away
       // (tweak these per taste)
       const minZoom = 3;
-  
+
       // fit + clamp zoom after idle
       await new Promise((r) => setTimeout(r, 80));
       await fitBoundsWithMinZoom(map, padded, opts, minZoom);
-  
+
       return true;
     },
     [panel.open]
   );
-  
+
 
   // Load and display state boundaries from GeoJSON
   const loadStateBoundaries = useCallback(async (
@@ -863,7 +863,7 @@ function clearAllTrackedListeners() {
       });
 
       // FIX: Add hover effects - but respect currently highlighted state
-      track( stateLayer.addListener('mouseover', (event: google.maps.Data.MouseEvent) => {
+      track(stateLayer.addListener('mouseover', (event: google.maps.Data.MouseEvent) => {
         // Your API standardizes to 'name' property only
         const hoveredName = String(event.feature.getProperty('name') || '');
 
@@ -1698,20 +1698,20 @@ function clearAllTrackedListeners() {
         track(
           map.addListener("zoom_changed", () => {
             if (!mapInitializedRef.current || ignoreZoomChangeRef.current) return;
-        
+
             const currentZoom = map.getZoom();
             if (typeof currentZoom !== "number") return;
-        
+
             // ✅ ONLY allow zoom-out-to-globe from continent level
             if (currentZoom <= 2) {
               if (drillRef.current !== "continent") return;
-        
+
               // ✅ DO NOT cleanup refs here (prevents ghost state)
               onBackToGlobe();
             }
           })
         );
-        
+
         const dataLayer = new google.maps.Data({ map });
         dataLayerRef.current = dataLayer;
 
@@ -1797,7 +1797,7 @@ function clearAllTrackedListeners() {
         });
 
         // Country click handler - now works at country AND state levels
-        track( dataLayer.addListener("click", async (e: google.maps.Data.MouseEvent) => {
+        track(dataLayer.addListener("click", async (e: google.maps.Data.MouseEvent) => {
           if (!isFeatureInRegion(e.feature)) return;
 
           const iso2 = (e.feature.getProperty("ISO_A2") as string | undefined) ?? "";
@@ -1941,7 +1941,7 @@ function clearAllTrackedListeners() {
             }, 1000);
           }, 50);
         })
-      );
+        );
 
         // Hover effects
         track(dataLayer.addListener("mouseover", (e: google.maps.Data.MouseEvent) => {
@@ -1953,14 +1953,14 @@ function clearAllTrackedListeners() {
           });
         }));
 
-        track( dataLayer.addListener("mouseout", (e: google.maps.Data.MouseEvent) => {
+        track(dataLayer.addListener("mouseout", (e: google.maps.Data.MouseEvent) => {
           dataLayer.revertStyle(e.feature);
         }));
 
         // Check if we have initial country from URL params
-        const urlCountryCode = searchParams.get("country");
-        const urlCountryName = searchParams.get("countryName");
-        const urlStateName = searchParams.get("state");
+        const urlCountryCode = searchParams?.get("country");
+        const urlCountryName = searchParams?.get("countryName");
+        const urlStateName = searchParams?.get("state");
         const hasInitialCountry = urlCountryCode && urlCountryName;
         const hasInitialState = hasInitialCountry && urlStateName;
 
@@ -2067,23 +2067,23 @@ function clearAllTrackedListeners() {
 
     return () => {
       cancelled = true;
-    
+
       clearAllTrackedListeners(); // ✅ remove all google listeners
       cleanupRef.current?.();
-    
+
       clearMarkers();
       clearStateLayer();
-    
+
       if (mapRef.current) google.maps.event.clearInstanceListeners(mapRef.current);
       if (dataLayerRef.current) google.maps.event.clearInstanceListeners(dataLayerRef.current);
-    
+
       mapRef.current = null;
       dataLayerRef.current = null;
       continentBoundsRef.current = null;
       mapInitializedRef.current = false;
       currentlyHighlightedStateRef.current = null;
     };
-    
+
   }, [active, selectedContinent, parentContinent, regionCountries, theme, clearMarkers, clearStateLayer, searchParams, fetchStateData, loadStateBoundaries, onBackToGlobe, highlightState]);
 
   // State boundaries are now handled by the GeoJSON layer (loadStateBoundaries function)
@@ -2187,14 +2187,14 @@ function clearAllTrackedListeners() {
       const countryName = String(
         feature.getProperty("ADMIN") || feature.getProperty("NAME") || ""
       );
-    
+
       // ---------------------------
       // ✅ SAME region logic you already use
       // ---------------------------
       const isRussia = countryName === "Russia" || countryName === "Russian Federation";
-    
+
       let isInRegion = false;
-    
+
       // Special case: Russia is its own region
       if (selectedContinent === "Russia") {
         isInRegion = isRussia;
@@ -2208,7 +2208,7 @@ function clearAllTrackedListeners() {
         // Main continent (e.g. North America)
         isInRegion = cont === selectedContinent;
       }
-    
+
       // ---------------------------
       // ✅ OUTSIDE region = ALWAYS GREY (your screenshot behavior)
       // ---------------------------
@@ -2224,12 +2224,12 @@ function clearAllTrackedListeners() {
           cursor: "default",
         };
       }
-    
+
       // ---------------------------
       // ✅ INSIDE region styles (keep natural basemap visible)
       // ---------------------------
       const isSelectedCountry = selectedCountry?.code === iso2;
-    
+
       // Continent drill: subtle borders, clickable to drill into country
       if (drill === "continent") {
         return {
@@ -2243,7 +2243,7 @@ function clearAllTrackedListeners() {
           cursor: "pointer",
         };
       }
-    
+
       // Country/State drill: keep the continent still “active”, but emphasize selected country
       // (still show natural basemap)
       return {
@@ -2257,7 +2257,7 @@ function clearAllTrackedListeners() {
         cursor: isSelectedCountry ? "default" : "pointer",
       };
     });
-    
+
   }, [drill, selectedCountry, selectedContinent, parentContinent, regionCountries, mapReady]);
 
   // Back button handler
@@ -2403,7 +2403,7 @@ function clearAllTrackedListeners() {
     setSelectedCountry(null);
     setStateData([]);
     setSelectedState(null);
-    if(drill === 'continent'){
+    if (drill === 'continent') {
       onBackToGlobe();
     }
   };

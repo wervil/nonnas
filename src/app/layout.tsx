@@ -1,4 +1,4 @@
-import { Suspense } from "react"
+import "react"
 import type { Metadata } from "next"
 import "./globals.css"
 
