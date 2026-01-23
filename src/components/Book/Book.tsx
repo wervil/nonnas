@@ -130,7 +130,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }
 
   const isPrevDisabled = currentPage === 0
-  const isNextDisabled = isMobile
+  const isNextDisabled = isSinglePage
     ? currentPage >= totalPages - 1
     : currentPage + 1 >= totalPages - 1
 
