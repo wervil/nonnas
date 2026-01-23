@@ -109,6 +109,7 @@ export const threads = pgTable('threads', {
   title: text('title').notNull(),
   content: text('content').notNull(),
   user_id: text('user_id').notNull(),
+  author_name: text('author_name'), // Denormalized user display name
   view_count: integer('view_count').default(0),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
@@ -130,6 +131,7 @@ export const posts = pgTable('posts', {
     }
   ),
   user_id: text('user_id').notNull(),
+  author_name: text('author_name'), // Denormalized user display name
   content: text('content').notNull(),
   depth: integer('depth').default(0),
   created_at: timestamp('created_at').defaultNow(),
@@ -150,6 +152,7 @@ export const recipe_comments = pgTable('recipe_comments', {
     { onDelete: 'cascade' }
   ),
   user_id: text('user_id').notNull(),
+  author_name: text('author_name'), // Denormalized user display name
   content: text('content').notNull(),
   depth: integer('depth').default(0),
   created_at: timestamp('created_at').defaultNow(),

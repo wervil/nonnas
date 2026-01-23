@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-
 import { drizzle } from 'drizzle-orm/neon-serverless'
 import { recipe_comments } from '@/db/schema'
 import { eq, desc } from 'drizzle-orm'
+import { stackServerApp } from '@/stack'
 
 const db = drizzle(process.env.DATABASE_URL!)
 
@@ -45,9 +45,6 @@ export async function GET(request: NextRequest) {
             if (comment.parent_comment_id === null) {
                 rootComments.push(commentWithReplies)
             } else {
-                // Ensure parent_comment_id is a number (it shouldn't be null here due to the check above, but for map lookup)
-                // However, TS sees parent_comment_id as number | null.
-                // If it is NOT null, we look it up.
                 if (comment.parent_comment_id !== null) {
                     const parent = commentMap.get(comment.parent_comment_id)
                     if (parent) {
@@ -72,11 +69,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const user = await stackServerApp.getUser()
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         const body = await request.json()
-        const { recipe_id, parent_comment_id, user_id, content } = body
+        const { recipe_id, parent_comment_id, content } = body
 
         // Validate
-        if (!recipe_id || !user_id || !content) {
+        if (!recipe_id || !content) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
@@ -118,7 +120,8 @@ export async function POST(request: NextRequest) {
             .values({
                 recipe_id: parseInt(recipe_id),
                 parent_comment_id: parent_comment_id || null,
-                user_id,
+                user_id: user.id,
+                author_name: user.displayName || user.id,
                 content,
                 depth,
             })

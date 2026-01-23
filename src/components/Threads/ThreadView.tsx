@@ -246,10 +246,10 @@ export default function ThreadView({
                     {/* Avatar and Name */}
                     <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-[9px] uppercase">
-                            {thread.user_id?.slice(0, 2) || '??'}
+                            {(thread.author_name || thread.user_id || '??').slice(0, 2)}
                         </div>
                         <span className="text-gray-400 truncate max-w-[150px] font-medium">
-                            {thread.user_id?.slice(0, 8)}...
+                            {thread.author_name || (thread.user_id ? `${thread.user_id.slice(0, 8)}...` : 'Unknown')}
                         </span>
 
                         {/* Message Icon after 1 hour */}

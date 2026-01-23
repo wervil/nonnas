@@ -23,6 +23,7 @@ export const MessagingDrawer = () => {
 
     // Deep link handler
     useEffect(() => {
+        if (!searchParams) return;
         const chatWith = searchParams.get('chatWith');
         if (chatWith && user && !activeConvo) {
             startChat(chatWith);
@@ -32,9 +33,11 @@ export const MessagingDrawer = () => {
     const startChat = async (targetId: string) => {
         setIsOpen(true);
         // Clean URL
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('chatWith');
-        router.replace(`${pathname}?${params.toString()}`);
+        if (searchParams) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('chatWith');
+            router.replace(`${pathname}?${params.toString()}`);
+        }
 
         try {
             const res = await fetch('/api/conversations', {

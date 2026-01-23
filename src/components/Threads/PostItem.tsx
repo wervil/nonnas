@@ -132,12 +132,12 @@ export default function PostItem({
                     <div className="flex items-center gap-2 text-xs">
                         {/* Avatar with Initials */}
                         <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-[10px] uppercase">
-                            {post.user_id?.slice(0, 2) || '??'}
+                            {(post.author_name || post.user_id || '??').slice(0, 2)}
                         </div>
 
                         <div className="flex items-center gap-2">
                             <span className="font-medium text-white text-xs">
-                                {post.user_id?.slice(0, 8)}...
+                                {post.author_name || (post.user_id ? `${post.user_id.slice(0, 8)}...` : 'Unknown')}
                             </span>
                             <span className="text-gray-500">
                                 • {formatDate(post.created_at)}

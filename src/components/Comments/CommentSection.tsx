@@ -10,6 +10,7 @@ interface Comment {
     recipe_id: number
     parent_comment_id: number | null
     user_id: string
+    author_name?: string
     content: string
     depth: number
     created_at: string

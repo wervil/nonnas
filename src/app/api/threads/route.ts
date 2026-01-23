@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
             title,
             content,
             user_id: userId,
+            author_name: user.displayName || user.id, // Fallback to ID if no display name
         }
 
         const [thread] = await db.insert(threads).values(newThread).returning()

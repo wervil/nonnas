@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import CommentEditor from './CommentEditor'
+import Link from 'next/link'
+import { MessageSquare } from 'lucide-react'
 
 interface Comment {
     id: number
     recipe_id: number
     user_id: string
+    author_name?: string
     content: string
     depth: number
     created_at: string
@@ -130,19 +133,31 @@ export default function CommentItem({
                         ${getAvatarColor(comment.user_id)} text-white text-sm font-semibold
                         shadow-sm
                     `}>
-                        {getInitials(comment.user_id)}
+                        {(comment.author_name || comment.user_id || '??').slice(0, 2).toUpperCase()}
                     </div>
 
                     <div className="flex-1 min-w-0">
                         {/* Header */}
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-[var(--font-imprint)] text-[var(--color-primary-main)] truncate">
-                                {comment.user_id.length > 12 ? `${comment.user_id.slice(0, 12)}...` : comment.user_id}
+                                {comment.author_name || (comment.user_id.length > 12 ? `${comment.user_id.slice(0, 12)}...` : comment.user_id)}
                             </span>
                             <span className="text-[var(--color-text-pale)] text-xs">•</span>
                             <span className="text-[var(--color-text-pale)] text-xs italic font-[var(--font-bell)]">
                                 {formatDate(comment.created_at)}
                             </span>
+
+                            {/* Message Icon after 1 hour */}
+                            {userId && userId !== comment.user_id && (!comment.created_at || (Date.now() - new Date(comment.created_at).getTime() > 3600000)) && (
+                                <Link
+                                    href={`/?chatWith=${comment.user_id}`}
+                                    className="text-[var(--color-text-pale)] hover:text-[var(--color-primary-main)] transition-colors ml-1"
+                                    title="Message User"
+                                >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                </Link>
+                            )}
+
                             {isOwner && (
                                 <span className="px-2 py-0.5 text-xs bg-[var(--color-primary-focus)] text-[var(--color-primary-main)] rounded-full font-[var(--font-bell)]">
                                     You
