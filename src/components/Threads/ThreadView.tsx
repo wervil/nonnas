@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Thread, Post } from '@/db/schema'
 import PostItem from './PostItem'
 import LikeButton from '../LikeButton'
-import { ArrowLeft, MessageSquare, Eye, Calendar, User, Loader2, Send } from 'lucide-react'
+import { ArrowLeft, MessageSquare, Eye, Calendar, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 
 interface ThreadViewProps {
@@ -243,10 +243,27 @@ export default function ThreadView({
 
                 {/* Meta info - more compact */}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-3 pb-3 border-b border-white/10">
-                    <span className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5" />
-                        <span className="text-gray-400 truncate max-w-[100px]">{thread.user_id?.slice(0, 8)}...</span>
-                    </span>
+                    {/* Avatar and Name */}
+                    <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-[9px] uppercase">
+                            {thread.user_id?.slice(0, 2) || '??'}
+                        </div>
+                        <span className="text-gray-400 truncate max-w-[150px] font-medium">
+                            {thread.user_id?.slice(0, 8)}...
+                        </span>
+
+                        {/* Message Icon after 1 hour */}
+                        {isAuthenticated && (!thread.created_at || (Date.now() - new Date(thread.created_at).getTime() > 3600000)) && currentUserId !== thread.user_id && (
+                            <Link
+                                href={`/?chatWith=${thread.user_id}`}
+                                className="text-gray-500 hover:text-amber-400 transition-colors ml-1"
+                                title="Message User"
+                            >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                            </Link>
+                        )}
+                    </div>
+
                     <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>{formatDate(thread.created_at)}</span>

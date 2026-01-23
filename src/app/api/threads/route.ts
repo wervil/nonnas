@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { threads, type NewThread } from '@/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { threads, likes, type NewThread } from '@/db/schema'
+import { eq, and, desc, count, sql, getTableColumns } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
@@ -27,40 +27,35 @@ export async function GET(request: NextRequest) {
             filters.push(eq(threads.category, category))
         }
 
-        // Build query conditionally without reassigning
-        let result;
-        
-        if (filters.length > 0) {
-            // With filters
-            if (sort === 'top') {
-                result = await db
-                    .select()
-                    .from(threads)
-                    .where(and(...filters))
-                    .orderBy(desc(threads.view_count))
-            } else {
-                result = await db
-                    .select()
-                    .from(threads)
-                    .where(and(...filters))
-                    .orderBy(desc(threads.created_at))
-            }
+
+        // Advanced Query with Joins for Sorting
+        let query = db
+            .select({
+                ...getTableColumns(threads),
+                like_count: count(likes.id),
+            })
+            .from(threads)
+            // Join likes
+            .leftJoin(likes, and(
+                eq(likes.likeable_id, threads.id),
+                eq(likes.likeable_type, 'thread')
+            ))
+            // Apply filters
+            .where(and(...filters))
+            .groupBy(threads.id);
+
+        if (sort === 'top') {
+            query.orderBy(desc(count(likes.id)));
+        } else if (sort === 'relevant') {
+            query.orderBy(sql`(${count(likes.id)} * 5) + (${threads.view_count} * 1) DESC`);
         } else {
-            // Without filters
-            if (sort === 'top') {
-                result = await db
-                    .select()
-                    .from(threads)
-                    .orderBy(desc(threads.view_count))
-            } else {
-                result = await db
-                    .select()
-                    .from(threads)
-                    .orderBy(desc(threads.created_at))
-            }
+            // Default: Newest
+            query.orderBy(desc(threads.created_at));
         }
 
-        return NextResponse.json(result)
+        const result = await query;
+        return NextResponse.json(result);
+
     } catch (error) {
         console.error('Error fetching threads:', error)
         return NextResponse.json(

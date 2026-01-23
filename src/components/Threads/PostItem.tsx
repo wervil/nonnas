@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Post } from '@/db/schema'
 import LikeButton from '../LikeButton'
-import { Reply, Trash2, Edit2, User, Loader2, Check, X, Send } from 'lucide-react'
+import Link from 'next/link'
+import { Reply, Trash2, Edit2, Loader2, Check, X, Send, MessageSquare } from 'lucide-react'
 
 interface PostItemProps {
     post: Post & { replies?: PostItemProps['post'][] }
@@ -129,19 +130,31 @@ export default function PostItem({
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 text-xs">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center">
-                            <User className="w-3 h-3 text-amber-400" />
+                        {/* Avatar with Initials */}
+                        <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center text-white font-bold text-[10px] uppercase">
+                            {post.user_id?.slice(0, 2) || '??'}
                         </div>
-                        <div>
+
+                        <div className="flex items-center gap-2">
                             <span className="font-medium text-white text-xs">
                                 {post.user_id?.slice(0, 8)}...
                             </span>
-                            <span className="text-gray-500 ml-2">
-                                {formatDate(post.created_at)}
+                            <span className="text-gray-500">
+                                • {formatDate(post.created_at)}
                                 {post.updated_at && post.updated_at !== post.created_at && (
                                     <span className="text-gray-600 ml-1">(edited)</span>
                                 )}
                             </span>
+                            {/* Message Icon after 1 hour */}
+                            {isAuthenticated && (!post.created_at || (Date.now() - new Date(post.created_at).getTime() > 3600000)) && currentUserId !== post.user_id && (
+                                <Link
+                                    href={`/?chatWith=${post.user_id}`}
+                                    className="ml-2 text-gray-500 hover:text-amber-400 transition-colors"
+                                    title="Message User"
+                                >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                </Link>
+                            )}
                         </div>
                     </div>
 

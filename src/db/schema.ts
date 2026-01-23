@@ -170,3 +170,35 @@ export const likes = pgTable('likes', {
 
 export type Like = InferSelectModel<typeof likes>
 export type NewLike = InferInsertModel<typeof likes>
+
+// ============================================
+// MESSAGING SYSTEM
+// ============================================
+
+export const conversations = pgTable('conversations', {
+  id: serial('id').primaryKey(),
+  user1_id: text('user1_id').notNull(),
+  user2_id: text('user2_id').notNull(),
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (table) => [
+  // Ensure unique pair of users (we'll handle ordering in code or use constraint)
+  // Simple approach: user1_id < user2_id convention often used, or composite unique
+  uniqueIndex('unique_conversation_pair').on(table.user1_id, table.user2_id)
+])
+
+export type Conversation = InferSelectModel<typeof conversations>
+export type NewConversation = InferInsertModel<typeof conversations>
+
+export const messages = pgTable('messages', {
+  id: serial('id').primaryKey(),
+  conversation_id: integer('conversation_id').references(() => conversations.id, { onDelete: 'cascade' }),
+  sender_id: text('sender_id').notNull(),
+  content: text('content'), // Can be empty if attachment only
+  attachment_url: text('attachment_url'),
+  attachment_type: text('attachment_type'), // 'image', 'video', 'audio', 'link'
+  is_read: boolean('is_read').default(false),
+  created_at: timestamp('created_at').defaultNow(),
+})
+
+export type Message = InferSelectModel<typeof messages>
+export type NewMessage = InferInsertModel<typeof messages>

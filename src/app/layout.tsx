@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 
@@ -9,8 +10,8 @@ import { getLocale, getMessages } from "next-intl/server"
 import { StackProvider, StackTheme } from "@stackframe/stack"
 import { stackServerApp } from "../stack"
 import { Footer } from "@/components/Footer"
-
 import { Toaster } from 'sonner'
+import { MessagingDrawer } from "@/components/messaging/MessagingDrawer"
 
 export const metadata: Metadata = {
   title: "Cook Book App",
@@ -35,7 +36,7 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body>
-      <Script
+        <Script
           id="google-maps"
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`}
           strategy="beforeInteractive"
@@ -45,6 +46,9 @@ export default async function RootLayout({
             <StackTheme>
               <div className="min-h-svh">{children}</div>
               <Footer />
+              <Suspense fallback={null}>
+                <MessagingDrawer />
+              </Suspense>
             </StackTheme>
           </StackProvider>
         </NextIntlClientProvider>
