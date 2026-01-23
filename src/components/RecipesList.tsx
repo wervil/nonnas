@@ -21,33 +21,51 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
       {recipes.map((recipe) => (
         <li
           key={recipe.id}
-          className="border p-4 rounded flex justify-between items-center gap-4"
+          className="group relative bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-5 border border-amber-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-black/20"
         >
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold break-words overflow-wrap-anywhere">{`${recipe.firstName} ${recipe.lastName}`}</div>
-            <div className="text-sm text-gray-500 truncate">
-              {recipe.country}
-              {recipe.region ? `, ${recipe.region}` : ''}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold text-white shadow-md shadow-amber-900/20">
+                  {recipe.firstName?.[0]}{recipe.lastName?.[0]}
+                </div>
+                <div className="font-[var(--font-imprint)] text-xl truncate break-words overflow-wrap-anywhere text-amber-400 transition-colors">
+                  {recipe.firstName} {recipe.lastName}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-400 ml-11">
+                <span>{recipe.country}</span>
+                {recipe.region && (
+                  <>
+                    <span className="text-gray-600">•</span>
+                    <span>{recipe.region}</span>
+                  </>
+                )}
+              </div>
             </div>
-            <Link
-              href={`${pathname}/${recipe.id}`}
-              className="text-blue-600 underline text-sm cursor-pointer"
-            >
-              {b('viewDetails')}
-            </Link>
+
+            <div className="flex items-center gap-4 ml-11 sm:ml-0">
+              <Link
+                href={`${pathname}/${recipe.id}`}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-medium transition-all hover:scale-105 active:scale-95"
+              >
+                {b('viewDetails')}
+              </Link>
+
+              {togglePublished && (
+                <button
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg ${recipe.published
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/20'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20'
+                    }`}
+                  onClick={() => togglePublished(recipe.id, !recipe.published)}
+                >
+                  {recipe.published ? b('unpublish') : b('publish')}
+                </button>
+              )}
+            </div>
           </div>
-          {togglePublished ? (
-            <button
-              className={`px-3 py-1 rounded cursor-pointer flex-shrink-0 ${
-                recipe.published
-                  ? 'bg-yellow-500 text-white'
-                  : 'bg-green-500 text-white'
-              }`}
-              onClick={() => togglePublished(recipe.id, !recipe.published)}
-            >
-              {recipe.published ? b('unpublish') : b('publish')}
-            </button>
-          ) : null}
         </li>
       ))}
     </ul>

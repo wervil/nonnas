@@ -96,7 +96,7 @@ export default function ThreadList({
     }
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 w-full">
             {threads.map((thread, index) => (
                 <div
                     key={thread.id}

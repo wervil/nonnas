@@ -52,7 +52,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
     }
 
     const content = (
-        <div className="group bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-lg p-3 hover:border-amber-500/40 hover:bg-white/[0.08] transition-all duration-200 cursor-pointer">
+        <div className="group bg-gradient-to-br from-white/[0.05] to-white/[0.02] border rounded-lg p-3 border-amber-500/40 hover:bg-white/[0.08] transition-all duration-200 cursor-pointer">
             <div className="flex items-start gap-2.5">
                 {/* Category icon */}
                 <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
@@ -61,7 +61,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
 
                 <div className="flex-1 min-w-0">
                     {/* Title */}
-                    <h3 className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors line-clamp-1 mb-1">
+                    <h3 className="text-sm font-semibold text-amber-400 transition-colors line-clamp-1 mb-1">
                         {thread.title}
                     </h3>
 
