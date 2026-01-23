@@ -11,8 +11,10 @@ const ADMIN_PATHS = [/^\/dashboard(\/|$)/, /^\/print(\/|$)/]
 // Logged-in user routes (non-admin area)
 const USER_PATHS = [
   /^\/add-recipe(\/|$)/,
-  /^\/profile(\/|$)/,
+  // /^\/profile(\/|$)/,
   /^\/checkout(\/|$)/,
+  /^\/messages(\/|$)/,
+  /^\/community\/thread(\/|$)/,
 ]
 
 // Only allow viewing Stack signup if invite cookie is present
@@ -101,6 +103,8 @@ export const config = {
     '/add-recipe/:path*',
     '/profile/:path*',
     '/checkout/:path*',
+    '/messages/:path*',
+    '/community/thread/:path*',
 
     // Register flow (public)
     '/register/:path*',

@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import { conversations, messages } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { stackServerApp } from '@/stack';
+import { moderateContent } from '@/services/moderation';
 
 const db = drizzle(process.env.DATABASE_URL!);
 
@@ -23,6 +24,17 @@ export async function POST(request: Request) {
 
         if (!content && !attachment_url) {
             return NextResponse.json({ error: 'Message must have content or attachment' }, { status: 400 });
+        }
+
+        // Moderate content
+        if (content) {
+            const isFlagged = await moderateContent(content);
+            if (isFlagged) {
+                return NextResponse.json(
+                    { error: 'Message blocked: Content contains inappropriate language.' },
+                    { status: 400 }
+                );
+            }
         }
 
         // Verify membership

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Thread } from '@/db/schema'
 import { MessageSquare, Eye, Clock, ChevronRight } from 'lucide-react'
+import { usePathname } from "next/navigation";
 
 interface ThreadCardProps {
     thread: Thread
@@ -15,6 +16,10 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
             ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
             : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
     }
+
+
+        const pathname = usePathname();
+        const isProfilePage = pathname === "/profile";
 
     const getCategoryIcon = (category: string) => {
         switch (category?.toLowerCase()) {
@@ -116,7 +121,11 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
     }
 
     return (
-        <Link href={`/community/thread/${thread.id}`}>
+        <Link
+                href={`/community/thread/${thread.id}`}
+                target={isProfilePage ? "_blank" : undefined}
+                // rel={isProfilePage ? "noopener noreferrer" : undefined}
+>
             {content}
         </Link>
     )

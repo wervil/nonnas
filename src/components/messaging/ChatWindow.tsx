@@ -118,11 +118,17 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
     return (
         <div className="flex flex-col h-full bg-white">
             {/* Header */}
-            <div className="p-4 border-b border-stone-200 flex items-center gap-3">
-                <button onClick={onBack} className="text-stone-500 hover:text-black">
-                    ← Back
+            <div className="p-6 border-b border-gray-100 flex items-center">
+                <button
+                    onClick={onBack}
+                    className="group inline-flex items-center gap-1 text-gray-400 font-serif hover:text-gray-900 transition-colors"
+                >
+                    <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                    <span className="font-[var(--font-bell)]">Back</span>
                 </button>
-                <div className="font-bold">Chat with {otherUserId.substring(0, 6)}...</div>
+                <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-gray-900">
+                    Chat with {otherUserId.substring(0, 6)}...
+                </div>
             </div>
 
             {/* Messages */}

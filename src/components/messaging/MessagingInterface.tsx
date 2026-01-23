@@ -7,6 +7,7 @@ import { Conversation, Message, AttachmentType } from './types';
 import { ConversationList } from './ConversationList';
 import { ChatWindow } from './ChatWindow';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 export const MessagingInterface = () => {
     const user = useUser();
@@ -157,6 +158,13 @@ export const MessagingInterface = () => {
 
                 // Emit to socket for others
                 socket?.emit('send-message', savedMsg);
+            } else {
+                if (res.status === 400) {
+                    const data = await res.json();
+                    toast.error(data.error || 'Failed to send message');
+                } else {
+                    console.error('Failed to send message');
+                }
             }
         } catch (error) {
             console.error(error);
