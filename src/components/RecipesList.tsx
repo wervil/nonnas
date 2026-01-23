@@ -48,16 +48,16 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
             <div className="flex items-center gap-4 ml-11 sm:ml-0">
               <Link
                 href={`${pathname}/${recipe.id}`}
-                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 !text-white text-sm font-medium transition-all hover:scale-105 active:scale-95"
               >
                 {b('viewDetails')}
               </Link>
 
               {togglePublished && (
                 <button
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105 active:scale-95 shadow-lg ${recipe.published
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/20'
-                      : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20'
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-lg ${recipe.published
+                    ? 'bg-gradient-to-r from-green-dark to-green-light !text-white shadow-green-dark/20'
+                    : 'bg-gradient-to-r from-green-dark to-green-light !text-white shadow-green-dark/20'
                     }`}
                   onClick={() => togglePublished(recipe.id, !recipe.published)}
                 >

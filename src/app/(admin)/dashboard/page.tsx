@@ -16,9 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter 
+  DialogFooter
 } from '@/components/ui/dialog';
-
 
 import { toast } from "sonner";
 
@@ -69,7 +68,7 @@ export default function Dashboard() {
   /* ================= SUPER ADMIN ================= */
   const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || ''
   const SUPER_ADMIN_SEC_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
-    
+
   const currentEmail = user?.primaryEmail?.toLowerCase() || ''
   const isSuperAdmin = currentEmail && (currentEmail === SUPER_ADMIN_EMAIL || currentEmail === SUPER_ADMIN_SEC_EMAIL)
 
@@ -185,23 +184,23 @@ export default function Dashboard() {
 
   const deleteUser = async () => {
     if (!deleteUserId) return
-  
+
     try {
       setRoleUpdatingId(deleteUserId)
-  
+
       const res = await fetch('/api/admin/users/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: deleteUserId }),
       })
-  
+
       if (!res.ok) {
         const text = await res.text().catch(() => '')
         throw new Error(text || 'Failed to delete user')
       }
-  
+
       toast.success('User deleted successfully')
-  
+
       const u = await fetchStackUsers()
       setUsers(u)
     } catch (e) {
@@ -212,8 +211,8 @@ export default function Dashboard() {
       setDeleteUserId(null) // close dialog
     }
   }
-  
-  
+
+
 
 
   useEffect(() => {
@@ -236,201 +235,228 @@ export default function Dashboard() {
 
   /* ================= RENDER ================= */
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{l('dashboard')}</h1>
+    <div className="min-h-screen bg-[var(--color-brown-dark)]">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <h1 className="text-4xl font-bold !text-white/80">
+            {l('dashboard')}
 
-        <div className="flex gap-2">
-          {hasPermissions && (
-            <Button onClick={copyInviteLink}>
-              {copied ? 'Copied ✓' : 'Copy Invite Link'}
+          </h1>
+
+          <div className="flex flex-wrap gap-3">
+            {hasPermissions && (
+              <Button
+                onClick={copyInviteLink}
+                className="bg-[var(--color-green-dark)] hover:opacity-90 text-[var(--color-yellow-light)]"
+              >
+                {copied ? 'Copied ✓' : 'Copy Invite Link'}
+              </Button>
+            )}
+
+            <Link href="/">
+              <Button className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]">
+                {b('returnHome')}
+              </Button>
+            </Link>
+
+            <Button
+              onClick={() => user?.signOut()}
+              className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
+            >
+              {b('logOut')}
             </Button>
+          </div>
+        </div>
+
+        {/* TABS */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button
+            className={`px-6 py-3 rounded-lg font-[var(--font-bell)] text-lg transition-all duration-200 ${tab === 'new'
+              ? 'bg-[var(--color-green-dark)] text-[var(--color-yellow-light)] shadow-lg shadow-[var(--color-green-dark)]/30'
+              : 'bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)] border border-[var(--color-primary-border)]/20'
+              }`}
+            onClick={() => setTab('new')}
+          >
+            {d('newRecipes')}
+          </button>
+
+          <button
+            className={`px-6 py-3 rounded-lg font-[var(--font-bell)] text-lg transition-all duration-200 ${tab === 'published'
+              ? 'bg-[var(--color-green-dark)] text-[var(--color-yellow-light)] shadow-lg shadow-[var(--color-green-dark)]/30'
+              : 'bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)] border border-[var(--color-primary-border)]/20'
+              }`}
+            onClick={() => setTab('published')}
+          >
+            {d('publishedRecipes')}
+          </button>
+
+          {isSuperAdmin && (
+            <button
+              className={`px-6 py-3 rounded-lg font-[var(--font-bell)] text-lg transition-all duration-200 ${tab === 'users'
+                ? 'bg-[var(--color-green-dark)] text-[var(--color-yellow-light)] shadow-lg shadow-[var(--color-green-dark)]/30'
+                : 'bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)] border border-[var(--color-primary-border)]/20'
+                }`}
+              onClick={() => setTab('users')}
+            >
+              {d('users')}
+            </button>
           )}
 
-          <Link href="/">
-            <Button>{b('returnHome')}</Button>
-          </Link>
-
-          <Button onClick={() => user?.signOut()}>{b('logOut')}</Button>
-        </div>
-      </div>
-
-      {/* TABS */}
-      <div className="flex gap-4 mb-6">
-        <button
-          className={`px-4 py-2 rounded ${
-            tab === 'new' ? 'bg-blue-500 text-white' : 'bg-gray-200'
-          }`}
-          onClick={() => setTab('new')}
-        >
-          {d('newRecipes')}
-        </button>
-
-        <button
-          className={`px-4 py-2 rounded ${
-            tab === 'published' ? 'bg-blue-500 text-white' : 'bg-gray-200'
-          }`}
-          onClick={() => setTab('published')}
-        >
-          {d('publishedRecipes')}
-        </button>
-
-        {isSuperAdmin && (
-          <button
-            className={`px-4 py-2 rounded ${
-              tab === 'users' ? 'bg-blue-500 text-white' : 'bg-gray-200'
-            }`}
-            onClick={() => setTab('users')}
+          <select
+            value={selectedCountry}
+            onChange={(e) => setSelectedCountry(e.target.value)}
+            aria-label="Filter by country"
+            title="Filter by country"
+            className="px-4 py-3 rounded-lg bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] border border-[var(--color-primary-border)]/20 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 font-[var(--font-bell)] min-w-[200px]"
           >
-            {d('users')}
-          </button>
-        )}
+            <option value="" className="bg-[var(--color-brown-pale)]">{l('all')}</option>
+            {countries.map((c) => (
+              <option
+                key={c}
+                value={countriesData[c as keyof typeof countriesData].name}
+                className="bg-[var(--color-brown-pale)]"
+              >
+                {countriesData[c as keyof typeof countriesData].flag}{' '}
+                {countriesData[c as keyof typeof countriesData].name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          value={selectedCountry}
-          onChange={(e) => setSelectedCountry(e.target.value)}
-          className="w-full p-3 border rounded-lg"
-        >
-          <option value="">{l('all')}</option>
-          {countries.map((c) => (
-            <option
-              key={c}
-              value={countriesData[c as keyof typeof countriesData].name}
-            >
-              {countriesData[c as keyof typeof countriesData].flag}{' '}
-              {countriesData[c as keyof typeof countriesData].name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* CONTENT */}
-      {loading ? (
-        <div>{b('loading')}</div>
-      ) : tab === 'users' ? (
-        <div className="rounded-lg border overflow-hidden">
-          <div className="grid grid-cols-6 gap-2 p-3 font-semibold bg-gray-50">
-            <div>Name</div>
-            <div>Email</div>
-            <div>Role</div>
-            <div>Signed up</div>
-            <div className="text-right">Action</div>
-            <div className="text-right">Delete</div>
+        {/* CONTENT */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="text-[var(--color-text-pale)] text-xl font-[var(--font-bell)]">
+              {b('loading')}
+            </div>
           </div>
+        ) : tab === 'users' ? (
+          <div className="rounded-xl border border-[var(--color-primary-border)]/20 overflow-hidden bg-[var(--color-brown-pale)] shadow-lg">
+            <div className="grid grid-cols-6 gap-4 p-4 font-[var(--font-bell)] bg-[var(--color-brown-light)] text-[var(--color-yellow-light)]">
+              <div>Name</div>
+              <div>Email</div>
+              <div>Role</div>
+              <div>Signed up</div>
+              <div className="text-right">Action</div>
+              <div className="text-right">Delete</div>
+            </div>
 
-          {sortedUsers.map((u) => {
-  const userEmail = (u.primaryEmail || '').toLowerCase()
-  const isSuper = userEmail === SUPER_ADMIN_EMAIL || userEmail === SUPER_ADMIN_SEC_EMAIL
+            {sortedUsers.map((u) => {
+              const userEmail = (u.primaryEmail || '').toLowerCase()
+              const isSuper = userEmail === SUPER_ADMIN_EMAIL || userEmail === SUPER_ADMIN_SEC_EMAIL
 
-  const isAdmin = u.role === 'team_member'
-  const badge = isSuper ? 'Super Admin' : isAdmin ? 'Admin' : 'Client'
+              const isAdmin = u.role === 'team_member'
+              const badge = isSuper ? 'Super Admin' : isAdmin ? 'Admin' : 'Client'
 
-  return (
-    <div
-      key={u.id}
-      className={`grid grid-cols-6 gap-2 p-3 border-t items-center ${
-        isSuper ? 'bg-yellow-50' : ''
-      }`}
-    >
-      <div>{u.displayName || '—'}</div>
-      <div className="truncate">{u.primaryEmail || '—'}</div>
+              return (
+                <div
+                  key={u.id}
+                  className={`grid grid-cols-6 gap-4 p-4 border-t border-[var(--color-primary-border)]/10 items-center transition-colors hover:bg-[var(--color-brown-light)]/50 ${isSuper ? 'bg-[var(--color-warning-main)]/10' : ''
+                    }`}
+                >
+                  <div className="text-[var(--color-text-pale)] font-[var(--font-bell)]">{u.displayName || '—'}</div>
+                  <div className="truncate text-[var(--color-text-pale)] font-[var(--font-bell)]">{u.primaryEmail || '—'}</div>
 
-      <div>
-        {isSuper ? (
-          <span className="text-xs px-2 py-0.5 rounded bg-yellow-400 text-black font-semibold">
-            {badge}
-          </span>
-        ) : isAdmin ? (
-          <span className="text-xs px-2 py-0.5 rounded bg-green-400 text-black font-semibold">
-            {badge}
-          </span>
+                  <div>
+                    {isSuper ? (
+                      <span className="text-xs px-3 py-1 rounded-full bg-[var(--color-warning-main)]/30 text-[var(--color-warning-main)] font-semibold border border-[var(--color-warning-main)]/50">
+                        {badge}
+                      </span>
+                    ) : isAdmin ? (
+                      <span className="text-xs px-3 py-1 rounded-full bg-[var(--color-success-main)]/30 text-[var(--color-success-main)] font-semibold border border-[var(--color-success-main)]/50">
+                        {badge}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-3 py-1 rounded-full bg-[var(--color-primary-border)]/30 text-[var(--color-primary-border)] font-semibold border border-[var(--color-primary-border)]/50">
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-[var(--color-text-pale)] font-[var(--font-bell)] text-sm">
+                    {u.signedUpAt ? new Date(u.signedUpAt).toLocaleString() : '—'}
+                  </div>
+
+                  {/* Role toggle */}
+                  <div className="flex justify-end">
+                    {isSuper ? (
+                      <span className="text-xs text-[var(--color-text-pale)]/50">—</span>
+                    ) : (
+                      <Button
+                        onClick={() =>
+                          updateUserRole(u.id, isAdmin ? 'client' : 'team_member')
+                        }
+                        disabled={roleUpdatingId === u.id}
+                        className="bg-[var(--color-green-dark)] hover:opacity-90 text-[var(--color-yellow-light)] text-sm px-4 py-2"
+                      >
+                        {roleUpdatingId === u.id
+                          ? 'Updating...'
+                          : isAdmin
+                            ? 'Make Client'
+                            : 'Make Admin'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Delete (super admin only) */}
+                  <div className="flex justify-end">
+                    {!isSuperAdmin || isSuper ? (
+                      <span className="text-xs text-[var(--color-text-pale)]/50">—</span>
+                    ) : (
+                      <Button
+                        className='bg-[var(--color-danger-main)] hover:opacity-90 text-white text-sm px-4 py-2'
+                        onClick={() => setDeleteUserId(u.id)}
+                        disabled={roleUpdatingId === u.id}
+                      >
+                        Delete
+                      </Button>
+
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+          </div>
         ) : (
-          <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-black font-semibold">
-            {badge}
-          </span>
+          <RecipesList recipes={recipes} togglePublished={togglePublished} />
         )}
+
+        <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+          <DialogContent className="bg-[var(--color-brown-pale)] border-[var(--color-primary-border)]/20">
+            <DialogHeader>
+              <DialogTitle className="text-[var(--color-yellow-light)] font-[var(--font-bell)] text-2xl">
+                Delete user?
+              </DialogTitle>
+              <DialogDescription className="text-[var(--color-text-pale)] font-[var(--font-bell)]">
+                This action is permanent and cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="gap-2">
+              <Button
+                className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
+                onClick={() => {
+                  setDeleteUserId(null)
+                  toast('Deletion cancelled')
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                className='bg-[var(--color-danger-main)] hover:opacity-90 text-white'
+                onClick={deleteUser}
+                disabled={!!roleUpdatingId}
+              >
+                {roleUpdatingId ? 'Deleting...' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
-
-      <div>
-        {u.signedUpAt ? new Date(u.signedUpAt).toLocaleString() : '—'}
-      </div>
-
-      {/* Role toggle */}
-      <div className="flex justify-end">
-        {isSuper ? (
-          <span className="text-xs text-gray-500">—</span>
-        ) : (
-          <Button
-            onClick={() =>
-              updateUserRole(u.id, isAdmin ? 'client' : 'team_member')
-            }
-            disabled={roleUpdatingId === u.id}
-          >
-            {roleUpdatingId === u.id
-              ? 'Updating...'
-              : isAdmin
-              ? 'Make Client'
-              : 'Make Admin'}
-          </Button>
-        )}
-      </div>
-
-      {/* Delete (super admin only) */}
-      <div className="flex justify-end">
-        {!isSuperAdmin || isSuper ? (
-          <span className="text-xs text-gray-500">—</span>
-        ) : (
-          <Button
-              className='bg-red-800'
-              onClick={() => setDeleteUserId(u.id)}
-              disabled={roleUpdatingId === u.id}
-            >
-              Delete
-            </Button>
-
-        )}
-      </div>
-    </div>
-  )
-})}
-
-        </div>
-      ) : (
-        <RecipesList recipes={recipes} togglePublished={togglePublished} />
-      )}
-
-<Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Delete user?</DialogTitle>
-      <DialogDescription>
-        This action is permanent and cannot be undone.
-      </DialogDescription>
-    </DialogHeader>
-
-    <DialogFooter className="gap-2">
-      <Button
-        
-        onClick={() => {
-          setDeleteUserId(null)
-          toast('Deletion cancelled')
-        }}
-      >
-        Cancel
-      </Button>
-
-      <Button
-        className='bg-red-800'
-        onClick={deleteUser}
-        disabled={!!roleUpdatingId}
-      >
-        {roleUpdatingId ? 'Deleting...' : 'Delete'}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
     </div>
   )
 }
