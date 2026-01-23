@@ -65,6 +65,12 @@ export default function CreateThreadForm({
 
             if (!response.ok) {
                 const data = await response.json()
+                // Handle validation/moderation errors gracefully without logging as system errors
+                if (response.status === 400) {
+                    setError(data.error || 'Invalid request')
+                    setIsSubmitting(false)
+                    return
+                }
                 throw new Error(data.error || 'Failed to create thread')
             }
 

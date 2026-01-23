@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import CommentItem from './CommentItem'
 import CommentEditor from './CommentEditor'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 interface Comment {
     id: number
@@ -64,6 +65,12 @@ export default function CommentSection({
             if (res.ok) {
                 fetchComments()
                 setShowEditor(false)
+            } else {
+                const data = await res.json()
+                if (res.status === 400) {
+                    toast.error(data.error || 'Failed to add comment')
+                    return
+                }
             }
         } catch (error) {
             console.error('Error adding comment:', error)

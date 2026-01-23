@@ -87,7 +87,6 @@ export const useRecipes = () => {
 
   useEffect(() => {
     fetchRecipes(lang)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang])
 
   // NOTE: Removed the debounce search fetch because we filter client side now.

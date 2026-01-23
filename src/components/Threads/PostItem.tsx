@@ -5,6 +5,7 @@ import { Post } from '@/db/schema'
 import LikeButton from '../LikeButton'
 import Link from 'next/link'
 import { Reply, Trash2, Edit2, Loader2, Check, X, Send, MessageSquare } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface PostItemProps {
     post: Post & { replies?: PostItemProps['post'][] }
@@ -53,7 +54,15 @@ export default function PostItem({
                 body: JSON.stringify({ content: editContent }),
             })
 
-            if (!response.ok) throw new Error('Failed to update post')
+            if (!response.ok) {
+                const data = await response.json()
+                if (response.status === 400) {
+                    toast.error(data.error || 'Failed to update post')
+                    setIsSubmitting(false)
+                    return
+                }
+                throw new Error('Failed to update post')
+            }
 
             if (onEdit) {
                 onEdit(post.id, editContent)
@@ -95,6 +104,10 @@ export default function PostItem({
             setReplyContent('')
             setShowReplyForm(false)
         } catch (error) {
+            if (error instanceof Error && error.message === 'MODERATION_ERROR') {
+                // Already handled by parent with toast
+                return
+            }
             console.error('Error posting reply:', error)
         } finally {
             setIsReplySubmitting(false)

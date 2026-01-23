@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { posts } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
-
+import { moderateContent } from '@/services/moderation'
 
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
@@ -43,6 +43,15 @@ export async function PATCH(
         if (content.length > 5000) {
             return NextResponse.json(
                 { error: 'Content must be 5000 characters or less' },
+                { status: 400 }
+            )
+        }
+
+        // Content Moderation
+        const isFlagged = await moderateContent(content)
+        if (isFlagged) {
+            return NextResponse.json(
+                { error: 'Content flagged as inappropriate.' },
                 { status: 400 }
             )
         }

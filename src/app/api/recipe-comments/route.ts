@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/neon-serverless'
 import { recipe_comments } from '@/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
+import { moderateContent } from '@/services/moderation'
 
 const db = drizzle(process.env.DATABASE_URL!)
 
@@ -110,6 +111,15 @@ export async function POST(request: NextRequest) {
         if (depth > 5) {
             return NextResponse.json(
                 { error: 'Maximum nesting depth reached' },
+                { status: 400 }
+            )
+        }
+
+        // Content moderation
+        const isFlagged = await moderateContent(content)
+        if (isFlagged) {
+            return NextResponse.json(
+                { error: 'Content flagged as inappropriate.' },
                 { status: 400 }
             )
         }

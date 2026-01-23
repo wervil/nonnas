@@ -6,6 +6,7 @@ import PostItem from './PostItem'
 import LikeButton from '../LikeButton'
 import { ArrowLeft, MessageSquare, Eye, Calendar, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 interface ThreadViewProps {
     threadId: number
@@ -120,7 +121,14 @@ export default function ThreadView({
                 }),
             })
 
-            if (!response.ok) throw new Error('Failed to create reply')
+            if (!response.ok) {
+                const data = await response.json()
+                if (response.status === 400) {
+                    toast.error(data.error || 'Failed to post reply')
+                    return
+                }
+                throw new Error('Failed to create reply')
+            }
 
             const newPost = await response.json()
             // Optimistically add to posts
@@ -157,7 +165,14 @@ export default function ThreadView({
             }),
         })
 
-        if (!response.ok) throw new Error('Failed to create reply')
+        if (!response.ok) {
+            const data = await response.json()
+            if (response.status === 400) {
+                toast.error(data.error || 'Failed to post reply')
+                throw new Error('MODERATION_ERROR') // specific error to catch/ignore
+            }
+            throw new Error('Failed to create reply')
+        }
 
         const newPost = await response.json()
         return newPost

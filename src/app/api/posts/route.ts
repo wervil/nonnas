@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { posts, type NewPost } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
+import { moderateContent } from '@/services/moderation'
 
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
@@ -61,6 +62,14 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 )
             }
+        }
+
+        const isFlagged = await moderateContent(content)
+        if (isFlagged) {
+            return NextResponse.json(
+                { error: 'Content flagged as inappropriate.' },
+                { status: 400 }
+            )
         }
 
         const newPost: NewPost = {

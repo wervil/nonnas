@@ -26,6 +26,7 @@ export const MessagingInterface = () => {
         if (chatWith && user && !activeConvo) {
             startChat(chatWith);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, user]);
 
     const startChat = async (targetId: string) => {

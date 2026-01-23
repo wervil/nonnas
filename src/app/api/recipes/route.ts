@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { drizzle } from 'drizzle-orm/neon-serverless'
-import { recipes } from '@/db/schema'
-import { eq, sql, and, ilike } from 'drizzle-orm'
+import { recipes, likes } from '@/db/schema'
+import { eq, sql, and, ilike, inArray } from 'drizzle-orm'
 // import * as deepl from 'deepl-node'
 // import { availableLanguages } from '@/utils/availableLanguages'
 // import { translateText } from '../services/libretranslate'
@@ -189,6 +189,30 @@ export async function GET(request: NextRequest) {
         whereConditions.push(eq(recipes.user_id, userId))
       }
 
+      const savedByUserId = searchParams.get('savedByUserId')
+
+      // Handle savedByUserId filter (My Saved Recipes)
+      if (savedByUserId) {
+        // First get all recipe IDs liked by this user
+        const likedRecipeIds = await db
+          .select({ recipeId: likes.likeable_id })
+          .from(likes)
+          .where(and(
+            eq(likes.user_id, savedByUserId),
+            eq(likes.likeable_type, 'recipe')
+          ))
+
+        const ids = likedRecipeIds.map(l => l.recipeId)
+
+        if (ids.length > 0) {
+          whereConditions.push(inArray(recipes.id, ids))
+        } else {
+          // User has no saved recipes, return empty result
+          // We push a condition that is always false to return empty
+          whereConditions.push(eq(recipes.id, -1))
+        }
+      }
+
       // Build and execute the query based on conditions
       if (whereConditions.length === 0) {
         // No filters - get all recipes
@@ -196,22 +220,10 @@ export async function GET(request: NextRequest) {
           .select(selectFields)
           .from(recipes)
           .orderBy(recipes.recipeTitle)
-      } else if (whereConditions.length === 1) {
-        // Single condition
-        const orderBy =
-          published !== undefined && !search && !country
-            ? sql`RANDOM()`
-            : recipes.recipeTitle
-
-        result = await db
-          .select(selectFields)
-          .from(recipes)
-          .where(whereConditions[0])
-          .orderBy(orderBy)
       } else {
-        // Multiple conditions
+        // Apply all conditions
         const orderBy =
-          published !== undefined && !search && !country
+          published !== undefined && !search && !country && !savedByUserId
             ? sql`RANDOM()`
             : recipes.recipeTitle
 

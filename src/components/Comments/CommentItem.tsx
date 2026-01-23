@@ -4,6 +4,7 @@ import { useState } from 'react'
 import CommentEditor from './CommentEditor'
 import Link from 'next/link'
 import { MessageSquare } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Comment {
     id: number
@@ -85,6 +86,12 @@ export default function CommentItem({
             if (res.ok) {
                 onUpdate()
                 setShowReplyEditor(false)
+            } else {
+                const data = await res.json()
+                if (res.status === 400) {
+                    toast.error(data.error || 'Failed to reply')
+                    return
+                }
             }
         } catch (error) {
             console.error('Error replying:', error)

@@ -10,6 +10,7 @@ interface ThreadListProps {
     scope?: 'country' | 'state'
     category?: string
     sort?: 'newest' | 'top' | 'relevant'
+    userId?: string
     onThreadClick?: (threadId: number) => void
 }
 
@@ -18,6 +19,7 @@ export default function ThreadList({
     scope,
     category,
     sort = 'newest',
+    userId,
     onThreadClick,
 }: ThreadListProps) {
     const [threads, setThreads] = useState<Thread[]>([])
@@ -35,6 +37,7 @@ export default function ThreadList({
                 if (scope) params.append('scope', scope)
                 if (category) params.append('category', category)
                 if (sort) params.append('sort', sort)
+                if (userId) params.append('userId', userId)
 
                 const response = await fetch(`/api/threads?${params.toString()}`)
 
@@ -53,7 +56,7 @@ export default function ThreadList({
         }
 
         fetchThreads()
-    }, [region, scope, category, sort])
+    }, [region, scope, category, sort, userId])
 
     if (isLoading) {
         return (

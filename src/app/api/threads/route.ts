@@ -3,6 +3,7 @@ import { threads, likes, type NewThread } from '@/db/schema'
 import { eq, and, desc, count, sql, getTableColumns } from 'drizzle-orm'
 import { stackServerApp } from '@/stack'
 import { drizzle } from 'drizzle-orm/neon-serverless'
+import { moderateContent } from '@/services/moderation'
 
 const db = drizzle(process.env.DATABASE_URL!)
 
@@ -10,6 +11,7 @@ const db = drizzle(process.env.DATABASE_URL!)
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
+        const userId = searchParams.get('userId')
         const region = searchParams.get('region')
         const scope = searchParams.get('scope') // 'country' or 'state'
         const category = searchParams.get('category')
@@ -17,6 +19,9 @@ export async function GET(request: NextRequest) {
 
         // Build filters
         const filters = []
+        if (userId) {
+            filters.push(eq(threads.user_id, userId))
+        }
         if (region) {
             filters.push(eq(threads.region, region))
         }
@@ -106,6 +111,15 @@ export async function POST(request: NextRequest) {
         if (content.length > 5000) {
             return NextResponse.json(
                 { error: 'Content must be 5000 characters or less' },
+                { status: 400 }
+            )
+        }
+
+        // Content Moderation
+        const isFlagged = await moderateContent(title + '\n' + content)
+        if (isFlagged) {
+            return NextResponse.json(
+                { error: 'Content flagged as inappropriate.' },
                 { status: 400 }
             )
         }
