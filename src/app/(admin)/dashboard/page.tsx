@@ -239,7 +239,7 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <h1 className="text-4xl font-bold !text-white/80">
+          <h1 className="text-4xl font-bold !text-[var(--color-yellow-light)]">
             {l('dashboard')}
 
           </h1>

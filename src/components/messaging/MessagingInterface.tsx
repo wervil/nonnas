@@ -171,19 +171,19 @@ export const MessagingInterface = () => {
         }
     }
 
-    if (!user) return <div className="p-8 text-center text-gray-500">Please sign in to view messages.</div>;
+    if (!user) return <div className="p-8 text-center text-[var(--color-text-pale)] font-[var(--font-bell)]">Please sign in to view messages.</div>;
 
     return (
-        <div className="flex flex-1 h-full bg-gray-50">
+        <div className="flex h-full w-full bg-[var(--color-brown-dark)] min-h-0 overflow-hidden">
             {/* Sidebar List - Hidden on mobile if activeConvo is selected */}
             <div className={`
-                w-full md:w-80 lg:w-96 border-r bg-white flex flex-col
+                w-full md:w-80 lg:w-96 border-r border-[var(--color-primary-border)]/20 bg-[var(--color-brown-pale)] flex flex-col shadow-lg min-w-0 shrink-0
                 ${activeConvo ? 'hidden md:flex' : 'flex'}
             `}>
-                <div className="p-4 border-b">
-                    <h2 className="font-bold text-xl text-gray-800">Messages</h2>
+                <div className="p-4 border-b border-[var(--color-primary-border)]/20 shrink-0">
+                    <h2 className="font-bold text-xl text-[var(--color-yellow-light)] font-[var(--font-bell)]">Messages</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0">
                     <ConversationList
                         conversations={conversations}
                         currentUserId={user.id}
@@ -195,7 +195,7 @@ export const MessagingInterface = () => {
 
             {/* Chat Area - Hidden on mobile if no activeConvo */}
             <div className={`
-                flex-1 flex flex-col bg-white
+                flex-1 flex flex-col bg-[var(--color-brown-pale)] min-w-0 min-h-0
                 ${!activeConvo ? 'hidden md:flex' : 'flex'}
             `}>
                 {activeConvo ? (
@@ -207,10 +207,10 @@ export const MessagingInterface = () => {
                         onSendMessage={handleSendMessage}
                     />
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-400 bg-gray-50">
+                    <div className="flex-1 flex items-center justify-center text-[var(--color-text-pale)] bg-[var(--color-brown-dark)]">
                         <div className="text-center">
-                            <p className="text-lg font-medium">Select a conversation</p>
-                            <p className="text-sm">Choose a chat from the list to start messaging</p>
+                            <p className="text-lg font-medium text-[var(--color-yellow-light)] font-[var(--font-bell)]">Select a conversation</p>
+                            <p className="text-sm font-[var(--font-bell)]">Choose a chat from the list to start messaging</p>
                         </div>
                     </div>
                 )}

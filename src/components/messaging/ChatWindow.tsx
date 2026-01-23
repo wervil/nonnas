@@ -110,38 +110,38 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
             case 'audio':
                 return <audio src={msg.attachment_url} controls className="mt-2 w-full max-w-[250px]" />;
             case 'link':
-                return <a href={msg.attachment_url} target="_blank" rel="noreferrer" className="text-blue-500 underline break-all mt-1 block">{msg.attachment_url}</a>;
+                return <a href={msg.attachment_url} target="_blank" rel="noreferrer" className="text-[var(--color-yellow-light)] underline break-all mt-1 block hover:text-[var(--color-success-main)] transition-colors">{msg.attachment_url}</a>;
             default:
                 return null;
         }
     };
 
     return (
-        <div className="flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full bg-[var(--color-brown-pale)] min-h-0 overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center">
+            <div className="p-6 border-b border-[var(--color-primary-border)]/20 flex items-center bg-[var(--color-brown-light)]/30 shrink-0">
                 <button
                     onClick={onBack}
-                    className="group inline-flex items-center gap-1 text-gray-400 font-serif hover:text-gray-900 transition-colors"
+                    className="group inline-flex items-center gap-1 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
                 >
-                    <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                    <span className="group-hover:-translate-x-1 transition-transform font-[var(--font-bell)]">←</span>
                     <span className="font-[var(--font-bell)]">Back</span>
                 </button>
-                <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-gray-900">
+                <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-[var(--color-yellow-light)]">
                     Chat with {otherUserId.substring(0, 6)}...
                 </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[var(--color-brown-dark)] min-h-0" ref={scrollRef}>
                 {messages.map((msg) => {
                     const isMe = msg.sender_id === currentUserId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-xl p-3 ${isMe ? 'bg-amber-500 text-white' : 'bg-stone-100 text-stone-900'}`}>
-                                {msg.content && <p>{msg.content}</p>}
+                            <div className={`max-w-[80%] rounded-xl p-3 font-[var(--font-bell)] ${isMe ? '!bg-[var(--color-green-dark)] !text-[var(--color-yellow-light)]' : 'bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] border border-[var(--color-primary-border)]/20'}`}>
+                                {msg.content && <p className="break-words">{msg.content}</p>}
                                 {renderAttachment(msg)}
-                                <div className={`text-[10px] mt-1 ${isMe ? 'text-amber-100' : 'text-stone-400'}`}>
+                                <div className={`text-[10px] mt-1 ${isMe ? 'text-[var(--color-yellow-light)]/70' : 'text-[var(--color-text-pale)]/70'}`}>
                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                             </div>
@@ -152,7 +152,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
 
             {/* Input */}
             {attachment && (
-                <div className="px-4 py-2 border-t border-stone-100 bg-stone-50 flex items-center justify-between">
+                <div className="px-4 py-2 border-t border-[var(--color-primary-border)]/20 bg-[var(--color-brown-light)]/30 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3 overflow-hidden">
                         {attachment.type === 'image' ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -160,22 +160,32 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                         ) : attachment.type === 'video' ? (
                             <video src={attachment.preview} className="h-12 w-12 object-cover rounded-md" />
                         ) : (
-                            <div className="h-12 w-12 bg-stone-200 rounded-md flex items-center justify-center text-stone-500">
+                            <div className="h-12 w-12 bg-[var(--color-brown-pale)] rounded-md flex items-center justify-center text-[var(--color-text-pale)] border border-[var(--color-primary-border)]/20">
                                 {attachment.type === 'audio' ? <FileAudio size={20} /> : <LinkIcon size={20} />}
                             </div>
                         )}
                         <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-medium truncate max-w-[150px]">{attachment.file.name}</span>
-                            <span className="text-xs text-stone-500 uppercase">{attachment.type}</span>
+                            <span className="text-sm font-medium truncate max-w-[150px] text-[var(--color-yellow-light)] font-[var(--font-bell)]">{attachment.file.name}</span>
+                            <span className="text-xs text-[var(--color-text-pale)] uppercase font-[var(--font-bell)]">{attachment.type}</span>
                         </div>
                     </div>
-                    <button onClick={() => setAttachment(null)} className="p-1 hover:bg-stone-200 rounded-full transition-colors">
+                    <button
+                        onClick={() => setAttachment(null)}
+                        className="p-1 hover:bg-[var(--color-brown-pale)] rounded-full transition-colors text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)]"
+                        aria-label="Remove attachment"
+                        title="Remove attachment"
+                    >
                         <X size={16} />
                     </button>
                 </div>
             )}
-            <div className="p-3 border-t border-stone-200 flex items-center gap-2">
-                <button onClick={() => fileInputRef.current?.click()} className="p-2 text-stone-400 hover:text-amber-600">
+            <div className="p-3 border-t border-[var(--color-primary-border)]/20 bg-[var(--color-brown-light)]/30 flex items-center gap-2 shrink-0">
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
+                    aria-label="Attach file"
+                    title="Attach file"
+                >
                     <Paperclip size={20} />
                 </button>
                 <input
@@ -183,19 +193,23 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     ref={fileInputRef}
                     className="hidden"
                     onChange={handleFileSelect}
+                    aria-label="File input"
                 // accept="image/*,video/*,audio/*" // allow all
                 />
                 <input
-                    className="flex-1 bg-stone-100 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="flex-1 bg-[var(--color-brown-pale)] border border-[var(--color-primary-border)]/30 rounded-full px-4 py-2 text-[var(--color-text-pale)] placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 font-[var(--font-bell)]"
                     placeholder="Type a message..."
                     value={inputText}
+                    disabled={isSending}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 />
                 <button
                     disabled={isSending || (!inputText && !attachment)}
                     onClick={handleSend}
-                    className="p-2 bg-amber-600 text-white rounded-full hover:bg-amber-700 disabled:opacity-50"
+                    className="p-2 !bg-[var(--color-green-dark)] !text-[var(--color-yellow-light)] rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    aria-label="Send message"
+                    title="Send message"
                 >
                     <Send size={20} />
                 </button>
