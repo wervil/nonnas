@@ -11,10 +11,14 @@ const ADMIN_PATHS = [/^\/dashboard(\/|$)/, /^\/print(\/|$)/]
 // Logged-in user routes (non-admin area)
 const USER_PATHS = [
   /^\/add-recipe(\/|$)/,
-  // /^\/profile(\/|$)/,
   /^\/checkout(\/|$)/,
+]
+
+// Routes open to any logged-in user (admin or normal)
+const SHARED_AUTH_PATHS = [
   /^\/messages(\/|$)/,
   /^\/community\/thread(\/|$)/,
+  /^\/profile(\/|$)/,
 ]
 
 // Only allow viewing Stack signup if invite cookie is present
@@ -58,7 +62,8 @@ export async function middleware(request: NextRequest) {
    */
   const needsAdmin = ADMIN_PATHS.some((re) => re.test(pathname))
   const isUserRoute = USER_PATHS.some((re) => re.test(pathname))
-  const needsAuth = needsAdmin || isUserRoute
+  const isSharedAuthRoute = SHARED_AUTH_PATHS.some((re) => re.test(pathname))
+  const needsAuth = needsAdmin || isUserRoute || isSharedAuthRoute
 
   // Public route
   if (!needsAuth) {

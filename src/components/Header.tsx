@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { Settings } from 'lucide-react'
+import { Settings, User } from 'lucide-react'
 import DotLottieGlobe from './LottieGlobe'
 
 
@@ -145,11 +145,18 @@ export const Header = ({
 
         {user ? (
           hasAdminAccess ? (
-            <Link href="/dashboard">
-              <Settings
+            <>
+              <Link href="/dashboard">
+                <Settings
+                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                />
+              </Link>
+              <Link href="/profile">
+              <User
                 className={`w-[30px] h-[30px] ${imageFilterClass}`}
               />
             </Link>
+           </>
           ) : (
             <Link href="/profile">
               <Settings
