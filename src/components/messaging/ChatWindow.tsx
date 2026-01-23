@@ -103,6 +103,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
 
         switch (msg.attachment_type) {
             case 'image':
+                // eslint-disable-next-line @next/next/no-img-element
                 return <img src={msg.attachment_url} alt="attachment" className="max-w-[200px] rounded-lg mt-2" />;
             case 'video':
                 return <video src={msg.attachment_url} controls className="max-w-[200px] rounded-lg mt-2" />;
@@ -154,6 +155,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                 <div className="px-4 py-2 border-t border-stone-100 bg-stone-50 flex items-center justify-between">
                     <div className="flex items-center gap-3 overflow-hidden">
                         {attachment.type === 'image' ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={attachment.preview} alt="Preview" className="h-12 w-12 object-cover rounded-md" />
                         ) : attachment.type === 'video' ? (
                             <video src={attachment.preview} className="h-12 w-12 object-cover rounded-md" />

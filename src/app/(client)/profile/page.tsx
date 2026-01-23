@@ -6,11 +6,9 @@ import Button from '@/components/ui/Button'
 import { Recipe } from '@/db/schema'
 import { useUser } from '@stackframe/stack'
 import { useTranslations } from 'next-intl'
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Loader2, BookOpen, Heart, MessageCircle } from 'lucide-react'
 import { Header } from '@/components/Header'
-import Image from 'next/image'
 
 // Add Activity type if needed, for now ThreadList handles fetching
 export default function Profile() {
@@ -30,6 +28,12 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
+
+      if(hasPermissions){
+        setActiveTab('saved')
+        
+      }
+
       if (activeTab === 'my_recipes') {
         loadMyRecipes(user.id)
       } else if (activeTab === 'saved') {
@@ -69,7 +73,7 @@ export default function Profile() {
 
   return (
     <div className="flex flex-col min-h-svh w-full relative">
-     
+
       <div className="relative z-10 w-full bg-transparent">
         <Header
           hasAdminAccess={hasPermissions}
@@ -97,6 +101,7 @@ export default function Profile() {
 
         {/* Tabs */}
         <div className="flex border-b border-white/10 mb-8 overflow-x-auto justify-center md:justify-start">
+        {!hasPermissions && (
           <button
             onClick={() => setActiveTab('my_recipes')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all relative whitespace-nowrap bg-transparent ${activeTab === 'my_recipes' ? 'text-amber-400' : 'text-gray-400 hover:text-amber-400'
@@ -108,6 +113,7 @@ export default function Profile() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-400" />
             )}
           </button>
+        )}
           <button
             onClick={() => setActiveTab('saved')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-all relative whitespace-nowrap bg-transparent ${activeTab === 'saved' ? 'text-amber-400' : 'text-gray-400 hover:text-amber-400'
@@ -134,21 +140,24 @@ export default function Profile() {
 
         {/* Content */}
         <div className="min-h-[400px]">
-          {activeTab === 'my_recipes' && (
+        {!hasPermissions && activeTab === 'my_recipes' && (
             loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-amber-400" /></div>
+              <div className="flex justify-center py-12">
+                <Loader2 className="animate-spin text-amber-400" />
+              </div>
             ) : (
               <RecipesList recipes={myRecipes} />
             )
           )}
 
+        
           {activeTab === 'saved' && (
             loading ? (
               <div className="flex justify-center py-12"><Loader2 className="animate-spin text-amber-400" /></div>
             ) : (
               <>
                 {savedRecipes.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 font-light">You haven't saved any recipes yet.</div>
+                  <div className="text-center py-12 text-gray-500 font-light">You haven&apos;t saved any recipes yet.</div>
                 ) : (
                   <RecipesList recipes={savedRecipes} />
                 )}

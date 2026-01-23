@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { Settings, User } from 'lucide-react'
+import { MessageCircle, Settings, User } from 'lucide-react'
 import DotLottieGlobe from './LottieGlobe'
 
 
@@ -156,13 +156,25 @@ export const Header = ({
                 className={`w-[30px] h-[30px] ${imageFilterClass}`}
               />
             </Link>
+            <Link href="/messages">
+              <MessageCircle
+                className={`w-[30px] h-[30px] ${imageFilterClass}`}
+              />
+            </Link>
            </>
           ) : (
+            <>
             <Link href="/profile">
               <Settings
                 className={`w-[30px] h-[30px] ${imageFilterClass}`}
               />
             </Link>
+            <Link href="/messages">
+              <MessageCircle
+                className={`w-[30px] h-[30px] ${imageFilterClass}`}
+              />
+            </Link>
+            </>
           )
         ) : null}
         {button(path || '', n as (key: string) => string, hasAdminAccess)}
