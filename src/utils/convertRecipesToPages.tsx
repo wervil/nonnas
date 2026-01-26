@@ -60,7 +60,8 @@ export const convertRecipesToPages = (
             />
           </div>
           <div className="flex flex-row gap-3 items-center flex-wrap whitespace-nowrap justify-around w-full h-[35%]">
-            <div className="max-w-[110px] flex flex-col items-center gap-1">
+            {/* <div className="max-w-[110px] flex flex-col items-center gap-1"> */}
+            <div className="max-w-[38%] flex flex-col items-center gap-1">
               <FlagIcon
                 code={
                   countriesReverseMap[
@@ -76,7 +77,8 @@ export const convertRecipesToPages = (
                 ({recipe.region})
               </p>
             </div>
-            <div className="relative w-[120px] md:w-[180px] lg:w-[240px] h-[90px] md:h-[150px] lg:h-[190px] 2xl:w-[360px] 2xl:h-[240px]">
+            {/* <div className="relative w-[120px] md:w-[180px] lg:w-[240px] h-[90px] md:h-[150px] lg:h-[190px] 2xl:w-[360px] 2xl:h-[240px]"> */}
+            <div className="relative w-[60%] h-[100%]">
               {recipe.photo && recipe.photo.length > 0 && (
                 <Swiper
                   modules={[Navigation, Pagination]}

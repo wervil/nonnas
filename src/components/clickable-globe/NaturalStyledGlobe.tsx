@@ -12,7 +12,7 @@ type LatLng = { lat: number; lng: number };
 
 type GeoFeature = {
   type: "Feature";
-  properties: { CONTINENT?: string; [k: string]: unknown };
+  properties: { CONTINENT?: string;[k: string]: unknown };
   geometry: {
     type: "Polygon" | "MultiPolygon";
     coordinates: number[][][] | number[][][][];
@@ -232,6 +232,7 @@ export default function NaturalStyledGlobe({
   const [geoStatus, setGeoStatus] = useState<"loading" | "ok" | "fail">("loading");
   const [hoveredContinent, setHoveredContinent] = useState<string | null>(null);
   const [webglError, setWebglError] = useState<string | null>(null);
+  const [canvasOpacity, setCanvasOpacity] = useState(0);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -245,8 +246,8 @@ export default function NaturalStyledGlobe({
   const hasDraggedRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
 
-  const rotationRef = useRef({ x: 0.1, y: 0 });
-  const targetRotationRef = useRef({ x: 0.1, y: 0 });
+  const rotationRef = useRef({ x: 0.66, y: 1.7 });
+  const targetRotationRef = useRef({ x: 0.66, y: 1.7 });
   const currentHoverRef = useRef<string | null>(null);
 
   const rafRef = useRef<number>(0);
@@ -462,7 +463,7 @@ export default function NaturalStyledGlobe({
     cleanupFnsRef.current.forEach((fn) => {
       try {
         fn();
-      } catch {}
+      } catch { }
     });
     cleanupFnsRef.current = [];
 
@@ -478,12 +479,12 @@ export default function NaturalStyledGlobe({
         const gl = rendererRef.current.getContext();
         const lose = gl?.getExtension("WEBGL_lose_context");
         lose?.loseContext();
-      } catch {}
+      } catch { }
 
       try {
         rendererRef.current.dispose();
         rendererRef.current.forceContextLoss();
-      } catch {}
+      } catch { }
 
       rendererRef.current = null;
     }
@@ -643,6 +644,13 @@ export default function NaturalStyledGlobe({
         globe.rotation.x = rotationRef.current.x;
         globe.rotation.y = rotationRef.current.y;
 
+        // Fade in canvas after a short delay to ensure initial frame is ready
+        setTimeout(() => {
+          if (!cancelled && token === initTokenRef.current) {
+            setCanvasOpacity(1);
+          }
+        }, 150);
+
         // Apply polygons when geo is ready
         const applyGeo = () => {
           if (cancelled || token !== initTokenRef.current) return;
@@ -693,7 +701,7 @@ export default function NaturalStyledGlobe({
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
           try {
             renderer.domElement.setPointerCapture(e.pointerId);
-          } catch {}
+          } catch { }
         };
 
         const onPointerMove = (e: PointerEvent) => {
@@ -729,7 +737,7 @@ export default function NaturalStyledGlobe({
 
           try {
             renderer.domElement.releasePointerCapture(e.pointerId);
-          } catch {}
+          } catch { }
 
           if (!hasDraggedRef.current && activeRef.current) {
             const { continent } = raycastContinent(e.clientX, e.clientY);
@@ -866,8 +874,11 @@ export default function NaturalStyledGlobe({
 
       <div
         ref={mountRef}
-        className="w-full h-full mt-8"
-        style={{ cursor: hoveredContinent ? "pointer" : "grab" }}
+        className="w-full h-full mt-8 transition-opacity duration-1000 ease-in-out"
+        style={{
+          cursor: hoveredContinent ? "pointer" : "grab",
+          opacity: canvasOpacity
+        }}
       />
     </div>
   );
