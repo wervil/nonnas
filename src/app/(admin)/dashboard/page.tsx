@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import { RecipesList } from '@/components/RecipesList'
 import { countriesData } from '@/utils/countries'
 import { useRouter } from 'next/navigation'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useUser } from '@stackframe/stack'
 
 import {
@@ -303,25 +304,18 @@ export default function Dashboard() {
             </button>
           )}
 
-          <select
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            aria-label="Filter by country"
-            title="Filter by country"
-            className="px-4 py-3 rounded-lg bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] border border-[var(--color-primary-border)]/20 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 font-[var(--font-bell)] min-w-[200px]"
-          >
-            <option value="" className="bg-[var(--color-brown-pale)]">{l('all')}</option>
-            {countries.map((c) => (
-              <option
-                key={c}
-                value={countriesData[c as keyof typeof countriesData].name}
-                className="bg-[var(--color-brown-pale)]"
-              >
-                {countriesData[c as keyof typeof countriesData].flag}{' '}
-                {countriesData[c as keyof typeof countriesData].name}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-[200px]">
+            <SearchableSelect
+              options={countries.map((c) => ({
+                value: countriesData[c as keyof typeof countriesData].name,
+                label: countriesData[c as keyof typeof countriesData].name,
+                flag: countriesData[c as keyof typeof countriesData].flag,
+              }))}
+              value={selectedCountry}
+              onChange={setSelectedCountry}
+              placeholder={l('all')}
+            />
+          </div>
         </div>
 
         {/* CONTENT */}
