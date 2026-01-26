@@ -23,7 +23,7 @@ export const convertRecipesToHTML = (recipes: Recipe[], l: unknown) =>
                     recipe.country
                   ]?.countryShortCode.toUpperCase() as FlagIconCode
                 }
-                size={window.innerWidth < 768 ? 60 : 80}
+                size={window.innerWidth < 768 ? 50 : 70}
               />
               <h3 className={`text-federant text-yellow-light text-center`}>
                 {recipe.country}
