@@ -63,7 +63,9 @@ export default function CommentSection({
             })
 
             if (res.ok) {
-                fetchComments()
+                const newComment = await res.json()
+                setComments(prev => [newComment, ...prev])
+                setCount(prev => prev + 1)
                 setShowEditor(false)
             } else {
                 const data = await res.json()
@@ -77,6 +79,40 @@ export default function CommentSection({
         }
     }
 
+
+    const handleAddReply = (newReply: Comment) => {
+        setComments(currentComments => {
+            const updateComments = (comments: Comment[]): Comment[] => {
+                return comments.map(c => {
+                    if (c.id === newReply.parent_comment_id) {
+                        return { ...c, replies: [newReply, ...(c.replies || [])] }
+                    }
+                    if (c.replies) {
+                        return { ...c, replies: updateComments(c.replies) }
+                    }
+                    return c
+                })
+            }
+            return updateComments(currentComments)
+        })
+        setCount(prev => prev + 1)
+    }
+
+    const handleDeleteComment = (commentId: number) => {
+        setComments(currentComments => {
+            const removeComment = (comments: Comment[]): Comment[] => {
+                return comments.filter(c => {
+                    if (c.id === commentId) return false
+                    if (c.replies) {
+                        c.replies = removeComment(c.replies)
+                    }
+                    return true
+                })
+            }
+            return removeComment(currentComments)
+        })
+        setCount(prev => Math.max(0, prev - 1))
+    }
     if (loading) {
         return (
             <div className="comments-section p-6">
@@ -162,7 +198,8 @@ export default function CommentSection({
                         key={comment.id}
                         comment={comment}
                         userId={userId}
-                        onUpdate={fetchComments}
+                        onAddReply={handleAddReply}
+                        onDelete={handleDeleteComment}
                     />
                 ))}
             </div>

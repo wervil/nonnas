@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import CommentEditor from './CommentEditor'
 import Link from 'next/link'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Comment {
     id: number
     recipe_id: number
+    parent_comment_id: number | null
     user_id: string
     author_name?: string
     content: string
@@ -20,7 +21,8 @@ interface Comment {
 interface CommentItemProps {
     comment: Comment
     userId?: string
-    onUpdate: () => void
+    onAddReply: (comment: Comment) => void
+    onDelete: (commentId: number) => void
 }
 
 // Format date to be more elegant
@@ -65,10 +67,19 @@ const getAvatarColor = (userId: string) => {
 export default function CommentItem({
     comment,
     userId,
-    onUpdate,
+    onAddReply,
+    onDelete,
 }: CommentItemProps) {
     const [showReplyEditor, setShowReplyEditor] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [localReplies, setLocalReplies] = useState<Comment[]>(comment.replies || [])
+
+    // Sync local replies when prop changes (e.g. after deletion in parent)
+    useEffect(() => {
+        setLocalReplies(comment.replies || [])
+        console.log(localReplies)
+    }, [comment.replies])
 
     const handleReply = async (content: string) => {
         try {
@@ -84,7 +95,8 @@ export default function CommentItem({
             })
 
             if (res.ok) {
-                onUpdate()
+                const newComment = await res.json()
+                onAddReply(newComment)
                 setShowReplyEditor(false)
             } else {
                 const data = await res.json()
@@ -99,6 +111,7 @@ export default function CommentItem({
     }
 
     const confirmDelete = async () => {
+        setIsDeleting(true)
         try {
             const res = await fetch(
                 `/api/recipe-comments/${comment.id}?user_id=${userId}`,
@@ -106,10 +119,13 @@ export default function CommentItem({
             )
 
             if (res.ok) {
-                onUpdate()
+                onDelete(comment.id)
+            } else {
+                setIsDeleting(false)
             }
         } catch (error) {
             console.error('Error deleting:', error)
+            setIsDeleting(false)
         }
     }
 
@@ -198,10 +214,11 @@ export default function CommentItem({
                                             <span className="text-xs text-[var(--color-danger-main)] font-[var(--font-bell)]">Delete this comment?</span>
                                             <button
                                                 onClick={confirmDelete}
+                                                disabled={isDeleting}
                                                 className="px-2 py-1 text-xs bg-[var(--color-danger-main)] text-white rounded 
-                                                         hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)]"
+                                                         hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)] flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                Yes, delete
+                                                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, delete'}
                                             </button>
                                             <button
                                                 onClick={() => setShowDeleteConfirm(false)}
@@ -251,7 +268,8 @@ export default function CommentItem({
                             key={reply.id}
                             comment={reply}
                             userId={userId}
-                            onUpdate={onUpdate}
+                            onAddReply={onAddReply}
+                            onDelete={onDelete}
                         />
                     ))}
                 </div>
