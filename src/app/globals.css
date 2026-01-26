@@ -475,9 +475,9 @@ pre::-webkit-scrollbar-thumb {
   opacity: 0.6;
 }
 
-.toolbar button.toolbar-item:hover i {
-  opacity: 0.8;
-  color: white !important;
+.toolbar button.toolbar-item:hover{
+  /* opacity: 0.8; */
+  background: rgba(182, 181, 181, 0.30) !important;
 }
 
 .toolbar button.toolbar-item:disabled i.format {
