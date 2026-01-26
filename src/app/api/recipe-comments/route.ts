@@ -38,24 +38,22 @@ export async function GET(request: NextRequest) {
             const updates = Array.from(missingUserIds).map(async (userId) => {
                 try {
                     const user = await stackServerApp.getUser(userId)
-                    const displayName = user?.displayName || '--'
+                    const displayName = user?.displayName || 'Unknown User'
 
-                    if (user) {
-                        // Update in memory
-                        comments.forEach((c) => {
-                            if (c.user_id === userId && (!c.author_name || c.author_name === userId)) {
-                                c.author_name = displayName
-                            }
-                        })
+                    // Update in memory
+                    comments.forEach((c) => {
+                        if (c.user_id === userId && (!c.author_name || c.author_name === userId)) {
+                            c.author_name = displayName
+                        }
+                    })
 
-                        // Persist to DB
-                        // We update all comments by this user that don't have a name
-                        // to ensure future requests are fast
-                        await db
-                            .update(recipe_comments)
-                            .set({ author_name: displayName })
-                            .where(eq(recipe_comments.user_id, userId))
-                    }
+                    // Persist to DB
+                    // We update all comments by this user that don't have a name
+                    // to ensure future requests are fast
+                    await db
+                        .update(recipe_comments)
+                        .set({ author_name: displayName })
+                        .where(eq(recipe_comments.user_id, userId))
                 } catch (error) {
                     console.error(`Failed to backfill user ${userId}:`, error)
                 }
@@ -172,7 +170,7 @@ export async function POST(request: NextRequest) {
                 recipe_id: parseInt(recipe_id),
                 parent_comment_id: parent_comment_id || null,
                 user_id: user.id,
-                author_name: user.displayName || '--',
+                author_name: user.displayName || 'Unknown User',
                 content,
                 depth,
             })
