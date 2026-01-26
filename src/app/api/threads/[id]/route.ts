@@ -77,11 +77,48 @@ export async function GET(
         }
 
         // Fetch all posts for this thread, ordered by creation date
+        // Fetch all posts for this thread, ordered by creation date
         const threadPosts = await db
             .select()
             .from(posts)
             .where(eq(posts.thread_id, threadId))
             .orderBy(posts.created_at)
+
+        // Check for missing author names and backfill
+        const missingUserIds = new Set<string>()
+        threadPosts.forEach((p) => {
+            if (!p.author_name || p.author_name === p.user_id) {
+                missingUserIds.add(p.user_id)
+            }
+        })
+
+        if (missingUserIds.size > 0) {
+            const updates = Array.from(missingUserIds).map(async (userId) => {
+                try {
+                    const user = await stackServerApp.getUser(userId)
+                    const displayName = user?.displayName || '--'
+
+                    if (user) {
+                        // Update in memory
+                        threadPosts.forEach((p) => {
+                            if (p.user_id === userId && (!p.author_name || p.author_name === userId)) {
+                                p.author_name = displayName
+                            }
+                        })
+
+                        // Persist to DB
+                        await db
+                            .update(posts)
+                            .set({ author_name: displayName })
+                            .where(eq(posts.user_id, userId))
+                    }
+                } catch (error) {
+                    console.error(`Failed to backfill user ${userId}:`, error)
+                }
+            })
+
+            await Promise.all(updates)
+        }
 
         // Return enriched thread data
         return NextResponse.json({

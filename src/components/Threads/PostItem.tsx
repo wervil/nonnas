@@ -159,8 +159,7 @@ export default function PostItem({
                                     <span className="text-[var(--color-text-pale)]/70 ml-1">(edited)</span>
                                 )}
                             </span>
-                            {/* Message Icon after 1 hour */}
-                            {isAuthenticated && (!post.created_at || (Date.now() - new Date(post.created_at).getTime() > 3600000)) && currentUserId !== post.user_id && (
+                            {currentUserId && currentUserId !== post.user_id && (
                                 <Link
                                     href={`/messages?chatWith=${post.user_id}`}
                                     target="_blank"
@@ -169,6 +168,11 @@ export default function PostItem({
                                 >
                                     <MessageSquare className="w-3.5 h-3.5" />
                                 </Link>
+                            )}
+                            {isOwner && (
+                                <span className="px-2 py-0.5 text-xs bg-[var(--color-primary-focus)] text-[var(--color-primary-main)] rounded-full font-[var(--font-bell)] ml-2">
+                                    You
+                                </span>
                             )}
                         </div>
                     </div>

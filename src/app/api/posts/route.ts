@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
             thread_id,
             parent_post_id: parent_post_id || null,
             user_id: userId,
-            author_name: user.displayName || user.id, // Fallback to ID
+            author_name: user.displayName || '--', // Fallback to '--'
             content,
             depth,
         }
