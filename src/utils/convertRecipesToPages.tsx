@@ -78,7 +78,7 @@ export const convertRecipesToPages = (
               </p>
             </div>
             {/* <div className="relative w-[120px] md:w-[180px] lg:w-[240px] h-[90px] md:h-[150px] lg:h-[190px] 2xl:w-[360px] 2xl:h-[240px]"> */}
-            <div className="relative w-[60%] h-[100%]">
+            <div className="relative w-[57%] h-[100%]">
               {recipe.photo && recipe.photo.length > 0 && (
                 <Swiper
                   modules={[Navigation, Pagination]}
