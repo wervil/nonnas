@@ -475,6 +475,11 @@ pre::-webkit-scrollbar-thumb {
   opacity: 0.6;
 }
 
+.toolbar button.toolbar-item:hover i {
+  opacity: 0.8;
+  color: white !important;
+}
+
 .toolbar button.toolbar-item:disabled i.format {
   opacity: 0.2;
 }
@@ -813,4 +818,8 @@ h1 {
 
 button {
   cursor: pointer;
+}
+
+textarea {
+  max-height: 230px !important;
 }
