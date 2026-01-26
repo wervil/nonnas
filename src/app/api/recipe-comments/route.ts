@@ -26,6 +26,44 @@ export async function GET(request: NextRequest) {
             .where(eq(recipe_comments.recipe_id, parseInt(recipeId)))
             .orderBy(desc(recipe_comments.created_at))
 
+        // Check for missing author names and backfill
+        const missingUserIds = new Set<string>()
+        comments.forEach((c) => {
+            if (!c.author_name || c.author_name === c.user_id) {
+                missingUserIds.add(c.user_id)
+            }
+        })
+
+        if (missingUserIds.size > 0) {
+            const updates = Array.from(missingUserIds).map(async (userId) => {
+                try {
+                    const user = await stackServerApp.getUser(userId)
+                    const displayName = user?.displayName || '--'
+
+                    if (user) {
+                        // Update in memory
+                        comments.forEach((c) => {
+                            if (c.user_id === userId && (!c.author_name || c.author_name === userId)) {
+                                c.author_name = displayName
+                            }
+                        })
+
+                        // Persist to DB
+                        // We update all comments by this user that don't have a name
+                        // to ensure future requests are fast
+                        await db
+                            .update(recipe_comments)
+                            .set({ author_name: displayName })
+                            .where(eq(recipe_comments.user_id, userId))
+                    }
+                } catch (error) {
+                    console.error(`Failed to backfill user ${userId}:`, error)
+                }
+            })
+
+            await Promise.all(updates)
+        }
+
         // Build nested structure
         type Comment = typeof recipe_comments.$inferSelect
         interface CommentWithReplies extends Comment {
@@ -134,7 +172,7 @@ export async function POST(request: NextRequest) {
                 recipe_id: parseInt(recipe_id),
                 parent_comment_id: parent_comment_id || null,
                 user_id: user.id,
-                author_name: user.displayName || user.id,
+                author_name: user.displayName || '--',
                 content,
                 depth,
             })
