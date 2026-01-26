@@ -24,6 +24,8 @@ interface EnrichedThread extends Thread {
     posts: Post[]
 }
 
+type PostWithReplies = Post & { replies: PostWithReplies[] }
+
 export default function ThreadView({
     threadId,
     currentUserId,
@@ -32,7 +34,7 @@ export default function ThreadView({
     // hideBackButton,
 }: ThreadViewProps) {
     const [thread, setThread] = useState<EnrichedThread | null>(null)
-    const [posts, setPosts] = useState<Post[]>([])
+    const [posts, setPosts] = useState<PostWithReplies[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [replyContent, setReplyContent] = useState('')
@@ -41,13 +43,13 @@ export default function ThreadView({
     const [fetchKey, setFetchKey] = useState(Date.now())
 
     // Build tree structure from flat posts array
-    const buildPostTree = (flatPosts: Post[]): Post[] => {
-        const postMap = new Map<number, Post & { replies: Post[] }>()
-        const rootPosts: Post[] = []
+    const buildPostTree = (flatPosts: Post[]): PostWithReplies[] => {
+        const postMap = new Map<number, PostWithReplies>()
+        const rootPosts: PostWithReplies[] = []
 
         // First pass: create map of all posts with empty replies array
         flatPosts.forEach(post => {
-            postMap.set(post.id, { ...post, replies: [] })
+            postMap.set(post.id, { ...post, replies: [] } as PostWithReplies)
         })
 
         // Second pass: build tree structure
@@ -147,9 +149,21 @@ export default function ThreadView({
         setFetchKey(Date.now())
     }
 
-    const handlePostDelete = () => {
-        // Refetch thread data to remove deleted post
-        setFetchKey(Date.now())
+    const handlePostDelete = (postId: number) => {
+        // Optimistically remove from state instead of refetching
+        setPosts((currentPosts) => {
+            // Helper function to recursively remove post
+            const removePost = (posts: PostWithReplies[]): PostWithReplies[] => {
+                return posts.filter(p => {
+                    if (p.id === postId) return false
+                    if (p.replies) {
+                        p.replies = removePost(p.replies)
+                    }
+                    return true
+                })
+            }
+            return removePost(currentPosts)
+        })
     }
 
     // Handle inline reply submission (for nested replies)

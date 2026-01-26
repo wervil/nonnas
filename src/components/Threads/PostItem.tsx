@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Post } from '@/db/schema'
 import LikeButton from '../LikeButton'
 import Link from 'next/link'
@@ -32,12 +32,19 @@ export default function PostItem({
     const [isEditing, setIsEditing] = useState(false)
     const [editContent, setEditContent] = useState(post.content)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // Inline reply form state
     const [showReplyForm, setShowReplyForm] = useState(false)
     const [replyContent, setReplyContent] = useState('')
     const [isReplySubmitting, setIsReplySubmitting] = useState(false)
     const [localReplies, setLocalReplies] = useState<Post[]>(post.replies || [])
+
+    // Sync local replies when prop changes (e.g. after deletion in parent)
+    useEffect(() => {
+        setLocalReplies(post.replies || [])
+    }, [post.replies])
 
     const isOwner = currentUserId === post.user_id
     const canReply = (post.depth || 0) < 5
@@ -77,8 +84,7 @@ export default function PostItem({
     }
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this reply?')) return
-
+        setIsDeleting(true)
         try {
             const response = await fetch(`/api/posts/${post.id}`, {
                 method: 'DELETE',
@@ -91,6 +97,7 @@ export default function PostItem({
             }
         } catch (error) {
             console.error('Error deleting post:', error)
+            setIsDeleting(false)
         }
     }
 
@@ -187,13 +194,32 @@ export default function PostItem({
                             >
                                 <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                                onClick={handleDelete}
-                                className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-danger-main)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
-                                title="Delete"
-                            >
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {showDeleteConfirm ? (
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200 bg-[var(--color-brown-light)]/20 rounded-md px-2 py-1 ml-1">
+                                    <span className="text-xs text-[var(--color-danger-main)] font-[var(--font-bell)] whitespace-nowrap">Delete?</span>
+                                    <button
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        className="px-2 py-0.5 text-xs bg-[var(--color-danger-main)] text-white rounded hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)] flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        className="px-2 py-0.5 text-xs text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 rounded transition-colors font-[var(--font-bell)]"
+                                    >
+                                        No
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-danger-main)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
+                                    title="Delete"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
