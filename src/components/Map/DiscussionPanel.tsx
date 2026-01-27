@@ -71,7 +71,7 @@ export default function DiscussionPanel({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed top-[80px] h-[calc(100vh - 80px)] right-0 h-full w-full md:w-[480px] bg-gradient-to-b from-[#1a1a1a] to-[#0d0d0d] shadow-2xl z-50 border-l border-amber-500/20 animate-in slide-in-from-right duration-300">
+        <div className="fixed top-0 right-0 h-[100dvh] w-full md:w-[480px] bg-gradient-to-b from-[#1a1a1a] to-[#0d0d0d] shadow-2xl z-[99999] border-l border-amber-500/20 animate-in slide-in-from-right duration-300">
             {/* Header with beautiful gradient */}
             <div className="relative overflow-hidden">
                 {/* Background decoration */}
@@ -234,8 +234,8 @@ export default function DiscussionPanel({
                                     threadId={selectedThreadId}
                                     currentUserId={user?.id}
                                     isAuthenticated={!!user}
-                                    // onBack={handleBackToList}
-                                    // hideBackButton={true}
+                                // onBack={handleBackToList}
+                                // hideBackButton={true}
                                 />
                             </div>
                         )}

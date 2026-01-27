@@ -13,6 +13,7 @@ import Image from 'next/image'
 import { Typography } from './Typography'
 import { useTranslations } from 'next-intl'
 import { createUniqueFiles } from '../../utils/fileUtils'
+import { toast } from 'sonner'
 
 interface FileUploadProps<T extends FieldValues> {
   label: string
@@ -41,12 +42,17 @@ const FileUpload = <T extends FieldValues>({
   maxSize = 5 * 1024 * 1024, // 5MB
   accept = { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
 }: FileUploadProps<T>) => {
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  // Removed stale uploadedFiles state
+  // const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const fieldRef = useRef<ControllerRenderProps<T, Path<T>>>(null)
   const i = useTranslations('inputs')
 
+  // const currentFiles = watch(name) || []
+
   const uploadFiles = async (files: File[]) => {
+    if (files.length === 0) return [] // Don't upload if empty
+
     setUploading(true)
     try {
       const formData = new FormData()
@@ -81,37 +87,38 @@ const FileUpload = <T extends FieldValues>({
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      const newFiles = [...uploadedFiles, ...acceptedFiles].slice(0, maxFiles)
-      setUploadedFiles(newFiles)
+      // Calculate how many we can add
+      const currentLength = watch(name)?.length || 0
+      const remaining = Math.max(0, maxFiles - currentLength)
+
+      // Slice the new files to fit the limit
+      const filesToUpload = acceptedFiles.slice(0, remaining)
+
+      if (filesToUpload.length === 0) {
+        toast.warning(i('maxFilesReached', { count: maxFiles }))
+        return
+      }
 
       try {
-        const newUrls = await uploadFiles(acceptedFiles)
+        const newUrls = await uploadFiles(filesToUpload)
         if (fieldRef.current) {
           const currentUrls = fieldRef.current.value || []
           const allUrls = [...currentUrls, ...newUrls]
           fieldRef.current?.onChange(allUrls)
+
+          if (acceptedFiles.length > remaining) {
+            toast.warning(i('maxFilesWarning', { count: maxFiles, added: filesToUpload.length }))
+          } else {
+            toast.success(i('uploadSuccess'))
+          }
         }
       } catch (error) {
         console.error('Failed to upload files:', error)
-        setUploadedFiles(uploadedFiles)
+        toast.error(i('uploadError'))
       }
     },
-    [uploadedFiles, maxFiles]
+    [watch, name, maxFiles, i]
   )
-
-  // const removeFile = useCallback((index: number) => {
-  //   setUploadedFiles((prev) => {
-  //     const newFiles = prev.filter((_: File, i: number) => i !== index)
-  //     if (fieldRef.current) {
-  //       const currentUrls = fieldRef.current.value || []
-  //       const newUrls = currentUrls?.filter(
-  //         (_: string, i: number) => i !== index
-  //       )
-  //       fieldRef.current?.onChange(newUrls)
-  //     }
-  //     return newFiles
-  //   })
-  // }, [])
 
   const removeFileOldFile = useCallback(
     (index: number) => {
@@ -123,11 +130,15 @@ const FileUpload = <T extends FieldValues>({
     [name, setValue, watch]
   )
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive
+  } = useDropzone({
     onDrop,
     accept,
     maxSize,
-    maxFiles: maxFiles - uploadedFiles.length,
+    maxFiles: maxFiles - (watch(name)?.length || 0),
   })
 
   return (
@@ -152,17 +163,14 @@ const FileUpload = <T extends FieldValues>({
             <>
               <div
                 {...getRootProps()}
-                className={`w-full px-3 py-4 border rounded-lg focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] ${
-                  theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale'
-                } ${
-                  isDragActive
+                className={`w-full px-3 py-4 border rounded-lg focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] ${theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale'
+                  } ${isDragActive
                     ? 'border-primary-main bg-brown-pale'
                     : 'border-primary-main'
-                } ${
-                  fieldState.error
+                  } ${fieldState.error
                     ? 'border-danger-main'
                     : 'border-primary-main'
-                }`}
+                  }`}
               >
                 <input {...getInputProps()} />
 

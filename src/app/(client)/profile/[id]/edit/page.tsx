@@ -1,16 +1,14 @@
 import { AddRecipe } from '@/components/AddRecipe'
 import { Header } from '@/components/Header'
-import { Recipe } from '@/db/schema'
+import { Recipe, recipes } from '@/db/schema'
 import { stackServerApp } from '@/stack'
 import Image from 'next/image'
+import { drizzle } from 'drizzle-orm/neon-serverless'
+import { eq } from 'drizzle-orm'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
-
-import { drizzle } from 'drizzle-orm/neon-serverless'
-import { eq } from 'drizzle-orm'
-import { recipes } from '@/db/schema'
 
 async function fetchRecipe(id: string): Promise<Recipe | undefined> {
   if (!process.env.DATABASE_URL) {

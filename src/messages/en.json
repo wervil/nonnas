@@ -117,6 +117,10 @@
     "uploading": "Uploading...",
     "dropFiles": "Drop the files here...",
     "selectedFiles": "Selected files:",
-    "uploadedFiles": "Uploaded files:"
+    "uploadedFiles": "Uploaded files:",
+    "maxFilesReached": "You have reached the maximum number of {count} files.",
+    "maxFilesWarning": "Max limit of {count} files reached. {added} files were added.",
+    "uploadSuccess": "Upload successful!",
+    "uploadError": "Upload failed. Please try again."
   }
 }
