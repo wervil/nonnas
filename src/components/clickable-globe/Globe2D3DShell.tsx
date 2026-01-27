@@ -19,7 +19,16 @@ const NaturalStyledGlobe = dynamic(() => import("./NaturalStyledGlobe"), {
 
 type Mode = "globe" | "map";
 
-export default function Globe2D3DShell() {
+type ExploreState = {
+  mode: Mode;
+  selectedContinent?: string | null;
+};
+
+export default function Globe2D3DShell({
+  setExploreState,
+}: {
+  setExploreState: React.Dispatch<React.SetStateAction<ExploreState>>;
+}) {
   const searchParams = useSearchParams();
 
   const [mode, setMode] = useState<Mode>("globe");
@@ -32,46 +41,63 @@ export default function Globe2D3DShell() {
     if (continent) {
       setSelectedContinent(continent);
       setMode("map");
+
+      // ✅ Sync only (no zoom logic touched)
+      setExploreState({ mode: "map", selectedContinent: continent });
     }
-  }, [searchParams]);
+  }, [searchParams, setExploreState]);
 
-  const handleContinentClick = useCallback((continent: string) => {
-    setIsTransitioning(true);
-    setSelectedContinent(continent);
+  const handleContinentClick = useCallback(
+    (continent: string) => {
+      setIsTransitioning(true);
+      setSelectedContinent(continent);
 
-    // Smooth fade to map
-    window.setTimeout(() => {
-      setMode("map");
-      setIsTransitioning(false);
-    }, 300);
-  }, []);
+      // Smooth fade to map
+      window.setTimeout(() => {
+        setMode("map");
+        setIsTransitioning(false);
 
-  const handleBackToGlobe = useCallback(() => {
-    setIsTransitioning(true);
+        // ✅ Sync at the exact same moment you switch to map
+        setExploreState({ mode: "map", selectedContinent: continent });
+      }, 300);
+    },
+    [setExploreState]
+  );
 
-    window.setTimeout(() => {
-      setMode("globe");
-      setSelectedContinent(null);
-      setIsTransitioning(false);
-    }, 200);
-  }, []);
+  const handleBackToGlobe = useCallback(
+    () => {
+      setIsTransitioning(true);
+
+      window.setTimeout(() => {
+        setMode("globe");
+        setSelectedContinent(null);
+        setIsTransitioning(false);
+
+        // ✅ Sync at the exact same moment you switch to globe
+        setExploreState({ mode: "globe", selectedContinent: null });
+      }, 200);
+    },
+    [setExploreState]
+  );
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#0a0a0a]">
       {/* Transition overlay */}
       <div
-        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${isTransitioning ? "opacity-100" : "opacity-0"
-          }`}
+        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${
+          isTransitioning ? "opacity-100" : "opacity-0"
+        }`}
       />
 
       {/* ✅ 3D Globe View (MOUNT ONLY WHEN IN GLOBE MODE) */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${mode === "globe" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-          }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${
+          mode === "globe" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+        }`}
       >
         {mode === "globe" && (
           <NaturalStyledGlobe
-            active={!isTransitioning} // globe stops interaction during transitions
+            active={!isTransitioning}
             onContinentClick={handleContinentClick}
           />
         )}
@@ -79,8 +105,9 @@ export default function Globe2D3DShell() {
 
       {/* 2D Map View */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${mode === "map" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-          }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${
+          mode === "map" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+        }`}
       >
         {mode === "map" && selectedContinent && (
           <GoogleContinentCountryMap

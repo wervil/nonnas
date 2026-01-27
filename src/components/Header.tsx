@@ -43,6 +43,8 @@ type Props = {
   user?: CurrentUser | CurrentInternalUser | null
   isExplorePage?: boolean
   className?: string
+  exploreState?: 'globe' | 'map'
+  // setExploreState?: Dispatch<SetStateAction<boolean>>
 }
 
 export const Header = ({
@@ -55,6 +57,8 @@ export const Header = ({
   user,
   isExplorePage = false,
   className,
+  exploreState,
+  // setExploreState
 }: Props) => {
   const n = useTranslations('navigation')
   const path = usePathname()
@@ -69,7 +73,7 @@ export const Header = ({
   const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
 
   return (
-    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className}`}>
+    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === 'map' ? ' fixed top-0 w-full ': ''}`}>
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
             Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
