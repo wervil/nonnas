@@ -45,11 +45,13 @@ const CountryRegionSelector = <T extends FieldValues>({
     }
   }, [selectedCountry])
 
-  const countryOptions = countries.map((country) => ({
-    value: country,
-    label: countriesData[country as keyof typeof countriesData].name,
-    flag: countriesData[country as keyof typeof countriesData].flag,
-  }))
+  const countryOptions = countries
+    .filter((country) => country !== 'AQ')
+    .map((country) => ({
+      value: country,
+      label: countriesData[country as keyof typeof countriesData].name,
+      flag: countriesData[country as keyof typeof countriesData].flag,
+    }))
 
   const regionOptions = regions.map((region) => ({
     value: region,
