@@ -14,6 +14,7 @@ import { Typography } from './Typography'
 import { useTranslations } from 'next-intl'
 import { createUniqueFiles } from '../../utils/fileUtils'
 import { toast } from 'sonner'
+import { upload } from '@vercel/blob/client'
 
 interface FileUploadProps<T extends FieldValues> {
   label: string
@@ -55,28 +56,20 @@ const FileUpload = <T extends FieldValues>({
 
     setUploading(true)
     try {
-      const formData = new FormData()
       // Create unique files to prevent overwrites
       const uniqueFiles = createUniqueFiles(files)
 
-      uniqueFiles.forEach((file) => {
-        formData.append('files', file)
-      })
+      // Upload files individually using client-side upload
+      const uploadPromises = uniqueFiles.map(async (file) => {
+        const newBlob = await upload(file.name, file, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+        });
+        return newBlob.url;
+      });
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(
-          errorData.message || `Upload failed with status ${response.status}`
-        )
-      }
-
-      const data = await response.json()
-      return data.urls
+      const urls = await Promise.all(uploadPromises);
+      return urls
     } catch (error) {
       console.error('Upload error:', error)
       throw error
@@ -163,7 +156,7 @@ const FileUpload = <T extends FieldValues>({
             <>
               <div
                 {...getRootProps()}
-                className={`w-full px-3 py-4 border rounded-lg focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] ${theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale'
+                className={`w-full px-3 py-4 border rounded-lg focus:outline-none hover:opacity-60 text-base text-text-pale font-[var(--font-merriweather)] ${theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale'
                   } ${isDragActive
                     ? 'border-primary-main bg-brown-pale'
                     : 'border-primary-main'
@@ -174,7 +167,7 @@ const FileUpload = <T extends FieldValues>({
               >
                 <input {...getInputProps()} />
 
-                <div className="w-full h-full flex flex-col items-center justify-center text-center gap-2">
+                <div className="w-full h-full flex flex-col items-center justify-center text-center gap-2 hover:opacity-60 cursor-pointer">
                   <svg
                     width="44"
                     height="44"

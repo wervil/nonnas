@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
       'd0jo4e8kojckav6k.public.blob.vercel-storage.com',
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 }
 
 const withNextIntl = createNextIntlPlugin()

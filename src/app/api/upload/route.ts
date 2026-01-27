@@ -1,67 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request): Promise<NextResponse> {
+  const body = (await request.json()) as HandleUploadBody;
+
   try {
-    const formData = await request.formData();
-    const files = formData.getAll('files') as File[];
-    
-    if (!files || files.length === 0) {
-      return NextResponse.json(
-        { message: 'No files provided' },
-        { status: 400 }
-      );
-    }
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (
+        _pathname,
+        /* clientPayload */
+      ) => {
+        // Generate a client token for the browser to upload the file
+        // ⚠️ Authenticate and authorize users here, not in the client
 
-    console.log(`Uploading ${files.length} files...`);
+        // For now, we allow public uploads as per previous behavior
+        // const user = await auth(request);
+        // if (!user) {
+        //   throw new Error('Unauthorized');
+        // }
 
-    // Check if BLOB_READ_WRITE_TOKEN is set
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.warn('BLOB_READ_WRITE_TOKEN not set - using mock URLs for development');
-      
-      // Return mock URLs for development
-      const mockUrls = files.map((file, index) => 
-        `https://example.com/mock-image-${index}-${file.name}`
-      );
-      
-      return NextResponse.json({
-        message: 'Files uploaded successfully (mock mode)',
-        urls: mockUrls,
-      });
-    }
+        return {
+          allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+          tokenPayload: JSON.stringify({
+            // optional, sent to your server on upload completion
+            // userId: user.id,
+          }),
+        };
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // Get notified of client upload completion
+        // ⚠️ This will not work on `localhost` websites,
+        // Use ngrok or similar to test the full upload flow
 
-    const uploadPromises = files.map(async (file) => {
-      try {
-        console.log(`Uploading file: ${file.name} (${file.size} bytes)`);
-        const blob = await put(file.name, file, {
-          access: 'public',
-        });
-        console.log(`Successfully uploaded: ${blob.url}`);
-        return blob.url;
-      } catch (error) {
-        console.error(`Failed to upload file ${file.name}:`, error);
-        throw error;
-      }
+        console.log('blob upload completed', blob, tokenPayload);
+
+        // Run any logic after the file upload completed
+        // const { userId } = JSON.parse(tokenPayload);
+        // await db.update({ avatar: blob.url, userId });
+      },
     });
 
-    const urls = await Promise.all(uploadPromises);
-
-    return NextResponse.json({
-      message: 'Files uploaded successfully',
-      urls,
-    });
+    return NextResponse.json(jsonResponse);
   } catch (error) {
-    console.error('Error uploading files:', error);
-    
-    // Provide more specific error messages
-    let errorMessage = 'Internal server error';
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-    
     return NextResponse.json(
-      { message: `Upload failed: ${errorMessage}` },
-      { status: 500 }
+      { error: (error as Error).message },
+      { status: 400 }, // The webhook will retry 5 times waiting for a 200
     );
   }
 } 
