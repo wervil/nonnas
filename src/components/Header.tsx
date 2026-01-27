@@ -69,7 +69,7 @@ export const Header = ({
   const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
 
   return (
-    <header className={`flex fixed top-0 items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} w-full`}>
+    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className}`}>
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
             Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
