@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import Button from '../ui/Button'
 import clsx from 'clsx'
+import { usePathname } from "next/navigation";
 
 interface Props {
   title: string
@@ -29,6 +30,9 @@ export const Description = ({
   const [showButton, setShowButton] = useState(false)
   const b = useTranslations('buttons')
 
+
+const pathname = usePathname();
+
   const openModal = () => {
     document.body.style.overflow = 'hidden'
     setIsOpen(true)
@@ -43,7 +47,7 @@ export const Description = ({
   return (
     <>
       <div
-        className={`description-wrap cursor-pointer h-[40%] sm:h-[50%]`}
+        className={`description-wrap  h-[40%] sm:h-[50%] ${(pathname === ('/') ? 'cursor-pointer' : '')}`}
         style={{
           backgroundImage: imageUrl
             ? `url(${imageUrl})`
@@ -91,7 +95,7 @@ export const Description = ({
             <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
               <button
                 onClick={closeModal}
-                className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
+                className={"absolute  top-8 right-[12vw] text-white text-3xl font-bold z-1050 "}
               >
                 <X size={30} />
               </button>

@@ -5,6 +5,7 @@ import { Navigation, Pagination } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
+import { usePathname } from 'next/navigation'
 
 interface Props {
   title: string
@@ -19,8 +20,11 @@ export const RecipeSectionFullHeight = ({
   ingredientsText,
   directionsText,
 }: Props) => {
+
+
+const pathname = usePathname();
   return (
-    <div className="relative description-wrap cursor-pointer">
+    <div className={`relative description-wrap ${(pathname === ('/') ? 'cursor-pointer' : '')}`}>
       <div className="relative overflow-hidden text-left">
         {images?.length ? (
           <div className="relative w-[340px] h-[240px] min-w-[340px] min-h-[240px] 2xl:w-[640px] 2xl:h-[440px] mt-2 float-right ml-4 mb-2">
