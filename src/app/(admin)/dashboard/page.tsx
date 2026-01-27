@@ -304,18 +304,20 @@ export default function Dashboard() {
             </button>
           )}
 
-          <div className="min-w-[200px]">
-            <SearchableSelect
-              options={countries.map((c) => ({
-                value: countriesData[c as keyof typeof countriesData].name,
-                label: countriesData[c as keyof typeof countriesData].name,
-                flag: countriesData[c as keyof typeof countriesData].flag,
-              }))}
-              value={selectedCountry}
-              onChange={setSelectedCountry}
-              placeholder={l('all')}
-            />
-          </div>
+          {tab !== 'users' && (
+            <div className="min-w-[200px]">
+              <SearchableSelect
+                options={countries.map((c) => ({
+                  value: countriesData[c as keyof typeof countriesData].name,
+                  label: countriesData[c as keyof typeof countriesData].name,
+                  flag: countriesData[c as keyof typeof countriesData].flag,
+                }))}
+                value={selectedCountry}
+                onChange={setSelectedCountry}
+                placeholder={l('all')}
+              />
+            </div>
+          )}
         </div>
 
         {/* CONTENT */}
