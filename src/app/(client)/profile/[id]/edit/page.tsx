@@ -8,10 +8,21 @@ interface PageProps {
   params: Promise<{ id: string }>
 }
 
-async function fetchRecipe(id: string): Promise<Recipe> {
-  const res = await fetch(`/api/recipes?id=${id}`)
-  const data = await res.json()
-  return data.recipes?.[0]
+import { drizzle } from 'drizzle-orm/neon-serverless'
+import { eq } from 'drizzle-orm'
+import { recipes } from '@/db/schema'
+
+async function fetchRecipe(id: string): Promise<Recipe | undefined> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is not defined');
+  }
+  const db = drizzle(process.env.DATABASE_URL)
+  const result = await db
+    .select()
+    .from(recipes)
+    .where(eq(recipes.id, Number(id)))
+
+  return result[0]
 }
 
 export default async function RecipePage({ params }: PageProps) {

@@ -57,6 +57,9 @@ export const RecipeSection = ({
       >
         <div className="relative overflow-hidden text-left">
           {images?.length ? (
+            // <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] 2xl:w-[320px] 2xl:h-[220px] mt-2 float-right ml-4 mb-2">
+
+
             <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] 2xl:w-[320px] 2xl:h-[220px] mt-2 float-right ml-4 mb-2">
               <Swiper
                 modules={[Navigation, Pagination]}
@@ -137,7 +140,7 @@ export const RecipeSection = ({
             <div className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
               <div className="relative overflow-auto">
                 {images?.length ? (
-                  <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[320px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
+                  <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[250px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
                     <Swiper
                       modules={[Navigation, Pagination]}
                       navigation
