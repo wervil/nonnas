@@ -27,6 +27,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 
 .pokemon-logo {
@@ -199,6 +200,14 @@
 .demoPage {
   background: #fff;
   color: #000;
+}
+
+.book-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  margin: auto;
 }
 
 .corner {

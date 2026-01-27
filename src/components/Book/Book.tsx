@@ -84,7 +84,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768)
-      setIsSinglePage(window.innerWidth < 1700)
+      setIsSinglePage(window.innerWidth < 2800)
       setContentHeight(window.innerHeight - HEADER_HEIGHT)
       // Call layout check after screen size changes
       setTimeout(getCurrentLayout, 100)
@@ -180,7 +180,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       <div className="wrap">
         <div className="custom-container flex">
           <button
-            className={`rotate-135 md:rotate-355 relative md:top-[15svh] left-[10px] md:left-0 z-1000 ${isPrevDisabled
+            className={`rotate-135 md:rotate-355 relative md:absolute md:top-1/2 md:-translate-y-1/2 left-[10px] md:left-0 z-1000 ${isPrevDisabled
               ? 'opacity-30 cursor-not-allowed pointer-events-none'
               : 'cursor-pointer'
               }`}
@@ -297,7 +297,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
             </HTMLFlipBook>
           </div>
           <button
-            className={`rotate-315 md:rotate-10 relative md:top-[15svh] button right-[10px] md:right-0 ${isNextDisabled
+            className={`rotate-315 md:rotate-10 relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-[10px] md:right-0 ${isNextDisabled
               ? 'opacity-30 cursor-not-allowed pointer-events-none'
               : 'cursor-pointer'
               }`}
