@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Control, Controller, FieldValues, Path } from 'react-hook-form'
+import { Control, Controller, FieldValues, Path, useWatch } from 'react-hook-form'
 
 import { useTranslations } from 'next-intl'
 import { Typography } from './Typography'
@@ -24,7 +24,11 @@ const CountryRegionSelector = <T extends FieldValues>({
   control,
   description,
 }: CountryRegionSelectorProps<T>) => {
-  const [selectedCountry, setSelectedCountry] = useState<string>('')
+  const selectedCountry = useWatch({
+    control,
+    name: countryName,
+  }) as string
+
   const [regions, setRegions] = useState<string[]>([])
   const l = useTranslations('labels')
 
@@ -67,10 +71,7 @@ const CountryRegionSelector = <T extends FieldValues>({
               <SearchableSelect
                 options={countryOptions}
                 value={field.value}
-                onChange={(value) => {
-                  field.onChange(value)
-                  setSelectedCountry(value)
-                }}
+                onChange={field.onChange}
                 placeholder={l('country')}
                 error={fieldState.error?.message}
               />
@@ -108,7 +109,5 @@ const CountryRegionSelector = <T extends FieldValues>({
     </div>
   )
 }
-
-
 
 export default CountryRegionSelector

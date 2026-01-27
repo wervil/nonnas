@@ -1,0 +1,572 @@
+* {
+  box-sizing: border-box;
+}
+
+.wrap {
+  padding: 10px 0;
+  width: 100%;
+  max-width: 100%;
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+}
+
+.custom-container {
+  width: 90vw;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pokemon-logo {
+  width: 80%;
+  max-width: 300px;
+  margin-bottom: 20px;
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.page {
+  background-image: url('/book-bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.page-content {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px;
+  text-align: center;
+}
+
+.pokemon-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+}
+
+/* .pokemon-container img {
+  width: 70%;
+  max-height: 200px;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+} */
+
+.page-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.page-title {
+  font-family: 'Imprint', serif;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  color: #dbc9b9;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (min-width: 1440px) {
+    font-size: 2.5rem;
+    line-height: 3rem;
+  }
+}
+
+.text-federant {
+  font-family: 'Imprint', serif;
+}
+
+.pokemon-number {
+  font-size: clamp(0.7rem, 2vw, 1rem);
+  color: #dbc9b9;
+  margin-bottom: 10px;
+}
+
+.pokemon-type {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: clamp(0.6rem, 1.5vw, 0.9rem);
+  font-weight: 500;
+  color: white;
+  margin: 0 3px 5px 3px;
+}
+
+.type-electric {
+  background-color: #f1c40f;
+}
+
+.type-ground {
+  background-color: #e67e22;
+}
+
+.type-poison {
+  background-color: #9b59b6;
+}
+
+.type-fire {
+  background-color: #e74c3c;
+}
+
+.type-flying {
+  background-color: #3498db;
+}
+
+.type-water {
+  background-color: #2980b9;
+}
+
+.type-dark {
+  background-color: #34495e;
+}
+
+.type-fighting {
+  background-color: #d35400;
+}
+
+.type-steel {
+  background-color: #7f8c8d;
+}
+
+.type-rock {
+  background-color: #9a7b4f;
+}
+
+.line-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+
+.text-description {
+  font-family: 'Bell', serif;
+  font-size: 16px;
+  color: var(--text-brown-dark);
+  margin-top: 8px;
+  line-height: 1.4;
+  overflow: hidden;
+  white-space: normal;
+
+  @media (min-width: 1440px) {
+    font-size: 18px;
+  }
+}
+.text-description--long {
+  text-align: left;
+}
+
+.demoPage {
+  background: #fff;
+  color: #000;
+}
+
+.corner {
+  position: absolute;
+  z-index: 20;
+}
+
+.corner--big {
+  width: 30px;
+  height: 30px;
+  background-size: contain;
+  background-image: url('/corner-big.png');
+}
+
+@media (min-width: 768px) {
+  .corner--big {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.corner--small {
+  width: 24px;
+  height: 24px;
+  background-size: contain;
+  background-image: url('/corner-small.png');
+}
+
+.lt {
+  top: -6px;
+  left: -6px;
+}
+
+.rt {
+  top: -6px;
+  right: -6px;
+  transform: rotate(90deg);
+}
+
+.rb {
+  bottom: -6px;
+  right: -6px;
+  transform: rotate(180deg);
+}
+
+.lb {
+  bottom: -6px;
+  left: -6px;
+  transform: rotate(270deg);
+}
+
+.description-wrap {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background-image: url('/bg-5.webp');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  padding: 0.5rem 1rem 1.25rem;
+}
+
+.description-wrap--vertical {
+  background-image: url('/bg-5.webp');
+}
+
+.swiper-pagination-bullet-active {
+  background: var(--color-yellow-light) !important;
+}
+
+.swiper-button-prev::after {
+  font-size: 34px !important;
+  color: var(--color-yellow-light);
+}
+
+.swiper-button-next::after {
+  font-size: 34px !important;
+  color: var(--color-yellow-light);
+}
+
+/* .stf__wrapper--portrait {
+  padding-bottom: max(660px, 100%) !important;
+} */
+
+.toc-dots {
+  flex: 1;
+  border-bottom: 1px dotted #222;
+  margin: 0 8px;
+  height: 0.8em;
+}
+
+.info-wrap {
+  padding: 10px;
+  border-radius: 8px;
+  background-color: rgba(27, 6, 13, 0.65);
+}
+
+.page-first {
+  background-image: none;
+  max-width: 475px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 50px;
+  left: 5%;
+  top: 50%;
+}
+
+@media (min-width: 1920px) {
+  .page-first {
+    padding: 100px;
+  }
+}
+
+.page-first--mobile {
+  display: flex;
+  position: static;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.page-first--desktop {
+  width: 45%;
+  display: flex;
+  /* display: none; */
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+@media (min-width: 1200px) {
+  .page-first--mobile {
+    display: none;
+  }
+
+  /* .page-first--desktop {
+    display: flex;
+  } */
+}
+
+.basic-single {
+  z-index: 1000;
+  width: 100%;
+  font-style: italic;
+  border: 2px solid var(--color-green-dark);
+  border-radius: 20px;
+
+  padding-right: 12px;
+  color: gray;
+}
+
+@media (min-width: 768px) {
+  .basic-single {
+    width: 200px;
+    border-radius: 20px;
+    border-bottom-left-radius: 0;
+    border-top-left-radius: 0;
+  }
+}
+
+.select__control {
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  cursor: pointer;
+  background-color: transparent !important;
+}
+
+.select__indicators {
+  padding: 0 8px !important;
+  min-height: 30px !important;
+  height: 30px !important;
+}
+
+.select__indicator {
+  padding: 0 8px !important;
+  min-height: 30px !important;
+  display: flex;
+  align-items: center;
+}
+
+.select__value-container {
+  padding: 0 8px !important;
+}
+
+.select__input-container {
+  margin: 0 2px !important;
+  padding: 0 2px !important;
+  color: gray;
+}
+
+.button--desktop {
+  display: none;
+}
+
+.button--mobile {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .button--mobile {
+    display: none;
+  }
+
+  .button--desktop {
+    display: block;
+  }
+}
+
+.navigation-arrow {
+  width: 40px;
+  height: 40px;
+  border-color: var(--color-yellow-light);
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+  z-index: 1001;
+  border-radius: 3px;
+}
+
+/* A4 PDF Print Styles */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white !important;
+  }
+
+  .action-buttons,
+  footer {
+    display: none;
+  }
+
+  .page {
+    page-break-after: always;
+    page-break-inside: avoid;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 297mm; /* A4 height */
+    max-width: 210mm; /* A4 width */
+    margin: 0 auto;
+    background-image: url('/book-bg.png') !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .page:last-child {
+    page-break-after: auto;
+  }
+
+  .page-content {
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 15mm !important;
+  }
+
+  /* Hide interactive elements */
+  button,
+  input,
+  select,
+  textarea {
+    display: none !important;
+  }
+
+  /* Ensure images print properly */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force ALL background images to print */
+  .description-wrap {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+  }
+
+  /* Specific background image overrides for different sections */
+  .description-wrap[style*='bg-1.webp'] {
+    background-image: url('/bg-1.webp') !important;
+  }
+
+  .description-wrap[style*='bg-2.webp'] {
+    background-image: url('/bg-2.webp') !important;
+  }
+
+  .description-wrap[style*='bg-3.webp'] {
+    background-image: url('/bg-3.webp') !important;
+  }
+
+  .description-wrap[style*='bg-4.webp'] {
+    background-image: url('/bg-4.webp') !important;
+  }
+
+  .description-wrap[style*='bg-5.webp'] {
+    background-image: url('/bg-5.webp') !important;
+  }
+
+  .description-wrap[style*='bg-6.webp'] {
+    background-image: url('/bg-6.webp') !important;
+  }
+}
+
+/* Background classes for better print support */
+.description-wrap-bg-1 {
+  background-image: url('/bg-1.webp');
+}
+
+.description-wrap-bg-2 {
+  background-image: url('/bg-2.webp');
+}
+
+.description-wrap-bg-3 {
+  background-image: url('/bg-3.webp');
+}
+
+.description-wrap-bg-4 {
+  background-image: url('/bg-4.webp');
+}
+
+.description-wrap-bg-5 {
+  background-image: url('/bg-5.webp');
+}
+
+.description-wrap-bg-6 {
+  background-image: url('/bg-6.webp');
+}
+
+/* Print-specific background overrides */
+@media print {
+  .description-wrap-bg-1 {
+    background-image: url('/bg-1.webp') !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .description-wrap-bg-2 {
+    background-image: url('/bg-2.webp') !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .description-wrap-bg-3 {
+    background-image: url('/bg-3.webp') !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .description-wrap-bg-4 {
+    background-image: url('/bg-4.webp') !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .description-wrap-bg-5 {
+    background-image: url('/bg-5.webp') !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .description-wrap-bg-6 {
+    background-image: url('/bg-6.webp') !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@media print {
+  .print-button {
+    display: none !important;
+  }
+}

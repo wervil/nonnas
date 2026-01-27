@@ -10,7 +10,7 @@ interface PageProps {
 
 async function fetchRecipe(id: string): Promise<Recipe> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/recipes?id=${id}`
+    `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/recipes?id=${id}`
   )
   const data = await res.json()
   return data.recipes?.[0]

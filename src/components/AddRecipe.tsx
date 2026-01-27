@@ -112,7 +112,7 @@ export const AddRecipe = ({
         lastName: recipe.lastName,
         recipeTitle: recipe.recipeTitle,
         country:
-          allCountries.find((country) => country[1] === recipe.country)?.[0] ||
+          allCountries.find((country) => country[0] === recipe.country || country[1] === recipe.country)?.[1] ||
           recipe.country,
         region: recipe.region || '',
         history: sanitizeHtml(recipe.history),
