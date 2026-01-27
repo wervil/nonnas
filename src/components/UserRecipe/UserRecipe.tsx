@@ -91,7 +91,7 @@ export const UserRecipe = ({
     }
   }
 
-  if (loading) return <div className="p-4 flex flex-row gap-1 w-full h-full items-center justify-center"><LoaderCircle className='animate-spin' /> {b('loading')}</div>
+  if (loading) return <div className="p-4 flex flex-row gap-1 w-full h-[100vh] items-center justify-center"><LoaderCircle className='animate-spin' /> {b('loading')}</div>
   if (!recipe) return <div className="p-4">{d('noRecipesFound')}</div>
 
   const sanitizedRecipe = {

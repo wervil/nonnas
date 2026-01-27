@@ -18,6 +18,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog'
+import { LoaderCircle } from 'lucide-react'
 
 async function fetchRecipe(id: string) {
   const res = await fetch(`/api/recipes?id=${id}`)
@@ -89,7 +90,7 @@ export const DashboardRecipe = ({
     }
   }
 
-  if (loading) return <div className="p-4">{b('loading')}</div>
+  if (loading) return <div className="p-4 flex flex-row gap-1 w-full h-[100vh] items-center justify-center"><LoaderCircle className='animate-spin' /> {b('loading')}</div>
   if (!recipe) return <div className="p-4">{d('noRecipesFound')}</div>
 
   const sanitizedRecipe = {

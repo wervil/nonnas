@@ -1,5 +1,10 @@
 import { Recipe } from '@/db/schema'
 import Image from 'next/image'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Navigation, Pagination } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
 
 import { FlagIcon, FlagIconCode } from 'react-flag-kit'
 
@@ -34,15 +39,26 @@ export const convertRecipesToHTML = (recipes: Recipe[], l: unknown) =>
             </div>
             <div className="relative w-[360px] md:w-[540px] lg:w-[720px] h-[270px] md:h-[450px] lg:h-[570px] 2xl:w-[1080px] 2xl:h-[270px]">
               {recipe.photo && recipe.photo.length > 0 && (
-                <Image
-                  src={recipe.photo[0]}
-                  alt={`${recipe.firstName} ${recipe.lastName} - photo ${
-                    index + 1
-                  }`}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  className="object-cover"
-                />
+                <Swiper
+                  modules={[Navigation, Pagination]}
+                  navigation
+                  pagination={{ clickable: true }}
+                  loop={recipe.photo.length > 1}
+                  className="w-full h-full cursor-grab active:cursor-grabbing"
+                >
+                  {recipe.photo.map((photo, i) => (
+                    <SwiperSlide key={i}>
+                      <Image
+                        src={photo}
+                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${index + 1
+                          }`}
+                        fill
+                        style={{ objectFit: 'cover' }}
+                        className="object-cover"
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
               )}
               <div className="corner corner--big lt" />
               <div className="corner corner--big rt" />
