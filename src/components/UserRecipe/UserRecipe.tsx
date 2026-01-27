@@ -10,7 +10,7 @@ import { convertRecipesToHTML } from '@/app/(admin)/print/convertRecipesToHTML'
 import './styles.css'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, LoaderCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -91,7 +91,7 @@ export const UserRecipe = ({
     }
   }
 
-  if (loading) return <div className="p-4">{b('loading')}</div>
+  if (loading) return <div className="p-4 flex flex-row gap-1 w-full h-full items-center justify-center"><LoaderCircle className='animate-spin' /> {b('loading')}</div>
   if (!recipe) return <div className="p-4">{d('noRecipesFound')}</div>
 
   const sanitizedRecipe = {
@@ -112,7 +112,7 @@ export const UserRecipe = ({
       <div className="flex gap-4 p-4 action-buttons">
         <Button
           onClick={goBack}
-          variant="outline"
+          // variant="outline"
           className="flex items-center gap-2 !px-4"
         >
           <ArrowLeft size={16} />
@@ -140,7 +140,7 @@ export const UserRecipe = ({
             <Button>{b('edit')}</Button>
           </Link>
         )}
-        <Button onClick={() => setShowDeleteDialog(true)} disabled={deleting}>
+        <Button onClick={() => setShowDeleteDialog(true)} disabled={deleting} className='bg-red-800'>
           {deleting ? 'Deleting...' : b('delete')}
         </Button>
       </div>
