@@ -2424,7 +2424,7 @@ export default function GoogleContinentCountryMap({
   return (
     <div className="relative w-full h-full" style={{ backgroundColor: '#f5f5f5' }}>
       {/* Top bar - amber theme matching markers */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
+      <div className="absolute top-4 left-25 z-10 flex items-center gap-3">
         <button
           onClick={handleBack}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20"
