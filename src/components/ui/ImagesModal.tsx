@@ -17,11 +17,13 @@ export const ImagesModal = ({ onClose, images }: Props) => {
 
   // Prevent background scroll
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
+    if (images && images.length) {
+      document.body.style.overflow = 'hidden'
+    }
     return () => {
       document.body.style.overflow = ''
     }
-  }, [])
+  }, [images])
 
   if (!images?.length) return null
   return (
