@@ -6,6 +6,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { X } from 'lucide-react'
 import './images-modal.css'
+import { useEffect } from 'react'
 
 type Props = {
   onClose: () => void
@@ -13,8 +14,16 @@ type Props = {
 }
 
 export const ImagesModal = ({ onClose, images }: Props) => {
-  if (!images?.length) return null
 
+  // Prevent background scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
+  if (!images?.length) return null
   return (
     <div
       className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)] top-0 left-0 right-0 bottom-0"
