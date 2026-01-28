@@ -48,6 +48,58 @@ const fetchRecipes = async (published: boolean, country: string) => {
 const countries = Object.keys(countriesData)
 
 export default function Dashboard() {
+  const user = useUser()
+  const router = useRouter()
+
+  // Optional: if dashboard should not render while logged out
+  useEffect(() => {
+    if (!user) router.replace('/handler/sign-in')
+  }, [user, router])
+
+  if (!user) return null
+
+  // ✅ only mount the component that calls Stack hooks when user exists
+  return <DashboardAuthed user={user} />
+}
+
+function DashboardAuthed({ user }: { user: any }) {
+  /* ================= SUPER ADMIN ================= */
+  const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || ''
+  const SUPER_ADMIN_SEC_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
+
+  const currentEmail = user?.primaryEmail?.toLowerCase() || ''
+  const isSuperAdmin =
+    currentEmail && (currentEmail === SUPER_ADMIN_EMAIL || currentEmail === SUPER_ADMIN_SEC_EMAIL)
+
+  /* ================= ADMIN PERMISSION ================= */
+  const teamId = process.env.NEXT_PUBLIC_STACK_TEAM || ''
+  const team = user.useTeam(teamId) // ✅ always called (no conditional)
+  const hasPermissions = !!(team && user.usePermission(team, 'team_member')) // ✅ always called
+
+  return (
+    <DashboardInner
+      user={user}
+      isSuperAdmin={isSuperAdmin}
+      hasPermissions={hasPermissions}
+      SUPER_ADMIN_EMAIL={SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_SEC_EMAIL={SUPER_ADMIN_SEC_EMAIL}
+    />
+  )
+}
+
+function DashboardInner({
+  user,
+  isSuperAdmin,
+  hasPermissions,
+  SUPER_ADMIN_EMAIL,
+  SUPER_ADMIN_SEC_EMAIL,
+}: {
+  user: any
+  isSuperAdmin: any
+  hasPermissions: boolean
+  SUPER_ADMIN_EMAIL: string
+  SUPER_ADMIN_SEC_EMAIL: string
+}) {
   const [tab, setTab] = useState<'new' | 'published' | 'users'>('new')
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [users, setUsers] = useState<StackUserRow[]>([])
@@ -58,25 +110,11 @@ export default function Dashboard() {
 
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
 
-
   const l = useTranslations('labels')
   const d = useTranslations('descriptions')
   const b = useTranslations('buttons')
 
-  const user = useUser()
   const router = useRouter()
-
-  /* ================= SUPER ADMIN ================= */
-  const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() || ''
-  const SUPER_ADMIN_SEC_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || ''
-
-  const currentEmail = user?.primaryEmail?.toLowerCase() || ''
-  const isSuperAdmin = currentEmail && (currentEmail === SUPER_ADMIN_EMAIL || currentEmail === SUPER_ADMIN_SEC_EMAIL)
-
-  /* ================= ADMIN PERMISSION ================= */
-  const teamId = process.env.NEXT_PUBLIC_STACK_TEAM || ''
-  const team = user ? user.useTeam(teamId) : null
-  const hasPermissions = !!(team && user?.usePermission(team, 'team_member'))
 
   /* ================= REDIRECT NON ADMINS ================= */
   useEffect(() => {
@@ -213,9 +251,6 @@ export default function Dashboard() {
     }
   }
 
-
-
-
   useEffect(() => {
     loadTabData()
     // eslint-disable-next-line
@@ -262,7 +297,10 @@ export default function Dashboard() {
             </Link>
 
             <Button
-              onClick={() => user?.signOut()}
+              onClick={async () => {
+                await user.signOut()
+                window.location.href = '/'
+              }}
               className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
             >
               {b('logOut')}
