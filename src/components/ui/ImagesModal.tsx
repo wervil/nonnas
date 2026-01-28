@@ -17,7 +17,7 @@ export const ImagesModal = ({ onClose, images }: Props) => {
 
   return (
     <div
-      className="absolute inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)] top-0 left-0 right-0 bottom-0"
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)] top-0 left-0 right-0 bottom-0"
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -28,7 +28,7 @@ export const ImagesModal = ({ onClose, images }: Props) => {
     >
       <button
         onClick={onClose}
-        className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
+        className="fixed cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
       >
         <X size={30} />
       </button>
