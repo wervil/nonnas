@@ -31,7 +31,7 @@ export const Description = ({
   const b = useTranslations('buttons')
 
 
-const pathname = usePathname();
+  const pathname = usePathname();
 
   const openModal = () => {
     document.body.style.overflow = 'hidden'
@@ -68,7 +68,7 @@ const pathname = usePathname();
           className={clsx(
             'text-description line-clamp',
             showButton ? 'opacity-30' : 'opacity-100'
-            
+
           )}
           style={{
             WebkitLineClamp: getLineClamp(height),
@@ -92,39 +92,46 @@ const pathname = usePathname();
       </div>
       {isOpen
         ? createPortal(
-            <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
-              <button
-                onClick={closeModal}
-                className={"absolute  top-8 right-[12vw] text-white text-3xl font-bold z-1050 "}
-              >
-                <X size={30} />
-              </button>
+          <div
+            onClick={() => {
+              setIsOpen(false)
+            }}
+            className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
+            <button
+              onClick={closeModal}
+              className={"absolute  top-8 right-[12vw] text-white text-3xl font-bold z-1050 "}
+            >
+              <X size={30} />
+            </button>
 
-              <div
-                className="description-wrap w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]"
-                style={{
-                  backgroundImage: popupImageUrl
-                    ? `url(${popupImageUrl})`
-                    : "url('/bg-6.webp')",
-                }}
+            <div
+              className="description-wrap w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]"
+              style={{
+                backgroundImage: popupImageUrl
+                  ? `url(${popupImageUrl})`
+                  : "url('/bg-6.webp')",
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+              }}
+            >
+              <h4
+                className={`text-federant text-brown-light text-center text-m xl:text-xl`}
               >
-                <h4
-                  className={`text-federant text-brown-light text-center text-m xl:text-xl`}
-                >
-                  {title}
-                </h4>
-                <div
-                  className="text-description"
-                  dangerouslySetInnerHTML={{ __html: text }}
-                />
-                <div className="corner corner--small lt" />
-                <div className="corner corner--small rt" />
-                <div className="corner corner--small lb" />
-                <div className="corner corner--small rb" />
-              </div>
-            </div>,
-            document.body
-          )
+                {title}
+              </h4>
+              <div
+                className="text-description"
+                dangerouslySetInnerHTML={{ __html: text }}
+              />
+              <div className="corner corner--small lt" />
+              <div className="corner corner--small rt" />
+              <div className="corner corner--small lb" />
+              <div className="corner corner--small rb" />
+            </div>
+          </div>,
+          document.body
+        )
         : null}
     </>
   )
