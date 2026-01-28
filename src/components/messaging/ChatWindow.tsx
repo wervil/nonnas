@@ -1,6 +1,8 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Message, AttachmentType } from './types';
 import { Paperclip, Send, X, FileAudio, Link as LinkIcon } from 'lucide-react';
+import { ImagesModal } from '../ui/ImagesModal';
 
 interface ChatWindowProps {
     messages: Message[];
@@ -14,6 +16,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
     const [inputText, setInputText] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [attachment, setAttachment] = useState<{ file: File; type: AttachmentType; preview: string } | null>(null);
+    const [clickedImage, setClickedImage] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,7 +107,14 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
         switch (msg.attachment_type) {
             case 'image':
                 // eslint-disable-next-line @next/next/no-img-element
-                return <img src={msg.attachment_url} alt="attachment" className="max-w-[200px] rounded-lg mt-2" />;
+                return (
+                    <img
+                        src={msg.attachment_url}
+                        alt="attachment"
+                        className="max-w-[200px] rounded-lg mt-2 cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => setClickedImage(msg.attachment_url!)}
+                    />
+                );
             case 'video':
                 return <video src={msg.attachment_url} controls className="max-w-[200px] rounded-lg mt-2" />;
             case 'audio':
@@ -149,6 +159,11 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     )
                 })}
             </div>
+
+            <ImagesModal
+                images={clickedImage ? [clickedImage] : null}
+                onClose={() => setClickedImage(null)}
+            />
 
             {/* Input */}
             {attachment && (

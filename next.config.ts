@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       'zcejeej0ras6rj8h.public.blob.vercel-storage.com',
       'd0jo4e8kojckav6k.public.blob.vercel-storage.com',
       'example.com',
+      'res.cloudinary.com',
     ],
   },
   eslint: {
