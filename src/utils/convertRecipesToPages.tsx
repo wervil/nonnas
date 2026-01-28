@@ -96,12 +96,17 @@ export const convertRecipesToPages = (
                     <SwiperSlide key={index}>
                       <Image
                         src={image}
-                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${index + 1
-                          }`}
+                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${index + 1}`}
                         fill
                         style={{ objectFit: 'cover' }}
                         className="object-cover"
-                        onClick={() => setImages(recipe.photo)}
+                        onClick={() => {
+                          if (!recipe.photo || recipe.photo.length === 0) return
+                          const newImages = [...recipe.photo]
+                          const [clickedImage] = newImages.splice(index, 1)
+                          newImages.unshift(clickedImage)
+                          setImages(newImages)
+                        }}
                       />
                     </SwiperSlide>
                   ))}
