@@ -6,46 +6,51 @@ import Button from '@/components/ui/Button'
 import { Recipe } from '@/db/schema'
 import { useUser } from '@stackframe/stack'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, BookOpen, Heart, MessageCircle } from 'lucide-react'
 import { Header } from '@/components/Header'
+import { useRouter } from 'next/navigation'
 
-// Add Activity type if needed, for now ThreadList handles fetching
 export default function Profile() {
+  const user = useUser()
+  const router = useRouter()
+
+  // ✅ Redirect when logged out (do it in an effect)
+  useEffect(() => {
+    if (!user) router.replace('/handler/sign-in')
+  }, [user, router])
+
+  if (!user) return null
+
+  // ✅ Only render this when user exists
+  return <ProfileAuthed user={user} />
+}
+
+function ProfileAuthed({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState<'my_recipes' | 'saved' | 'activity'>('my_recipes')
   const [myRecipes, setMyRecipes] = useState<Recipe[]>([])
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
   const hasInitializedTab = useRef(false)
-  // const l = useTranslations('labels') // Unused currently?
+
   const b = useTranslations('buttons')
-  const user = useUser()
 
-  let hasPermissions = false
-  if (user) {
-    const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
-    hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
-  }
+  // ✅ SAFE: this component only mounts when user exists,
+  // so these hooks are never “skipped”
+  const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
+  const hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
 
-  // Initialize tab only once when user loads and has permissions
   useEffect(() => {
-    if (user && hasPermissions && !hasInitializedTab.current) {
+    if (hasPermissions && !hasInitializedTab.current) {
       setActiveTab('saved')
       hasInitializedTab.current = true
     }
-  }, [user, hasPermissions])
+  }, [hasPermissions])
 
-  // Load data when tab changes
   useEffect(() => {
-    if (user) {
-      if (activeTab === 'my_recipes') {
-        loadMyRecipes(user.id)
-      } else if (activeTab === 'saved') {
-        loadSavedRecipes(user.id)
-      }
-      // activity is handled by ThreadList internal fetching with props
-    }
-  }, [user, activeTab])
+    if (activeTab === 'my_recipes') loadMyRecipes(user.id)
+    else if (activeTab === 'saved') loadSavedRecipes(user.id)
+  }, [activeTab, user.id])
 
   const loadMyRecipes = async (userId: string) => {
     setLoading(true)
@@ -53,8 +58,6 @@ export default function Profile() {
       const res = await fetch(`/api/recipes?userId=${userId}`)
       const data = await res.json()
       setMyRecipes(data.recipes || [])
-    } catch (e) {
-      console.error(e)
     } finally {
       setLoading(false)
     }
@@ -66,14 +69,10 @@ export default function Profile() {
       const res = await fetch(`/api/recipes?savedByUserId=${userId}`)
       const data = await res.json()
       setSavedRecipes(data.recipes || [])
-    } catch (e) {
-      console.error(e)
     } finally {
       setLoading(false)
     }
   }
-
-  if (!user) return null
 
   return (
     <div className="flex flex-col min-h-svh w-full relative bg-[var(--color-brown-dark)]">
