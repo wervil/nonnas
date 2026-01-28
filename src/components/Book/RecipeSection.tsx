@@ -130,14 +130,22 @@ export const RecipeSection = ({
       </div>
       {isOpen
         ? createPortal(
-          <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
+          <div
+            onClick={() => {
+              setIsOpen(false)
+            }}
+            className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
             <button
               onClick={closeModal}
               className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
             >
               <X size={30} />
             </button>
-            <div className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
+            <div
+              onClick={(e) => {
+                e.stopPropagation()
+              }}
+              className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
               <div className="relative overflow-auto">
                 {images?.length ? (
                   <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[250px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
