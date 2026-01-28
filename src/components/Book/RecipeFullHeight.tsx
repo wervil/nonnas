@@ -22,7 +22,7 @@ export const RecipeSectionFullHeight = ({
 }: Props) => {
 
 
-const pathname = usePathname();
+  const pathname = usePathname();
   return (
     <div className={`relative description-wrap ${(pathname === ('/') ? 'cursor-pointer' : '')}`}>
       <div className="relative overflow-hidden text-left">

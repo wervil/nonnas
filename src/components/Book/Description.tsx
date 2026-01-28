@@ -1,10 +1,9 @@
-import { X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { useState } from 'react'
-import { createPortal } from 'react-dom'
-import Button from '../ui/Button'
 import clsx from 'clsx'
-import { usePathname } from "next/navigation";
+import { useTranslations } from 'next-intl'
+import { usePathname } from "next/navigation"
+import { useState } from 'react'
+import Button from '../ui/Button'
+import { Modal } from '../ui/modal'
 
 interface Props {
   title: string
@@ -31,17 +30,10 @@ export const Description = ({
   const b = useTranslations('buttons')
 
 
-const pathname = usePathname();
+  const pathname = usePathname();
 
-  const openModal = () => {
-    document.body.style.overflow = 'hidden'
-    setIsOpen(true)
-  }
-
-  const closeModal = () => {
-    document.body.style.overflow = 'auto'
-    setIsOpen(false)
-    setShowButton(false)
+  const handleModal = () => {
+    setIsOpen(!isOpen)
   }
 
   return (
@@ -55,7 +47,7 @@ const pathname = usePathname();
           maxWidth: maxWidth || '100%',
           // height: `${height}px`,
         }}
-        onClick={openModal}
+        onClick={handleModal}
         onMouseEnter={() => setShowButton(true)}
         onMouseLeave={() => setShowButton(false)}
       >
@@ -68,7 +60,7 @@ const pathname = usePathname();
           className={clsx(
             'text-description line-clamp',
             showButton ? 'opacity-30' : 'opacity-100'
-            
+
           )}
           style={{
             WebkitLineClamp: getLineClamp(height),
@@ -90,42 +82,41 @@ const pathname = usePathname();
           {b('seeMore')}
         </Button>
       </div>
-      {isOpen
-        ? createPortal(
-            <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
-              <button
-                onClick={closeModal}
-                className={"absolute  top-8 right-[12vw] text-white text-3xl font-bold z-1050 "}
-              >
-                <X size={30} />
-              </button>
 
-              <div
-                className="description-wrap w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]"
-                style={{
-                  backgroundImage: popupImageUrl
-                    ? `url(${popupImageUrl})`
-                    : "url('/bg-6.webp')",
-                }}
-              >
-                <h4
-                  className={`text-federant text-brown-light text-center text-m xl:text-xl`}
-                >
-                  {title}
-                </h4>
-                <div
-                  className="text-description"
-                  dangerouslySetInnerHTML={{ __html: text }}
-                />
-                <div className="corner corner--small lt" />
-                <div className="corner corner--small rt" />
-                <div className="corner corner--small lb" />
-                <div className="corner corner--small rb" />
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
+
+      <Modal
+        title='Recipe'
+        isOpen={isOpen}
+        onClose={handleModal}
+        style={{
+          backgroundImage: popupImageUrl
+            ? `url(${popupImageUrl})`
+            : "url('/bg-6.webp')",
+        }}
+        className='!m-0 p-0 gap-0   '
+
+      >
+        <div
+          className=" "
+
+        >
+          <h4
+            className={`text-federant text-brown-light pt-5 text-center text-m xl:text-xl`}
+          >
+            {title}
+          </h4>
+          <div
+            className="text-description pb-5 px-3"
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
+
+          <div className="corner corner--small lt" />
+          <div className="corner corner--small rt" />
+          <div className="corner corner--small lb" />
+          <div className="corner corner--small rb" />
+        </div>
+
+      </Modal>
     </>
   )
 }

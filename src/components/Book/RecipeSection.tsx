@@ -6,10 +6,11 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { Dispatch, SetStateAction, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { X, XIcon } from 'lucide-react'
 import Button from '../ui/Button'
 import { useTranslations } from 'next-intl'
 import clsx from 'clsx'
+import { Modal } from '../ui/modal'
 
 interface Props {
   title: string
@@ -128,71 +129,63 @@ export const RecipeSection = ({
           {b('seeMore')}
         </Button>
       </div>
-      {isOpen
-        ? createPortal(
-          <div className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
-            <button
-              onClick={closeModal}
-              className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
-            >
-              <X size={30} />
-            </button>
-            <div className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
-              <div className="relative overflow-auto">
-                {images?.length ? (
-                  <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[250px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
-                    <Swiper
-                      modules={[Navigation, Pagination]}
-                      navigation
-                      pagination={{ clickable: true }}
-                      loop={images?.length > 1}
-                      className="w-full h-full rounded-lg cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
-                      style={
-                        {
-                          '--swiper-navigation-sides-offset': '0px',
-                        } as React.CSSProperties
-                      }
-                    >
-                      {images?.map((image, index) => (
-                        <SwiperSlide key={index}>
-                          <Image
-                            src={image}
-                            alt={`${title} - photo ${index + 1}`}
-                            fill
-                            style={{ objectFit: 'cover' }}
-                            className="object-cover"
-                          />
-                        </SwiperSlide>
-                      ))}
-                    </Swiper>
-                  </div>
-                ) : null}
-                <h4
-                  className={`text-federant text-brown-light text-center text-m xl:text-xl`}
-                >
-                  {title}
-                </h4>
-                <div
-                  className="text-description text-description--long"
-                  style={{ overflow: 'visible' }}
-                  dangerouslySetInnerHTML={{ __html: ingredientsText }}
-                />
-                <div
-                  className="text-description text-description--long mt-2"
-                  style={{ overflow: 'visible' }}
-                  dangerouslySetInnerHTML={{ __html: directionsText }}
-                />
-              </div>
+      <Modal
+        isOpen={isOpen}
+        onClose={closeModal}
+        title={title}
+        showCloseButton={false}
+        className='p-0 m-0 gap-0 w-[70vw]  max-h-[calc(100vh-10rem)]  max-w-[1400px]! min-w-[300px]'
+      >
 
-              <div className="corner corner--big lt" />
-              <div className="corner corner--big rt" />
-              <div className="corner corner--big lb" />
-              <div className="corner corner--big rb" />
-            </div>
-          </div>,
-          document.body
-        )
-        : null}
+        {images?.length ? (
+          <div className="relative w-full h-[45vh] bg-black flex items-center justify-center">
+            <Swiper
+              modules={[Navigation, Pagination]}
+              navigation
+              pagination={{ clickable: true }}
+              loop={images.length > 1}
+              className="w-full h-full"
+            >
+              {images.map((image, index) => (
+                <SwiperSlide key={index} className="flex items-center justify-center">
+                  <Image
+                    src={image}
+                    alt={`${title} - photo ${index + 1}`}
+                    fill
+                    className="object-contain"
+                    priority={index === 0}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+        ) : null}
+
+        <div className=" py-5 px-5   ">
+
+          <div className="flex-1 overflow-y-auto px-6 py-5h-[calc(100vh-10rem)]">
+            <h4 className="text-federant text-brown-light text-center text-xl mb-4">
+              {title}
+            </h4>
+
+            <div
+              className="text-description text-description--long"
+              dangerouslySetInnerHTML={{ __html: ingredientsText }}
+            />
+
+            <div
+              className="text-description text-description--long mt-4"
+              dangerouslySetInnerHTML={{ __html: directionsText }}
+            />
+          </div>
+          <div className="corner corner--big lt" />
+          <div className="corner corner--big rt" />
+          <div className="corner corner--big lb" />
+          <div className="corner corner--big rb" />
+          <XIcon className='absolute top-5 right-5 cursor-pointer' onClick={closeModal} />
+        </div>
+
+      </Modal>
     </>
   )
 }
