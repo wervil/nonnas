@@ -47,7 +47,7 @@ export const Description = ({
   return (
     <>
       <div
-        className={`description-wrap  h-[40%] sm:h-[50%] ${(pathname === ('/') ? '' : '')}`}
+        className={`description-wrap  h-[40%] sm:h-[50%] ${(pathname === ('/') ? 'cursor-pointer' : '')}`}
         style={{
           backgroundImage: imageUrl
             ? `url(${imageUrl})`
