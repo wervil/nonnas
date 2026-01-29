@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useUser } from '@stackframe/stack'
 import { Header } from '@/components/Header'
 import Globe2D3DShell from '@/components/clickable-globe/Globe2D3DShell'
+import { useUser } from '@stackframe/stack'
+import { useState } from 'react'
 
 // ✅ Match Globe2D3DShell mode naming
 type ExploreMode = 'globe' | 'map'
@@ -31,20 +31,20 @@ export default function ExploreContent() {
   })
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0a0a0a] overflow-hidden">
+    <div className="flex flex-col h-screen w-full bg-[#0a0a0a] overflow-hidden pb-8">
       {/* Header */}
-      <div className="z-49 relative">
+      <div className="z-49 relative shrink-0">
         <Header
           hasAdminAccess={hasPermissions}
           user={user}
           isExplorePage={true}
           exploreState={exploreState.mode}
-          // setExploreState={setExploreState}
+        // setExploreState={setExploreState}
         />
       </div>
 
-      {/* Globe */}
-      <div className="flex-grow w-full relative overflow-hidden">
+      {/* Globe / Map - takes remaining space; needs parent with defined height for h-full to work */}
+      <div className="flex-1 min-h-0 w-full relative overflow-hidden">
         <Globe2D3DShell
           // exploreState={exploreState}
           setExploreState={setExploreState}

@@ -35,7 +35,7 @@ type ThreeGlobeInstance = THREE.Object3D & {
 
 // ---------- Constants ----------
 const GLOBE_RADIUS = 40;
-const CAMERA_DISTANCE = 320;
+const CAMERA_DISTANCE = 340;
 const ROTATION_SENSITIVITY = 0.004;
 const MAX_TILT = 1.2;
 
@@ -549,7 +549,7 @@ export default function NaturalStyledGlobe({
         sceneRef.current = scene;
 
         // Camera
-        const camera = new THREE.PerspectiveCamera(50, mount.clientWidth / mount.clientHeight, 1, 2000);
+        const camera = new THREE.PerspectiveCamera(54, mount.clientWidth / mount.clientHeight, 1, 2000);
         camera.position.set(0, 0, CAMERA_DISTANCE);
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera;
