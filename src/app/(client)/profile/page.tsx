@@ -88,8 +88,10 @@ function ProfileAuthed({ user }: { user: any }) {
       <div className="flex-grow w-full max-w-5xl mx-auto p-4 md:p-8 pt-4 relative z-10">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 mt-4">
-          <div className="text-center md:text-left">
-            <h1 className="text-4xl md:text-5xl font-bold !text-[var(--color-yellow-light)] font-[var(--font-bell)] mb-2">{user.displayName || 'Profile'}</h1>
+          <div className="text-center md:text-left min-w-0 max-w-full">
+            <h1 className="text-4xl md:text-5xl font-bold !text-[var(--color-yellow-light)] font-[var(--font-bell)] mb-2 break-words overflow-hidden line-clamp-3 max-w-[600px] mx-auto md:mx-0" title={user.displayName || undefined}>
+              {user.displayName || 'Profile'}
+            </h1>
             <p className="text-[var(--color-text-pale)] font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
           </div>
           <div className="flex gap-3">
