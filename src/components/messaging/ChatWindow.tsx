@@ -10,9 +10,10 @@ interface ChatWindowProps {
     onSendMessage: (content: string, attachmentUrl?: string, attachmentType?: AttachmentType) => Promise<void>;
     onBack: () => void;
     otherUserId: string;
+    otherUserName?: string;
 }
 
-export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, otherUserId }: ChatWindowProps) => {
+export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, otherUserId, otherUserName }: ChatWindowProps) => {
     const [inputText, setInputText] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [attachment, setAttachment] = useState<{ file: File; type: AttachmentType; preview: string } | null>(null);
@@ -138,7 +139,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     <span className="font-[var(--font-bell)]">Back</span>
                 </button>
                 <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-[var(--color-yellow-light)]">
-                    Chat with {otherUserId.substring(0, 6)}...
+                    Chat with {otherUserName || "--"}...
                 </div>
             </div>
 

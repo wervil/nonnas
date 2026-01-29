@@ -24,18 +24,19 @@ export const MessagingInterface = () => {
     useEffect(() => {
         if (!searchParams) return;
         const chatWith = searchParams?.get('chatWith');
+        const name = searchParams?.get('name');
         if (chatWith && user && !activeConvo) {
-            startChat(chatWith);
+            startChat(chatWith, name || undefined);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, user]);
 
-    const startChat = async (targetId: string) => {
+    const startChat = async (targetId: string, targetName?: string) => {
         // No setIsOpen needed
         try {
             const res = await fetch('/api/conversations', {
                 method: 'POST',
-                body: JSON.stringify({ targetUserId: targetId })
+                body: JSON.stringify({ targetUserId: targetId, targetUserName: targetName })
             });
             if (res.ok) {
                 const convo = await res.json();
@@ -198,15 +199,22 @@ export const MessagingInterface = () => {
                 flex-1 flex flex-col bg-[var(--color-brown-pale)] min-w-0 min-h-0
                 ${!activeConvo ? 'hidden md:flex' : 'flex'}
             `}>
-                {activeConvo ? (
-                    <ChatWindow
-                        messages={messages}
-                        currentUserId={user.id}
-                        otherUserId={activeConvo.user1_id === user.id ? activeConvo.user2_id : activeConvo.user1_id}
-                        onBack={() => setActiveConvo(null)}
-                        onSendMessage={handleSendMessage}
-                    />
-                ) : (
+                {activeConvo ? (() => {
+                    const convoUserId = activeConvo.user1_id === user.id ? activeConvo.user2_id : activeConvo.user1_id;
+                    const rawUserName = activeConvo.user1_id === user.id ? activeConvo.user2_name : activeConvo.user1_name;
+                    const displayUserName = (rawUserName && rawUserName !== convoUserId) ? rawUserName : undefined;
+
+                    return (
+                        <ChatWindow
+                            messages={messages}
+                            currentUserId={user.id}
+                            otherUserId={convoUserId}
+                            otherUserName={displayUserName}
+                            onBack={() => setActiveConvo(null)}
+                            onSendMessage={handleSendMessage}
+                        />
+                    );
+                })() : (
                     <div className="flex-1 flex items-center justify-center text-[var(--color-text-pale)] bg-[var(--color-brown-dark)]">
                         <div className="text-center">
                             <p className="text-lg font-medium text-[var(--color-yellow-light)] font-[var(--font-bell)]">Select a conversation</p>

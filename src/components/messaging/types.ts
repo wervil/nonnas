@@ -14,7 +14,9 @@ export interface Message {
 export interface Conversation {
     id: number;
     user1_id: string;
+    user1_name?: string | null;
     user2_id: string;
+    user2_name?: string | null;
     updated_at: string;
     // enriched fields
     otherUser?: {

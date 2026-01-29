@@ -168,9 +168,9 @@ export default function CommentItem({
                             </span>
 
                             {/* Message Icon after 1 hour */}
-                            {userId && userId !== comment.user_id && (!comment.created_at || (Date.now() - new Date(comment.created_at).getTime() > 3600000)) && (
+                            {userId && userId !== comment.user_id && (!comment.created_at || (Date.now() - new Date(comment.created_at).getTime() > 1000)) && (
                                 <Link
-                                    href={`/messages?chatWith=${comment.user_id}`}
+                                    href={`/messages?chatWith=${comment.user_id}&name=${encodeURIComponent(comment.author_name || '')}`}
                                     target="_blank"
                                     className="text-[var(--color-text-pale)] hover:text-[var(--color-primary-main)] transition-colors ml-1"
                                     title="Message User"

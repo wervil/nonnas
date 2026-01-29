@@ -168,7 +168,7 @@ export default function PostItem({
                             </span>
                             {currentUserId && currentUserId !== post.user_id && (
                                 <Link
-                                    href={`/messages?chatWith=${post.user_id}`}
+                                    href={`/messages?chatWith=${post.user_id}&name=${encodeURIComponent(post.author_name || '')}`}
                                     target="_blank"
                                     className="ml-2 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
                                     title="Message User"

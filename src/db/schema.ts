@@ -181,7 +181,9 @@ export type NewLike = InferInsertModel<typeof likes>
 export const conversations = pgTable('conversations', {
   id: serial('id').primaryKey(),
   user1_id: text('user1_id').notNull(),
+  user1_name: text('user1_name'), // Copied from Stack for display
   user2_id: text('user2_id').notNull(),
+  user2_name: text('user2_name'), // Copied from Stack for display
   updated_at: timestamp('updated_at').defaultNow(),
 }, (table) => [
   // Ensure unique pair of users (we'll handle ordering in code or use constraint)
