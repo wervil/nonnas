@@ -20,7 +20,7 @@ export default async function Handler(props: HandlerProps) {
   if (stack === "sign-in" && searchParams.error === "user_not_found") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-sm">
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
 
           {/* Logo */}
           <div className="mb-4 flex justify-center">
@@ -86,7 +86,7 @@ export default async function Handler(props: HandlerProps) {
   return (
     <div className={isAuthForm ? "min-h-screen flex flex-col items-center justify-center bg-neutral-50 p-6" : ""}>
       {isAuthForm ? (
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-sm">
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-8 flex justify-center">
             <Image
               src="/logoMain.svg"
