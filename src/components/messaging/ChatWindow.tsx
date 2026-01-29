@@ -1,8 +1,8 @@
 
-import { useState, useRef, useEffect } from 'react';
-import { Message, AttachmentType } from './types';
-import { Paperclip, Send, X, FileAudio, Link as LinkIcon } from 'lucide-react';
+import { FileAudio, Link as LinkIcon, Paperclip, Send, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { ImagesModal } from '../ui/ImagesModal';
+import { AttachmentType, Message } from './types';
 
 interface ChatWindowProps {
     messages: Message[];
@@ -212,14 +212,17 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     aria-label="File input"
                 // accept="image/*,video/*,audio/*" // allow all
                 />
-                <input
-                    className="flex-1 bg-[var(--color-brown-pale)] border border-[var(--color-primary-border)]/30 rounded-full px-4 py-2 text-[var(--color-text-pale)] placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 font-[var(--font-bell)]"
+                <textarea
+                    className="flex-1 bg-[var(--color-brown-pale)] border border-[var(--color-primary-border)]/30 rounded-md px-4 py-2 text-[var(--color-text-pale)] placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 font-[var(--font-bell)]"
                     placeholder="Type a message..."
+                    maxLength={5000}
+                    rows={2}
                     value={inputText}
                     disabled={isSending}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 />
+
                 <button
                     disabled={isSending || (!inputText && !attachment)}
                     onClick={handleSend}
