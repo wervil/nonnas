@@ -25,7 +25,7 @@ export type BookHandle = {
   goToRecipe: (recipeId: number) => void
 }
 
-const HEADER_HEIGHT = 100
+const HEADER_HEIGHT = 80
 const TOC_ITEM_HEIGHT = 40
 
 // Number of pages before recipes start (cover + TOC pages)
@@ -83,8 +83,9 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768)
-      setIsSinglePage(window.innerWidth < 2800)
+      const mobile = window.innerWidth < 1024
+      setIsMobile(mobile)
+      setIsSinglePage(mobile)
       setContentHeight(window.innerHeight - HEADER_HEIGHT)
       // Call layout check after screen size changes
       setTimeout(getCurrentLayout, 100)
@@ -120,8 +121,13 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       getOrientation: () => 'landscape' | 'portrait'
     }
   } | null>(null)
+  const lastPageRef = useRef(0)
+  useEffect(() => {
+    lastPageRef.current = currentPage
+  }, [currentPage])
 
   const nextPage = () => {
+    if (isNextDisabled) return
     flipbookRef.current?.pageFlip()?.flipNext()
   }
 
@@ -130,9 +136,13 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }
 
   const isPrevDisabled = currentPage === 0
-  const isNextDisabled = isSinglePage
-    ? currentPage >= totalPages - 1
-    : currentPage + 1 >= totalPages - 1
+  // Use ref (updated in onFlip) so double-page mode gets correct page immediately
+  const pageForDisable = lastPageRef.current
+  const isNextDisabled =
+    totalPages <= 1 ||
+    (isSinglePage
+      ? pageForDisable >= totalPages - 1
+      : pageForDisable >= totalPages - 2)
 
   const goToPage = (pageNumber: number) => {
     if (flipbookRef.current) {
@@ -243,10 +253,9 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               showPageCorners={true}
               disableFlipByClick={false}
               onFlip={(e) => {
-                // e.data contains the current page number
                 const currentPageNum = e.data
+                lastPageRef.current = currentPageNum
                 setCurrentPage(currentPageNum)
-                console.log('Page flipped to:', currentPageNum, 'PAGES_BEFORE_RECIPES:', PAGES_BEFORE_RECIPES)
 
                 if (currentPageNum < PAGES_BEFORE_RECIPES) {
                   // On cover page, clear current recipe

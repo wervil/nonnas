@@ -17,16 +17,16 @@ const getLeftSizeDescriptionHeight = (
   hasGeoHistory: boolean,
   contentHeight: number
 ) => {
-  const imageHeight = window.innerWidth < 1536 ? 190 : 240
-  const titleHeight = window.innerWidth < 1536 ? 32 : 50
+  const imageHeight = window.innerWidth < 1536 ? 180 : 220
+  const titleHeight = window.innerWidth < 1536 ? 28 : 44
   const height =
     contentHeight -
-    40 -
+    32 -
     titleHeight -
-    20 -
+    16 -
     imageHeight -
-    20 -
-    (hasGeoHistory ? 20 : 0)
+    16 -
+    (hasGeoHistory ? 16 : 0)
   return hasGeoHistory ? height / 2 : height
 }
 
@@ -35,8 +35,8 @@ const getRightSizeDescriptionHeight = (
   contentHeight: number,
   isMobile: boolean
 ) => {
-  const height = contentHeight - 60 - (hasInfluences ? (isMobile ? 40 : 20) : 0)
-  return height / 4
+  const height = contentHeight - 48 - (hasInfluences ? (isMobile ? 32 : 16) : 0)
+  return height / 3.5
 }
 
 export const convertRecipesToPages = (
@@ -118,7 +118,7 @@ export const convertRecipesToPages = (
               <div className="corner corner--big rb" />
             </div>
           </div>
-          <div className="page-info  h-[58%]">
+          <div className="page-info flex-1 min-h-0">
             <Description
               title={(l as (name: string) => string)('bio')}
               text={recipe.history}
@@ -160,7 +160,7 @@ export const convertRecipesToPages = (
           />
           {/* </div> */}
 
-          <div className="page-info h-[49%]">
+          <div className="page-info flex-1 min-h-0">
             {recipe.traditions ? (
               <Description
                 title={(l as (name: string) => string)('traditions')}
