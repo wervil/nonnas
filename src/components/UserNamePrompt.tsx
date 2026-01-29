@@ -21,7 +21,21 @@ export const UserNamePrompt = () => {
         const currentName = user.displayName
         const isMissingName = !currentName || currentName === user.id
 
-        if (isMissingName) {
+        // Only show if missing name AND (strict user request) we just came from auth
+        // We use document.referrer to check if we came from a handler path
+        const isFromAuth = typeof document !== 'undefined' && (
+            document.referrer.includes('/handler/sign-in') ||
+            document.referrer.includes('/handler/sign-up') ||
+            // Also check if we just arrived at the site (empty referrer sometimes implies direct navigation, but auth redirects usually have referrer)
+            // But relying on referrer handles the "after re-direction" case specifically.
+            // If local development, port numbers might differ.
+            document.referrer.includes('handler')
+        )
+
+        // If the user wants specific "only after check", we can also check if this is the very first distinct mount?
+        // But referrer is the best signal for "coming from auth".
+
+        if (isMissingName && isFromAuth) {
             setIsOpen(true)
         }
     }, [user])
