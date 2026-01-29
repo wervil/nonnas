@@ -991,7 +991,7 @@ export default function GoogleContinentCountryMap({
             color: '#666666',
             fontSize: '12px',
             fontWeight: '600',
-            fontFamily: 'Arial, sans-serif',
+            fontFamily: "'Bell', serif",
           },
           clickable: false,
           zIndex: 1, // Below other markers
@@ -1063,7 +1063,7 @@ export default function GoogleContinentCountryMap({
           <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" 
                   fill="${MARKER_COLOR}" stroke="#ffffff" stroke-width="3"/>
           <text x="${size / 2}" y="${size / 2 + 5}" 
-                font-family="Arial, sans-serif" font-size="${country.nonnaCount > 99 ? '10' : '14'}" 
+                font-family=\"'Bell', serif\" font-size="${country.nonnaCount > 99 ? '10' : '14'}" 
                 font-weight="700" fill="#ffffff" text-anchor="middle">${country.nonnaCount}</text>
         </svg>
       `;
@@ -1300,7 +1300,7 @@ export default function GoogleContinentCountryMap({
       // FIX: Create invisible clickable markers for states with 0 Nonnas
       if (count === 0) {
         const infoWindow = new google.maps.InfoWindow({
-          content: `<div style="padding: 8px; font-family: Arial, sans-serif;">
+          content: `<div style="padding: 8px; font-family: 'Bell', serif;">
             <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
             <div style="font-size: 12px; color: #666; margin-top: 4px;">No Nonnas yet</div>
             <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to start discussion</div>
@@ -1340,7 +1340,7 @@ export default function GoogleContinentCountryMap({
       const size = Math.min(56, Math.max(40, 32 + count * 4));
 
       const infoWindow = new google.maps.InfoWindow({
-        content: `<div style="padding: 8px; font-family: Arial, sans-serif;">
+        content: `<div style="padding: 8px; font-family: 'Bell', serif;">
           <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
           <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Nonna${count !== 1 ? "s" : ""}</div>
           <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to view discussions</div>
@@ -1499,7 +1499,7 @@ export default function GoogleContinentCountryMap({
 
       // Info window for tooltips
       const infoWindow = new google.maps.InfoWindow({
-        content: `<div style="padding: 8px; font-family: Arial, sans-serif;">
+        content: `<div style="padding: 8px; font-family: 'Bell', serif;">
           <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
           <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Nonna${count !== 1 ? "s" : ""}</div>
           <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to view discussions</div>
@@ -2450,7 +2450,7 @@ export default function GoogleContinentCountryMap({
   })();
 
   return (
-    <div className="relative w-full h-full" style={{ backgroundColor: '#f5f5f5' }}>
+    <div className="relative w-full h-full font-[var(--font-bell)]" style={{ backgroundColor: '#f5f5f5' }}>
       {/* Top bar - amber theme matching markers */}
       <div className="absolute top-24 sm:left-25 left-5 z-10 flex items-center gap-3">
         <button
