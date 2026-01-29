@@ -133,10 +133,10 @@ export const RecipeSection = ({
         ? createPortal(
           <div
             onClick={closeModal}
-            className="fixed  mx-auto inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
+            className="fixed   mx-auto inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
             <button
               onClick={closeModal}
-              className="fixed cursor-pointer top-4 right-12  text-white text-3xl font-bold z-1050"
+              className="fixed  top-4 right-12  text-white text-3xl font-bold z-1050"
             >
               <X size={30} />
             </button>
@@ -144,7 +144,7 @@ export const RecipeSection = ({
               onClick={(e) => {
                 e.stopPropagation()
               }}
-              className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px]">
+              className="relative  description-wrap description-wrap--vertical  w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px]">
               <div className="relative overflow-auto">
                 {images?.length ? (
                   <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 xl:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] lg:w-[250px] lg:h-[220px] xl:max-w-none xl:mx-0">
@@ -153,7 +153,7 @@ export const RecipeSection = ({
                       navigation
                       pagination={{ clickable: true }}
                       loop={images?.length > 1}
-                      className="w-full h-full rounded-lg cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
+                      className="w-full h-full rounded-lg  [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
                       style={
                         {
                           '--swiper-navigation-sides-offset': '0px',

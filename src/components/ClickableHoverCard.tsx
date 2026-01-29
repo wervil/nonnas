@@ -17,7 +17,7 @@ export function ClickableHoverCard({ trigger, content }: ClickableHoverCardProps
 
   return (
     <HoverCard open={open} onOpenChange={setOpen} openDelay={0} closeDelay={100}>
-      <HoverCardTrigger 
+      <HoverCardTrigger
         asChild
         onClick={(e) => {
           e.preventDefault()
@@ -28,10 +28,10 @@ export function ClickableHoverCard({ trigger, content }: ClickableHoverCardProps
       >
         {trigger}
       </HoverCardTrigger>
-      <HoverCardContent 
-        side="top" 
+      <HoverCardContent
+        side="top"
         align="center"
-        className="max-w-[320px] whitespace-normal text-sm capitalize z-[9999]"
+        className="max-w-[320px] text-center font-semibold py-2 bg-[#352721] rounded-lg text-white border-[#d4c5b5] whitespace-normal text-sm capitalize z-[9999]"
         onPointerDownOutside={() => setOpen(false)}
       >
         {content}
