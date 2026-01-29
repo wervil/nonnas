@@ -67,12 +67,13 @@ export const UserNamePrompt = () => {
                             onChange={(e) => {
                                 const val = e.target.value
                                 // Only allow letters and spaces (no numbers, no special chars)
-                                if (/^[a-zA-Z\s]*$/.test(val)) {
+                                if (/^[a-zA-Z\s]*$/.test(val) && val.length <= 30) {
                                     setName(val)
                                 }
                             }}
                             className="w-full px-3 py-2 border border-[#d4c5b5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a63e2e]/20 focus:border-[#a63e2e] bg-white text-[#2c241b]"
                             placeholder="e.g. John Doe"
+                            maxLength={30}
                             required
                             autoFocus
                         />
