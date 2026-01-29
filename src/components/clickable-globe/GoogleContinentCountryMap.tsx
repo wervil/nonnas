@@ -2455,8 +2455,8 @@ export default function GoogleContinentCountryMap({
       <div className="absolute top-24 sm:left-25 left-5 z-10 flex items-center gap-3">
         <button
           onClick={handleBack}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20"
-          style={{ backgroundColor: MARKER_COLOR }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20 !font-[var(--font-bell)]"
+          style={{ backgroundColor: MARKER_COLOR, fontFamily: "'Bell', serif" }}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

@@ -132,7 +132,7 @@ function createRingTextTexture(text: string, fontSize = 64): THREE.Texture {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context");
 
-  ctx.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
+  ctx.font = `bold ${fontSize}px "Bell", serif`;
   const metrics = ctx.measureText(text);
   const textWidth = metrics.width;
   const textHeight = fontSize * 1.3;
@@ -141,7 +141,7 @@ function createRingTextTexture(text: string, fontSize = 64): THREE.Texture {
   canvas.height = Math.ceil(textHeight + 20);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = `bold ${fontSize}px "Aharoni", "Arial Black", sans-serif`;
+  ctx.font = `bold ${fontSize}px "Bell", serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#e8d5b7";
@@ -863,7 +863,7 @@ export default function NaturalStyledGlobe({
           <h2
             className="text-2xl md:text-3xl font-bold tracking-wide text-amber-400"
             style={{
-              fontFamily: '"Bell MT", "Georgia", serif',
+              fontFamily: "'Bell', serif",
               textShadow: "0 0 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.6)",
             }}
           >
