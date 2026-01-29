@@ -286,6 +286,10 @@ export default function GoogleContinentCountryMap({
   // FIX: Track currently highlighted state globally to prevent conflicts
   const currentlyHighlightedStateRef = useRef<string | null>(null);
 
+  // Ref to access the latest handleBack function inside the map listener closure
+  const handleBackRef = useRef<() => void>(() => { });
+
+
   const [drill, setDrill] = useState<Drill>("continent");
   const [selectedCountry, setSelectedCountry] = useState<{ code: string; name: string } | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null); // Track selected state name
@@ -1703,6 +1707,25 @@ export default function GoogleContinentCountryMap({
             if (typeof currentZoom !== "number") return;
 
             // ✅ ONLY allow zoom-out-to-globe from continent level
+            // Update: Now handles all drill levels (State -> Country -> Continent -> Globe)
+
+            if (ignoreZoomChangeRef.current) return;
+
+            // 1. Zoom out from State to Country (Zoom < 6)
+            if (drillRef.current === "state" && currentZoom < 6) {
+              console.log("Zoom out detected: State -> Country");
+              handleBackRef.current();
+              return;
+            }
+
+            // 2. Zoom out from Country to Continent (Zoom < 4)
+            if (drillRef.current === "country" && currentZoom < 4) {
+              console.log("Zoom out detected: Country -> Continent");
+              handleBackRef.current();
+              return;
+            }
+
+            // 3. Zoom out from Continent to Globe (Zoom <= 2)
             if (currentZoom <= 2) {
               if (drillRef.current !== "continent") return;
 
@@ -2407,6 +2430,11 @@ export default function GoogleContinentCountryMap({
       onBackToGlobe();
     }
   };
+
+  // Keep the ref updated with the latest handleBack function
+  useEffect(() => {
+    handleBackRef.current = handleBack;
+  }, [handleBack]);
 
   const viewLabel = (() => {
     if (drill === "continent") return `${selectedContinent} • Countries`;
