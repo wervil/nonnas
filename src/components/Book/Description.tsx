@@ -103,7 +103,7 @@ export const Description = ({
             </button>
 
             <div
-              className="description-wrap w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]"
+              className="description-wrap w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px]"
               style={{
                 backgroundImage: popupImageUrl
                   ? `url(${popupImageUrl})`
