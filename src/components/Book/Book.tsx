@@ -330,7 +330,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
       {/* Comments Section - appears below flipbook */}
       {currentRecipeId && (
-        <div className="w-full max-w-3xl mx-auto px-4 py-6 mb-8 relative z-[100]">
+        <div className="w-full max-w-3xl sm:mt-10 mx-auto px-4 py-6 mb-8 relative z-[100]">
           {/* Decorative background with vintage paper texture effect */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 rounded-xl pointer-events-none" />
 
