@@ -7,8 +7,9 @@ import { Recipe } from '@/db/schema'
 import { useUser } from '@stackframe/stack'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, BookOpen, Heart, MessageCircle } from 'lucide-react'
+import { Loader2, BookOpen, Heart, MessageCircle, Pencil } from 'lucide-react'
 import { Header } from '@/components/Header'
+import { EditProfileModal } from '@/components/EditProfileModal'
 import { useRouter } from 'next/navigation'
 
 export default function Profile() {
@@ -31,6 +32,7 @@ function ProfileAuthed({ user }: { user: any }) {
   const [myRecipes, setMyRecipes] = useState<Recipe[]>([])
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
   const hasInitializedTab = useRef(false)
 
   const b = useTranslations('buttons')
@@ -94,7 +96,15 @@ function ProfileAuthed({ user }: { user: any }) {
             </h1>
             <p className="text-[var(--color-text-pale)] font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 shrink-0">
+            <Button
+              onClick={() => setEditProfileOpen(true)}
+              variant="outline"
+              className="border-[var(--color-primary-border)]/40 text-[var(--color-yellow-light)] hover:bg-[var(--color-brown-dark)]/50"
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              {b('edit')}
+            </Button>
             <Button
               onClick={() => user?.signOut()}
               className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
@@ -188,6 +198,12 @@ function ProfileAuthed({ user }: { user: any }) {
           )}
         </div>
       </div>
+
+      <EditProfileModal
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        user={user}
+      />
     </div>
   )
 }
