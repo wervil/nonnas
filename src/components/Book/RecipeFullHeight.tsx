@@ -27,7 +27,7 @@ export const RecipeSectionFullHeight = ({
     <div className={`relative description-wrap ${(pathname === ('/') ? 'cursor-pointer' : '')}`}>
       <div className="relative overflow-hidden text-left">
         {images?.length ? (
-          <div className="relative w-[340px] h-[240px] min-w-[340px] min-h-[240px] 2xl:w-[640px] 2xl:h-[440px] mt-2 float-right ml-4 mb-2">
+          <div className="relative w-[160px] max-w-[85vw] h-[120px] mx-auto mb-3 mt-2 xl:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[280px] xl:h-[200px] xl:max-w-none xl:mx-0 2xl:w-[340px] 2xl:h-[240px]">
             <Swiper
               modules={[Navigation, Pagination]}
               navigation
@@ -54,14 +54,16 @@ export const RecipeSectionFullHeight = ({
         >
           {title}ss
         </h4>
-        <div
-          className="text-description"
-          dangerouslySetInnerHTML={{ __html: ingredientsText }}
-        />
-        <div
-          className="text-description mt-2"
-          dangerouslySetInnerHTML={{ __html: directionsText }}
-        />
+        <div className="min-w-0 break-words">
+          <div
+            className="text-description"
+            dangerouslySetInnerHTML={{ __html: ingredientsText }}
+          />
+          <div
+            className="text-description mt-2"
+            dangerouslySetInnerHTML={{ __html: directionsText }}
+          />
+        </div>
       </div>
 
       <div className="corner corner--big lt" />

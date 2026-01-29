@@ -2,11 +2,21 @@
   box-sizing: border-box;
 }
 
+/* Book root: column layout so wrap keeps fixed height and comment section stacks below */
+.book-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Book area: fixed min-height so comment section below doesn't shift prev/next buttons */
 .wrap {
   padding: 10px 0;
   width: 100%;
   max-width: 100%;
   flex-grow: 1;
+  flex-shrink: 0;
+  min-height: calc(100vh - 100px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -24,6 +34,7 @@
 .custom-container {
   width: 90vw;
   height: 100%;
+  min-height: inherit;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -43,6 +54,9 @@
   background-repeat: no-repeat;
   background-position: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 767px) {
@@ -68,21 +82,25 @@
 .page-content {
   width: 100%;
   height: 100%;
-  min-height: 420px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  padding: 20px;
+  padding: 16px;
   text-align: center;
+  overflow: hidden;
 }
 
 .pokemon-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   width: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 /* .pokemon-container img {
@@ -96,7 +114,10 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .page-title {
@@ -187,12 +208,13 @@
   line-height: 1.4;
   overflow: hidden;
   white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
 
   @media (min-width: 1440px) {
     font-size: 18px;
   }
 }
-
 .text-description--long {
   text-align: left;
 }
@@ -200,14 +222,6 @@
 .demoPage {
   background: #fff;
   color: #000;
-}
-
-.book-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: fit-content;
-  margin: auto;
 }
 
 .corner {
@@ -270,6 +284,9 @@
   background-size: cover;
   background-repeat: no-repeat;
   padding: 0.5rem 1rem 1.25rem;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
 }
 
 .description-wrap--vertical {
@@ -280,20 +297,13 @@
   background: var(--color-yellow-light) !important;
 }
 
-/* Swiper navigation size override */
-.swiper {
-  --swiper-navigation-size: 20px !important;
+.swiper-button-prev::after {
+  font-size: 34px !important;
+  color: var(--color-yellow-light);
 }
 
-@media (min-width: 768px) {
-  .swiper {
-    --swiper-navigation-size: 30px !important;
-  }
-}
-
-.swiper-button-prev::after,
 .swiper-button-next::after {
-  font-size: var(--swiper-navigation-size) !important;
+  font-size: 34px !important;
   color: var(--color-yellow-light);
 }
 

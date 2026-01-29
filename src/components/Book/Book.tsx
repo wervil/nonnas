@@ -25,7 +25,7 @@ export type BookHandle = {
   goToRecipe: (recipeId: number) => void
 }
 
-const HEADER_HEIGHT = 100
+const HEADER_HEIGHT = 200
 const TOC_ITEM_HEIGHT = 40
 
 // Number of pages before recipes start (cover + TOC pages)
@@ -83,8 +83,9 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768)
-      setIsSinglePage(window.innerWidth < 2800)
+      const mobile = window.innerWidth < 1024
+      setIsMobile(mobile)
+      setIsSinglePage(mobile)
       setContentHeight(window.innerHeight - HEADER_HEIGHT)
       // Call layout check after screen size changes
       setTimeout(getCurrentLayout, 100)
@@ -120,8 +121,13 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       getOrientation: () => 'landscape' | 'portrait'
     }
   } | null>(null)
+  const lastPageRef = useRef(0)
+  useEffect(() => {
+    lastPageRef.current = currentPage
+  }, [currentPage])
 
   const nextPage = () => {
+    if (isNextDisabled) return
     flipbookRef.current?.pageFlip()?.flipNext()
   }
 
@@ -130,9 +136,13 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }
 
   const isPrevDisabled = currentPage === 0
-  const isNextDisabled = isSinglePage
-    ? currentPage >= totalPages - 1
-    : currentPage + 1 >= totalPages - 1
+  // Use ref (updated in onFlip) so double-page mode gets correct page immediately
+  const pageForDisable = lastPageRef.current
+  const isNextDisabled =
+    totalPages <= 1 ||
+    (isSinglePage
+      ? pageForDisable >= totalPages - 1
+      : pageForDisable >= totalPages - 2)
 
   const goToPage = (pageNumber: number) => {
     if (flipbookRef.current) {
@@ -176,7 +186,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }, [initialRecipeId, recipes, goToRecipe])
 
   return (
-    <>
+    <div className="book-root">
       <div className="wrap">
         <div className="custom-container flex">
           <button
@@ -243,10 +253,9 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               showPageCorners={true}
               disableFlipByClick={false}
               onFlip={(e) => {
-                // e.data contains the current page number
                 const currentPageNum = e.data
+                lastPageRef.current = currentPageNum
                 setCurrentPage(currentPageNum)
-                console.log('Page flipped to:', currentPageNum, 'PAGES_BEFORE_RECIPES:', PAGES_BEFORE_RECIPES)
 
                 if (currentPageNum < PAGES_BEFORE_RECIPES) {
                   // On cover page, clear current recipe
@@ -321,12 +330,11 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
       {/* Comments Section - appears below flipbook */}
       {currentRecipeId && (
-        <div className="w-full max-w-3xl mx-auto px-4 py-6 mb-8 relative z-[100]">
+        <div className="w-full max-w-3xl sm:mt-10 mx-auto px-4 py-6 mb-8 relative z-[100]">
           {/* Decorative background with vintage paper texture effect */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 rounded-xl pointer-events-none" />
 
-          {/* Decorative top border */}
-          <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-primary-border)] to-transparent opacity-40 pointer-events-none" />
+          <div className="absolute top-0 left-8 right-8 h-[2px] bg-linear-to-r from-transparent via-(--color-primary-border to-transparent opacity-40 pointer-events-none" />
 
           {/* Corner ornaments */}
           <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-tl-lg pointer-events-none" />
@@ -334,7 +342,6 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
           <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-bl-lg pointer-events-none" />
           <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-[var(--color-primary-border)]/40 rounded-br-lg pointer-events-none" />
 
-          {/* Content */}
           <div className="relative z-10 p-6">
             <CommentSection
               key={currentRecipeId}
@@ -346,7 +353,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       )}
 
       <ImagesModal images={images} onClose={() => setImages(null)} />
-    </>
+    </div>
   )
 })
 

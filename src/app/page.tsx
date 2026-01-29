@@ -120,15 +120,19 @@ export default function Recipes() {
             user={user}
           />
         </div>
-        <main className="grow flex flex-col w-full object-top object-cover relative main-gradient min-h-svh">
+        <main className="grow flex flex-col w-full object-top object-cover relative main-gradient min-h-svh overflow-x-hidden">
           <WelcomeOverlay />
-          <Image
-            src="/bg.webp"
-            alt="Description"
-            layout="fill"
-            objectFit="cover"
-            style={{ zIndex: -1 }}
-          />
+          {/* Fixed background so it doesn't shift when book/comment section changes */}
+          <div className="fixed inset-0 z-[-1] pointer-events-none" aria-hidden>
+            <Image
+              src="/bg.webp"
+              alt=""
+              layout="fill"
+              objectFit="cover"
+              objectPosition="top"
+              priority
+            />
+          </div>
           <div className="items-center relative flex flex-col md:hidden p-8 w-full gap-3">
             {button(path || '', n as (key: string) => string, hasPermissions)}
             {setSearch ? (

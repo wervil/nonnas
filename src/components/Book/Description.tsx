@@ -52,7 +52,7 @@ export const Description = ({
           backgroundImage: imageUrl
             ? `url(${imageUrl})`
             : "url('/bg-6.webp')",
-          maxWidth: maxWidth || '100%',
+          maxWidth: '100%',
           // height: `${height}px`,
         }}
         onClick={openModal}
@@ -97,13 +97,13 @@ export const Description = ({
             className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
             <button
               onClick={closeModal}
-              className={"absolute  top-8 right-[12vw] text-white text-3xl font-bold z-1050 "}
+              className={"fixed  top-4 right-12 text-white text-3xl font-bold z-1050 "}
             >
               <X size={30} />
             </button>
 
             <div
-              className="description-wrap w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]"
+              className="description-wrap w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px]"
               style={{
                 backgroundImage: popupImageUrl
                   ? `url(${popupImageUrl})`
