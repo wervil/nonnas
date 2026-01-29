@@ -367,9 +367,9 @@ function DashboardInner({
           </div>
         ) : tab === 'users' ? (
           <div className="rounded-xl border border-[var(--color-primary-border)]/20 overflow-hidden bg-[var(--color-brown-pale)] shadow-lg">
-            <div className="grid grid-cols-6 gap-4 p-4 font-[var(--font-bell)] bg-[var(--color-brown-light)] text-[var(--color-yellow-light)]">
-              <div>Name</div>
-              <div>Email</div>
+            <div className="grid grid-cols-6 gap-4 p-4 font-[var(--font-bell)] bg-[var(--color-brown-light)] text-[var(--color-yellow-light)] min-w-0">
+              <div className="min-w-0">Name</div>
+              <div className="min-w-0">Email</div>
               <div>Role</div>
               <div>Signed up</div>
               <div className="text-right">Action</div>
@@ -386,11 +386,15 @@ function DashboardInner({
               return (
                 <div
                   key={u.id}
-                  className={`grid grid-cols-6 gap-4 p-4 border-t border-[var(--color-primary-border)]/10 items-center transition-colors hover:bg-[var(--color-brown-light)]/50 ${isSuper ? 'bg-[var(--color-warning-main)]/10' : ''
+                  className={`grid grid-cols-6 gap-4 p-4 border-t border-[var(--color-primary-border)]/10 items-center transition-colors hover:bg-[var(--color-brown-light)]/50 min-w-0 ${isSuper ? 'bg-[var(--color-warning-main)]/10' : ''
                     }`}
                 >
-                  <div className="text-[var(--color-text-pale)] font-[var(--font-bell)]">{u.displayName || '—'}</div>
-                  <div className="truncate text-[var(--color-text-pale)] font-[var(--font-bell)]">{u.primaryEmail || '—'}</div>
+                  <div className="min-w-0 truncate text-[var(--color-text-pale)] font-[var(--font-bell)]" title={u.displayName || undefined}>
+                    {u.displayName || '—'}
+                  </div>
+                  <div className="min-w-0 truncate text-[var(--color-text-pale)] font-[var(--font-bell)]" title={u.primaryEmail || undefined}>
+                    {u.primaryEmail || '—'}
+                  </div>
 
                   <div>
                     {isSuper ? (
