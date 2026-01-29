@@ -135,7 +135,7 @@ export const RecipeSection = ({
             className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
             <button
               onClick={closeModal}
-              className="absolute cursor-pointer top-8 right-[12vw] text-white text-3xl font-bold z-1050"
+              className="fixed cursor-pointer top-4 right-12  text-white text-3xl font-bold z-1050"
             >
               <X size={30} />
             </button>
