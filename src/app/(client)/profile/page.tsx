@@ -4,7 +4,7 @@ import { RecipesList } from '@/components/RecipesList'
 import ThreadList from '@/components/Threads/ThreadList'
 import Button from '@/components/ui/Button'
 import { Recipe } from '@/db/schema'
-import { useUser } from '@stackframe/stack'
+import { CurrentInternalUser, CurrentUser, useUser } from '@stackframe/stack'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, BookOpen, Heart, MessageCircle, Pencil } from 'lucide-react'
@@ -27,7 +27,7 @@ export default function Profile() {
   return <ProfileAuthed user={user} />
 }
 
-function ProfileAuthed({ user }: { user: any }) {
+function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
   const [activeTab, setActiveTab] = useState<'my_recipes' | 'saved' | 'activity'>('my_recipes')
   const [myRecipes, setMyRecipes] = useState<Recipe[]>([])
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
