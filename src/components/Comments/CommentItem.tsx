@@ -163,16 +163,16 @@ export default function CommentItem({
                                 {comment.author_name || (comment.user_id.length > 12 ? `${comment.user_id.slice(0, 12)}...` : comment.user_id)}
                             </span>
                             <span className="text-[var(--color-text-pale)] text-xs">•</span>
-                            <span className="text-[var(--color-text-pale)] text-xs italic font-[var(--font-bell)]">
+                            <span className="text-[#7b3900] text-xs italic font-[var(--font-bell)]">
                                 {formatDate(comment.created_at)}
                             </span>
 
-                            {/* Message Icon after 1 hour */}
+                            {/* Message Icon a */}
                             {userId && userId !== comment.user_id && (!comment.created_at || (Date.now() - new Date(comment.created_at).getTime() > 1000)) && (
                                 <Link
                                     href={`/messages?chatWith=${comment.user_id}&name=${encodeURIComponent(comment.author_name || '')}`}
                                     target="_blank"
-                                    className="text-[var(--color-text-pale)] hover:text-[var(--color-primary-main)] transition-colors ml-1"
+                                    className="text-[#7b3900] hover:text-[var(--color-primary-main)] transition-colors ml-1"
                                     title="Message User"
                                 >
                                     <MessageSquare className="w-3.5 h-3.5" />
