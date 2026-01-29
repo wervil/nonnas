@@ -176,7 +176,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }, [initialRecipeId, recipes, goToRecipe])
 
   return (
-    <>
+    <div className="book-root">
       <div className="wrap">
         <div className="custom-container flex">
           <button
@@ -325,8 +325,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
           {/* Decorative background with vintage paper texture effect */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 rounded-xl pointer-events-none" />
 
-          {/* Decorative top border */}
-          <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-[var(--color-primary-border)] to-transparent opacity-40 pointer-events-none" />
+          <div className="absolute top-0 left-8 right-8 h-[2px] bg-linear-to-r from-transparent via-(--color-primary-border to-transparent opacity-40 pointer-events-none" />
 
           {/* Corner ornaments */}
           <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-tl-lg pointer-events-none" />
@@ -334,7 +333,6 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
           <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-bl-lg pointer-events-none" />
           <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-[var(--color-primary-border)]/40 rounded-br-lg pointer-events-none" />
 
-          {/* Content */}
           <div className="relative z-10 p-6">
             <CommentSection
               key={currentRecipeId}
@@ -346,7 +344,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       )}
 
       <ImagesModal images={images} onClose={() => setImages(null)} />
-    </>
+    </div>
   )
 })
 
