@@ -49,7 +49,7 @@ export const convertRecipesToPages = (
     <div className="page" key={`${index}-1`}>
       <div className="page-content">
         <div className="pokemon-container h-[100%]">
-          <div className="pokemon-info w-full h-[5%]">
+          <div className="pokemon-info w-full h-[5%] mb-4">
             <ClickableHoverCard
               trigger={
                 <h2 className="page-title max-w-full overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer capitalize">
@@ -59,9 +59,8 @@ export const convertRecipesToPages = (
               content={`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}
             />
           </div>
-          <div className="flex flex-row gap-3 items-center flex-wrap whitespace-nowrap justify-around w-full h-[35%]">
-            {/* <div className="max-w-[110px] flex flex-col items-center gap-1"> */}
-            <div className="max-w-[38%] flex flex-col items-center gap-1">
+          <div className="flex flex-row gap-3 items-center flex-wrap justify-around w-full h-[35%] min-h-0 min-w-0">
+            <div className="max-w-[38%] min-w-0 flex flex-col items-center gap-1 shrink">
               <FlagIcon
                 code={
                   countriesReverseMap[
@@ -77,8 +76,7 @@ export const convertRecipesToPages = (
                 ({recipe.region})
               </p>
             </div>
-            {/* <div className="relative w-[120px] md:w-[180px] lg:w-[240px] h-[90px] md:h-[150px] lg:h-[190px] 2xl:w-[360px] 2xl:h-[240px]"> */}
-            <div className="relative w-[57%] h-[100%]">
+            <div className="relative w-[57%] min-w-0 h-[100%] overflow-hidden shrink">
               {recipe.photo && recipe.photo.length > 0 && (
                 <Swiper
                   modules={[Navigation, Pagination]}

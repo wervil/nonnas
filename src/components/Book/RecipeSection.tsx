@@ -56,11 +56,13 @@ export const RecipeSection = ({
         onMouseLeave={() => setShowButton(false)}
       >
         <div className="relative overflow-hidden text-left">
+          <h4
+            className={`text-federant text-brown-light text-center text-m xl:text-xl`}
+          >
+            {title}
+          </h4>
           {images?.length ? (
-            // <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] 2xl:w-[320px] 2xl:h-[220px] mt-2 float-right ml-4 mb-2">
-
-
-            <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] 2xl:w-[220px] 2xl:h-[200px] mt-2 float-right ml-4 mb-2">
+            <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 lg:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] xl:max-w-none xl:mx-0 2xl:w-[220px] 2xl:h-[200px]">
               <Swiper
                 modules={[Navigation, Pagination]}
                 navigation
@@ -91,27 +93,26 @@ export const RecipeSection = ({
               </Swiper>
             </div>
           ) : null}
-          <h4
-            className={`text-federant text-brown-light text-center text-m xl:text-xl`}
-          >
-            {title}
-          </h4>
-          <div
-            className={clsx(
-              'text-description text-description--long',
-              showButton ? 'opacity-30' : 'opacity-100'
-            )}
-            style={{ overflow: 'visible' }}
-            dangerouslySetInnerHTML={{ __html: ingredientsText }}
-          />
-          <div
-            className={clsx(
-              'text-description text-description--long mt-2',
-              showButton ? 'opacity-30' : 'opacity-100'
-            )}
-            style={{ overflow: 'visible' }}
-            dangerouslySetInnerHTML={{ __html: directionsText }}
-          />
+
+
+          <div className="min-w-0 break-words">
+            <div
+              className={clsx(
+                'text-description text-description--long',
+                showButton ? 'opacity-30' : 'opacity-100'
+              )}
+              style={{ overflow: 'visible' }}
+              dangerouslySetInnerHTML={{ __html: ingredientsText }}
+            />
+            <div
+              className={clsx(
+                'text-description text-description--long mt-2',
+                showButton ? 'opacity-30' : 'opacity-100'
+              )}
+              style={{ overflow: 'visible' }}
+              dangerouslySetInnerHTML={{ __html: directionsText }}
+            />
+          </div>
         </div>
 
         <div className="corner corner--big lt" />
@@ -146,7 +147,7 @@ export const RecipeSection = ({
               className="relative description-wrap description-wrap--vertical cursor-pointer w-[70vw]! h-[90vh] max-w-[1400px]! max-h-[1000px] min-w-[300px] min-h-[200px]">
               <div className="relative overflow-auto">
                 {images?.length ? (
-                  <div className="relative w-[170px] h-[120px] min-w-[170px] min-h-[120px] lg:w-[250px] lg:h-[220px] mt-2 float-right ml-4 mb-2">
+                  <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 xl:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] lg:w-[250px] lg:h-[220px] xl:max-w-none xl:mx-0">
                     <Swiper
                       modules={[Navigation, Pagination]}
                       navigation
@@ -178,16 +179,18 @@ export const RecipeSection = ({
                 >
                   {title}
                 </h4>
-                <div
-                  className="text-description text-description--long"
-                  style={{ overflow: 'visible' }}
-                  dangerouslySetInnerHTML={{ __html: ingredientsText }}
-                />
-                <div
-                  className="text-description text-description--long mt-2"
-                  style={{ overflow: 'visible' }}
-                  dangerouslySetInnerHTML={{ __html: directionsText }}
-                />
+                <div className="min-w-0 break-words">
+                  <div
+                    className="text-description text-description--long"
+                    style={{ overflow: 'visible' }}
+                    dangerouslySetInnerHTML={{ __html: ingredientsText }}
+                  />
+                  <div
+                    className="text-description text-description--long mt-2"
+                    style={{ overflow: 'visible' }}
+                    dangerouslySetInnerHTML={{ __html: directionsText }}
+                  />
+                </div>
               </div>
 
               <div className="corner corner--big lt" />

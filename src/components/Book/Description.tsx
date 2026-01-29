@@ -52,7 +52,7 @@ export const Description = ({
           backgroundImage: imageUrl
             ? `url(${imageUrl})`
             : "url('/bg-6.webp')",
-          maxWidth: maxWidth || '100%',
+          maxWidth: '100%',
           // height: `${height}px`,
         }}
         onClick={openModal}

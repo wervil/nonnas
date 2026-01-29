@@ -208,6 +208,8 @@
   line-height: 1.4;
   overflow: hidden;
   white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
 
   @media (min-width: 1440px) {
     font-size: 18px;
