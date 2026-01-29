@@ -25,7 +25,7 @@ export type BookHandle = {
   goToRecipe: (recipeId: number) => void
 }
 
-const HEADER_HEIGHT = 120
+const HEADER_HEIGHT = 200
 const TOC_ITEM_HEIGHT = 40
 
 // Number of pages before recipes start (cover + TOC pages)
