@@ -27,7 +27,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  position: relative;
 }
 
 .pokemon-logo {
@@ -192,7 +191,6 @@
     font-size: 18px;
   }
 }
-
 .text-description--long {
   text-align: left;
 }
@@ -200,14 +198,6 @@
 .demoPage {
   background: #fff;
   color: #000;
-}
-
-.book-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: fit-content;
-  margin: auto;
 }
 
 .corner {
@@ -280,20 +270,13 @@
   background: var(--color-yellow-light) !important;
 }
 
-/* Swiper navigation size override */
-.swiper {
-  --swiper-navigation-size: 20px !important;
+.swiper-button-prev::after {
+  font-size: 34px !important;
+  color: var(--color-yellow-light);
 }
 
-@media (min-width: 768px) {
-  .swiper {
-    --swiper-navigation-size: 30px !important;
-  }
-}
-
-.swiper-button-prev::after,
 .swiper-button-next::after {
-  font-size: var(--swiper-navigation-size) !important;
+  font-size: 34px !important;
   color: var(--color-yellow-light);
 }
 
