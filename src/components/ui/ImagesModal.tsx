@@ -29,19 +29,9 @@ export const ImagesModal = ({ onClose, images }: Props) => {
   return (
     <div
       className="fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)] top-0 left-0 right-0 bottom-0"
-      onClick={(e) => {
-        const target = e.target as HTMLElement
-        // Don't close if clicking on the image or swiper navigation/pagination
-        if (
-          target.tagName === 'IMG' ||
-          target.closest('.swiper-button-next') ||
-          target.closest('.swiper-button-prev') ||
-          target.closest('.swiper-pagination')
-        ) {
-          return
-        }
-        onClose()
-      }}
+      onClick={
+        onClose
+      }
     >
       <button
         onClick={onClose}
@@ -50,13 +40,18 @@ export const ImagesModal = ({ onClose, images }: Props) => {
         <X size={30} />
       </button>
 
-      <div className="relative w-[70vw] h-[90vh] max-w-[1400px] max-h-[1000px] min-w-[300px] min-h-[200px]">
+      <div
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
+
+        className="relative w-[70vw] h-[90vh] max-w-[1400px] max-h-[1000px] min-w-[300px] min-h-[200px]">
         <Swiper
           modules={[Navigation, Pagination]}
           navigation
           pagination={{ clickable: true }}
           loop={images?.length > 1}
-          className="w-full h-full rounded-lg cursor-pointer"
+          className="w-full h-full rounded-lg"
           style={
             {
               '--swiper-navigation-sides-offset': '0px',
