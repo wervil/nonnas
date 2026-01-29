@@ -1,4 +1,4 @@
-import "react"
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 
@@ -11,6 +11,7 @@ import { StackProvider, StackTheme } from "@stackframe/stack"
 import { stackServerApp } from "../stack"
 import { Footer } from "@/components/Footer"
 import { Toaster } from 'sonner'
+import { UserNamePrompt } from '@/components/UserNamePrompt'
 
 
 export const metadata: Metadata = {
@@ -46,6 +47,9 @@ export default async function RootLayout({
             <StackTheme>
               <div className="min-h-svh">{children}</div>
               <Footer />
+              <Suspense fallback={null}>
+                <UserNamePrompt />
+              </Suspense>
             </StackTheme>
           </StackProvider>
         </NextIntlClientProvider>
