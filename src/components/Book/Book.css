@@ -1,12 +1,7 @@
-* {
-  box-sizing: border-box;
-}
-
-/* Book root: column layout so wrap keeps fixed height and comment section stacks below */
+/* Book root: now handles layout via Tailwind classes in Book.tsx */
 .book-root {
-  display: flex;
-  flex-direction: column;
   width: 100%;
+  /* display and flex-direction handled in component */
 }
 
 /* Book area: fixed min-height so comment section below doesn't shift prev/next buttons */
@@ -216,6 +211,7 @@
     font-size: 18px;
   }
 }
+
 .text-description--long {
   text-align: left;
 }

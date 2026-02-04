@@ -13,6 +13,7 @@ import Image from 'next/image'
 // import { Typography } from '../ui/Typography'
 import { useUser } from '@stackframe/stack'
 import CommentSection from '../Comments/CommentSection'
+import { MessageCircle, X } from 'lucide-react'
 
 type Props = {
   recipes: Recipe[]
@@ -37,6 +38,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   const [isMobile, setIsMobile] = useState(false)
   const [isSinglePage, setIsSinglePage] = useState(false)
   const [contentHeight, setContentHeight] = useState(0)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const [images, setImages] = useState<string[] | null>(null)
   // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
@@ -81,21 +83,26 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
     // setPageRanges(pageRanges)
   }, [contentHeight, tableOfContents])
 
-  useEffect(() => {
-    const checkScreenSize = () => {
-      const mobile = window.innerWidth < 1024
-      setIsMobile(mobile)
-      setIsSinglePage(mobile)
-      setContentHeight(window.innerHeight - HEADER_HEIGHT)
-      // Call layout check after screen size changes
-      setTimeout(getCurrentLayout, 100)
-    }
+  const checkScreenSize = useCallback(() => {
+    const sidebarWidth = isSidebarOpen ? 400 : 0
+    const availableWidth = window.innerWidth - sidebarWidth
+    const mobile = window.innerWidth < 1024
 
+    setIsMobile(mobile)
+    // Switch to single page if it's mobile OR if available space is too narrow
+    setIsSinglePage(mobile || availableWidth < 1200)
+
+    setContentHeight(window.innerHeight - HEADER_HEIGHT)
+    // Call layout check after screen size changes
+    setTimeout(getCurrentLayout, 100)
+  }, [isSidebarOpen])
+
+  useEffect(() => {
     checkScreenSize()
     window.addEventListener('resize', checkScreenSize)
 
     return () => window.removeEventListener('resize', checkScreenSize)
-  }, [])
+  }, [checkScreenSize])
 
   useEffect(() => {
     getCurrentLayout()
@@ -186,171 +193,178 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   }, [initialRecipeId, recipes, goToRecipe])
 
   return (
-    <div className="book-root">
-      <div className="wrap">
-        <div className="custom-container flex">
-          <button
-            className={`rotate-135 md:rotate-355 relative md:absolute md:top-1/2 md:-translate-y-1/2 left-[10px] md:left-0 z-1000 ${isPrevDisabled
-              ? 'opacity-30 cursor-not-allowed pointer-events-none'
-              : 'cursor-pointer'
-              }`}
-            onClick={prevPage}
-            disabled={isPrevDisabled}
-            style={{ color: 'white', fontSize: 20 }}
-          >
-            {window.innerWidth > 768 ? (
-              <Image
-                src="/prev.png"
-                width={window.innerWidth < 1500 ? 120 : 180}
-                height={window.innerWidth < 1500 ? 80 : 100}
-                alt="Prev"
-              />
-            ) : (
-              <div className="navigation-arrow" />
-            )}
-          </button>
-          <div
-            className="book-container"
-            style={{
-              transition: 'transform 1000ms ease',
-              transform: !isSinglePage && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
-            }}
-          >
-            {/* {orientation == 'landscape' ? (
-              <div className="page-first cover page-first--desktop">
-                <div className="info-wrap">
-                  <Typography size="h6" weight="bold" color="white">
-                    {l('infoTitle')}
-                  </Typography>
-                  <Typography size="body" color="white" className="mt-4">
-                    {l('infoDescr')}
-                  </Typography>
-                </div>
-              </div>
-            ) : null} */}
-
-            <HTMLFlipBook
-              key={isSinglePage ? 'single' : 'double'}
-              width={isMobile ? 300 : contentHeight * 0.75}
-              height={isMobile ? 550 : contentHeight}
-              minHeight={isMobile ? 550 : contentHeight}
-              maxShadowOpacity={0.5}
-              drawShadow={true}
-              showCover={true}
-              size="fixed"
-              useMouseEvents={false}
-              ref={flipbookRef}
-              className=""
-              startPage={0}
-              minWidth={isSinglePage ? (isMobile ? 300 : contentHeight * 0.75) : contentHeight * 1.5}
-              maxWidth={isSinglePage ? (isMobile ? 440 : contentHeight * 0.75) : contentHeight * 1.5}
-              maxHeight={isMobile ? 550 : contentHeight}
-              flippingTime={1000}
-              usePortrait={isSinglePage}
-              startZIndex={0}
-              autoSize={true}
-              swipeDistance={30}
-              showPageCorners={true}
-              disableFlipByClick={false}
-              onFlip={(e) => {
-                const currentPageNum = e.data
-                lastPageRef.current = currentPageNum
-                setCurrentPage(currentPageNum)
-
-                if (currentPageNum < PAGES_BEFORE_RECIPES) {
-                  // On cover page, clear current recipe
-                  console.log('On cover page, clearing recipe')
-                  setCurrentRecipeId(null)
-                } else {
-                  // Calculate which recipe is currently displayed
-                  // Each recipe has 2 pages, and there's 1 cover page before recipes
-                  // If currentPage is 1 (left page of first recipe), index should be 0
-                  // If currentPage is 2 (right page of first recipe), index should be 0
-                  const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
-                  console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
-
-                  if (recipeIndex >= 0 && recipeIndex < recipes.length) {
-                    const recipeId = recipes[recipeIndex].id
-                    console.log('Setting recipe ID to:', recipeId)
-                    setCurrentRecipeId(recipeId)
-                  } else {
-                    console.log('Recipe index out of bounds')
-                    setCurrentRecipeId(null)
-                  }
-                }
-              }}
-              mobileScrollSupport={false}
-              style={{}}
-              clickEventForward={true}
+    <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
+      <div
+        className={`transition-all duration-300 ease-in-out h-full relative ${isSidebarOpen ? 'w-[calc(100%-400px)]' : 'w-full'
+          }`}
+      >
+        <div className="wrap h-full">
+          <div className="custom-container flex justify-center items-center h-full relative">
+            <button
+              className={`rotate-135 md:rotate-355 relative md:absolute md:top-1/2 md:-translate-y-1/2 left-[10px] md:left-4 z-1000 ${isPrevDisabled
+                ? 'opacity-30 cursor-not-allowed pointer-events-none'
+                : 'cursor-pointer hover:scale-110 transition-transform'
+                }`}
+              onClick={prevPage}
+              disabled={isPrevDisabled}
+              style={{ color: 'white', fontSize: 20 }}
             >
-              <div className="cover" key="cover">
+              {window.innerWidth > 768 ? (
                 <Image
-                  src={
-                    window.innerWidth > 768
-                      ? '/cover.webp'
-                      : '/cover-mobile.webp'
-                  }
-                  alt="Title"
-                  layout="fill"
-                  objectFit="contain"
+                  src="/prev.png"
+                  width={window.innerWidth < 1500 ? 120 : 180}
+                  height={window.innerWidth < 1500 ? 80 : 100}
+                  alt="Prev"
                 />
-              </div>
+              ) : (
+                <div className="navigation-arrow" />
+              )}
+            </button>
 
-              {/* {generateTOCpages({
-                tableOfContents: pageRanges,
-                contentHeight,
-                recipesPerPage,
-                goToPage,
-              })} */}
-              {convertRecipesToPages(recipes, l, contentHeight, setImages)}
-            </HTMLFlipBook>
+            <div
+              className="book-container"
+              style={{
+                transition: 'transform 1000ms ease',
+                transform: !isSinglePage && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
+              }}
+            >
+              <HTMLFlipBook
+                key={isSinglePage ? 'single' : 'double'}
+                width={isMobile ? 300 : contentHeight * 0.75}
+                height={isMobile ? 550 : contentHeight}
+                minHeight={isMobile ? 550 : contentHeight}
+                maxShadowOpacity={0.5}
+                drawShadow={true}
+                showCover={true}
+                size="fixed"
+                useMouseEvents={false}
+                ref={flipbookRef}
+                className=""
+                startPage={0}
+                minWidth={isSinglePage ? (isMobile ? 300 : contentHeight * 0.75) : contentHeight * 1.5}
+                maxWidth={isSinglePage ? (isMobile ? 440 : contentHeight * 0.75) : contentHeight * 1.5}
+                maxHeight={isMobile ? 550 : contentHeight}
+                flippingTime={1000}
+                usePortrait={isSinglePage}
+                startZIndex={0}
+                autoSize={true}
+                swipeDistance={30}
+                showPageCorners={true}
+                disableFlipByClick={false}
+                onFlip={(e) => {
+                  const currentPageNum = e.data
+                  lastPageRef.current = currentPageNum
+                  setCurrentPage(currentPageNum)
+
+                  if (currentPageNum < PAGES_BEFORE_RECIPES) {
+                    console.log('On cover page, clearing recipe')
+                    setCurrentRecipeId(null)
+                  } else {
+                    const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
+                    console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
+
+                    if (recipeIndex >= 0 && recipeIndex < recipes.length) {
+                      const recipeId = recipes[recipeIndex].id
+                      console.log('Setting recipe ID to:', recipeId)
+                      setCurrentRecipeId(recipeId)
+                    } else {
+                      console.log('Recipe index out of bounds')
+                      setCurrentRecipeId(null)
+                    }
+                  }
+                }}
+                mobileScrollSupport={false}
+                style={{}}
+                clickEventForward={true}
+              >
+                <div className="cover" key="cover">
+                  <Image
+                    src={
+                      window.innerWidth > 768
+                        ? '/cover.webp'
+                        : '/cover-mobile.webp'
+                    }
+                    alt="Title"
+                    layout="fill"
+                    objectFit="contain"
+                    priority
+                  />
+                </div>
+                {convertRecipesToPages(recipes, l, contentHeight, setImages)}
+              </HTMLFlipBook>
+            </div>
+
+            <button
+              className={`rotate-315 md:rotate-10 relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-[10px] md:right-4 ${isNextDisabled
+                ? 'opacity-30 cursor-not-allowed pointer-events-none'
+                : 'cursor-pointer hover:scale-110 transition-transform'
+                }`}
+              onClick={nextPage}
+              disabled={isNextDisabled}
+              style={{ color: 'white', fontSize: 20 }}
+            >
+              {window.innerWidth > 768 ? (
+                <Image
+                  src="/next.png"
+                  width={window.innerWidth < 1500 ? 120 : 180}
+                  height={window.innerWidth < 1500 ? 80 : 100}
+                  alt="Next"
+                />
+              ) : (
+                <div className="navigation-arrow" />
+              )}
+            </button>
           </div>
-          <button
-            className={`rotate-315 md:rotate-10 relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-[10px] md:right-0 ${isNextDisabled
-              ? 'opacity-30 cursor-not-allowed pointer-events-none'
-              : 'cursor-pointer'
-              }`}
-            onClick={nextPage}
-            disabled={isNextDisabled}
-            style={{ color: 'white', fontSize: 20 }}
-          >
-            {window.innerWidth > 768 ? (
-              <Image
-                src="/next.png"
-                width={window.innerWidth < 1500 ? 120 : 180}
-                height={window.innerWidth < 1500 ? 80 : 100}
-                alt="Next"
-              />
-            ) : (
-              <div className="navigation-arrow" />
-            )}
-          </button>
         </div>
+
+        {/* Toggle Sidebar Button - Visible when sidebar is closed and we have a recipe */}
+        {!isSidebarOpen && currentRecipeId && (
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="absolute top-8 right-8 z-[100] bg-[#352721] text-white p-3 rounded-full shadow-lg hover:bg-[#4a362e] transition-colors border-2 border-[#dbc9b9] flex items-center gap-2"
+          >
+            <MessageCircle size={24} />
+            <span className="font-serif">Discussions</span>
+          </button>
+        )}
       </div>
 
-      {/* Comments Section - appears below flipbook */}
-      {currentRecipeId && (
-        <div className="w-full max-w-3xl sm:mt-10 mx-auto px-4 py-6 mb-8 relative z-[100]">
-          {/* Decorative background with vintage paper texture effect */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 rounded-xl pointer-events-none" />
+      {/* Sidebar - Comments Section */}
+      <div
+        className={`fixed right-0 top-0 h-full bg-[#1b060d] border-l border-[#dbc9b9]/20 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden ${isSidebarOpen ? 'translate-x-[0px]' : 'translate-x-[400px]'
+          }`}
+        style={{ width: '400px' }}
+      >
+        <div className="h-full flex flex-col relative">
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="absolute top-4 right-4 z-10 text-[#dbc9b9] hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            aria-label="Close sidebar"
+          >
+            <X size={24} />
+          </button>
 
-          <div className="absolute top-0 left-8 right-8 h-[2px] bg-linear-to-r from-transparent via-(--color-primary-border to-transparent opacity-40 pointer-events-none" />
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-16">
+            {/* Decorative background with vintage paper texture effect */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 pointer-events-none -z-10" />
 
-          {/* Corner ornaments */}
-          <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-tl-lg pointer-events-none" />
-          <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-[var(--color-primary-border)]/40 rounded-tr-lg pointer-events-none" />
-          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-[var(--color-primary-border)]/40 rounded-bl-lg pointer-events-none" />
-          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-[var(--color-primary-border)]/40 rounded-br-lg pointer-events-none" />
-
-          <div className="relative z-10 p-6">
-            <CommentSection
-              key={currentRecipeId}
-              recipeId={currentRecipeId}
-              userId={user?.id}
-            />
+            <div className="relative z-10">
+              {currentRecipeId ? (
+                <CommentSection
+                  key={currentRecipeId}
+                  recipeId={currentRecipeId}
+                  userId={user?.id}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[50vh] text-[#dbc9b9] text-center p-6">
+                  <h3 className="text-xl font-serif mb-2">Select a Recipe</h3>
+                  <p className="opacity-70">Turn the pages to view discussions for each recipe.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
       <ImagesModal images={images} onClose={() => setImages(null)} />
     </div>
