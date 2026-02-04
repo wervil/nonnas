@@ -1098,44 +1098,37 @@ export default function GoogleContinentCountryMap({
       setDrill("country");
       dataLayerRef.current?.revertStyle();
 
+      // ✅ OPTIMIZATION: Load state boundaries and fetch state data in PARALLEL
+      const [boundariesSuccess, data] = await Promise.allSettled([
+        loadStateBoundaries(map, countryCode, countryName),
+        fetchStateData(countryCode, countryName),
+      ]);
 
-      // Load state boundaries GeoJSON
-      await loadStateBoundaries(map, countryCode, countryName);
+      // Handle results
+      const boundariesLoaded = boundariesSuccess.status === 'fulfilled' && boundariesSuccess.value;
+      const stateDataResult = data.status === 'fulfilled' ? data.value : null;
 
-      // Fetch state data for the country
-      try {
-        const data = await fetchStateData(countryCode, countryName);
-
-        // Aggregate all nonnas for the country level view
-        const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
-
-        // Create markers immediately with the fresh data
-        if (data && geojsonLoaded === countryCode) {
-          console.log(`✓ Creating markers with ${data.states.length} states immediately after fetch`);
-          createStateMarkers(map, { code: countryCode, name: countryName }, data.states);
-        }
-
-        setPanel({
-          open: true,
-          region: countryCode,
-          regionDisplayName: countryName,
-          scope: 'country',
-          nonnas: allNonnas,
-          initialTab: 'nonnas',
-        });
-      } catch (error) {
-        console.error('Failed to fetch state data for', countryName, error);
-
-        // Still open panel even if state data fails
-        setPanel({
-          open: true,
-          region: countryCode,
-          regionDisplayName: countryName,
-          scope: 'country',
-          nonnas: [],
-          initialTab: 'nonnas',
-        });
+      if (data.status === 'rejected') {
+        console.error('Failed to fetch state data for', countryName, data.reason);
       }
+
+      // Aggregate all nonnas for the country level view
+      const allNonnas = stateDataResult?.states.flatMap(s => s.nonnas) || [];
+
+      // Create markers immediately with the fresh data
+      if (stateDataResult && geojsonLoaded === countryCode) {
+        console.log(`✓ Creating markers with ${stateDataResult.states.length} states immediately after fetch`);
+        createStateMarkers(map, { code: countryCode, name: countryName }, stateDataResult.states);
+      }
+
+      setPanel({
+        open: true,
+        region: countryCode,
+        regionDisplayName: countryName,
+        scope: 'country',
+        nonnas: allNonnas,
+        initialTab: 'nonnas',
+      });
 
       // Find the country bounds from the data layer and zoom to it
       const dataLayer = dataLayerRef.current;
@@ -1904,38 +1897,29 @@ export default function GoogleContinentCountryMap({
           setDrill("country");
           dataLayerRef.current?.revertStyle();
 
-          // Load state boundaries GeoJSON
-          await loadStateBoundaries(map, iso2, countryName);
+          // ✅ OPTIMIZATION: Load state boundaries and fetch state data in PARALLEL
+          const [boundariesSuccess, data] = await Promise.allSettled([
+            loadStateBoundaries(map, iso2, countryName),
+            fetchStateData(iso2, countryName),
+          ]);
 
-          // Fetch state data for the country
-          try {
-            const data = await fetchStateData(iso2, countryName);
-
-            // Aggregate all nonnas for the country level view
-            const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
-
-            // Open panel for country level discussion immediately
-            setPanel({
-              open: true,
-              region: iso2, // Use country code or name as region identifier for threads
-              regionDisplayName: countryName,
-              scope: 'country',
-              nonnas: allNonnas,
-              initialTab: 'nonnas',
-            });
-          } catch (error) {
-            console.error('Failed to fetch state data for', countryName, error);
-
-            // Still open panel even if state data fails - show country-level discussion
-            setPanel({
-              open: true,
-              region: iso2,
-              regionDisplayName: countryName,
-              scope: 'country',
-              nonnas: [], // Empty nonnas array if data fetch fails
-              initialTab: 'nonnas',
-            });
+          const stateDataResult = data.status === 'fulfilled' ? data.value : null;
+          if (data.status === 'rejected') {
+            console.error('Failed to fetch state data for', countryName, data.reason);
           }
+
+          // Aggregate all nonnas for the country level view
+          const allNonnas = stateDataResult?.states.flatMap(s => s.nonnas) || [];
+
+          // Open panel for country level discussion immediately
+          setPanel({
+            open: true,
+            region: iso2,
+            regionDisplayName: countryName,
+            scope: 'country',
+            nonnas: allNonnas,
+            initialTab: 'nonnas',
+          });
 
           // Fit bounds to country with padding
           const countryBounds = new google.maps.LatLngBounds();
