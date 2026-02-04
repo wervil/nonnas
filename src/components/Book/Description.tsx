@@ -64,7 +64,7 @@ export const Description = ({
         >
           {title}
         </h4>
-        <div
+        {/* <div
           className={clsx(
             'text-description line-clamp',
             showButton ? 'opacity-30' : 'opacity-100'
@@ -74,7 +74,17 @@ export const Description = ({
             WebkitLineClamp: getLineClamp(height),
           }}
           dangerouslySetInnerHTML={{ __html: text }}
+        /> */}
+
+        <div
+          className={clsx(
+            // 2 lines by default, 4 lines on xl+ (you can adjust breakpoint)
+            'text-description line-clamp-3 xl:line-clamp-5 !text-[12px] xl:!text-[16px]',
+            showButton ? 'opacity-30' : 'opacity-100'
+          )}
+          dangerouslySetInnerHTML={{ __html: text }}
         />
+
         <div className="corner corner--small lt" />
         <div className="corner corner--small rt" />
         <div className="corner corner--small lb" />

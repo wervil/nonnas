@@ -47,7 +47,7 @@ export const convertRecipesToPages = (
 ) =>
   recipes?.map((recipe, index) => [
     <div className="page" key={`${index}-1`}>
-      <div className="page-content">
+      <div className="page-content relative">
         <div className="pokemon-container h-[100%]">
           <div className="pokemon-info w-full h-[5%] mb-4">
             <ClickableHoverCard
@@ -143,10 +143,13 @@ export const convertRecipesToPages = (
             ) : null}
           </div>
         </div>
+        <div className="absolute bottom-6 left-8 text-federant text-grey text-2xl font-bold z-50 ">
+          {1 + index * 2}
+        </div>
       </div>
     </div>,
     <div className="page" key={`${index}-2`}>
-      <div className="page-content">
+      <div className="page-content relative">
         <div className="pokemon-container h-[100%]">
           {/* <div className='h-[50%]'>  */}
           <RecipeSection
@@ -188,6 +191,9 @@ export const convertRecipesToPages = (
               />
             ) : null}
           </div>
+        </div>
+        <div className="absolute bottom-6 right-8 text-federant text-grey text-2xl font-bold z-50 ">
+          {1 + index * 2 + 1}
         </div>
       </div>
     </div>,
