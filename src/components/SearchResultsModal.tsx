@@ -9,6 +9,7 @@ interface SearchResultsModalProps {
     onClose: () => void
     results: Recipe[]
     onSelect: (recipeId: number) => void
+    selectedCountry?: { name: string; code: string }
 }
 
 export const SearchResultsModal = ({
@@ -16,6 +17,7 @@ export const SearchResultsModal = ({
     onClose,
     results,
     onSelect,
+    selectedCountry,
 }: SearchResultsModalProps) => {
     if (!isOpen) return null
 
@@ -73,9 +75,28 @@ export const SearchResultsModal = ({
                         </div>
                     ))}
                     {results.length === 0 && (
-                        <div className="col-span-full py-10 text-center text-gray-500 italic font-serif">
-                            No grandmother recipes found matching your search.
-                        </div>
+                        selectedCountry ? (
+                            <div className="col-span-full py-16 text-center">
+                                <h3 className="text-xl font-serif text-[#4a3b2a] mb-2">
+                                    No grandmother recipes found in {selectedCountry.name} yet.
+                                </h3>
+                                <p className="text-[#6b5d52] mb-6">
+                                    Do you have a Nonna from {selectedCountry.name}? Be the first to share her story!
+                                </p>
+                                <a
+                                    href={`/explore?country=${selectedCountry.code}&countryName=${encodeURIComponent(selectedCountry.name)}&tab=discussion`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block px-6 py-3 bg-[#a63e2e] !text-white font-medium rounded-full hover:bg-[#8c3426] transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                    Start a Discussion in {selectedCountry.name}
+                                </a>
+                            </div>
+                        ) : (
+                            <div className="col-span-full py-10 text-center text-gray-500 italic font-serif">
+                                No grandmother recipes found matching your search.
+                            </div>
+                        )
                     )}
                 </div>
             </div>

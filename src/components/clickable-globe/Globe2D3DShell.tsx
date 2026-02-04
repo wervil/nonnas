@@ -5,6 +5,8 @@ import GoogleContinentCountryMap from "./GoogleContinentCountryMap";
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { getRegionForCountry } from "./regionData"; // Import helper
+
 const NaturalStyledGlobe = dynamic(() => import("./NaturalStyledGlobe"), {
   ssr: false,
   loading: () => (
@@ -36,14 +38,29 @@ export default function Globe2D3DShell({
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Support testing via URL: /explore?continent=North%20America
+  // OR redirect from country search: /explore?country=AL&countryName=Albania
   useEffect(() => {
     const continent = searchParams?.get("continent");
-    if (continent) {
-      setSelectedContinent(continent);
+    const countryName = searchParams?.get("countryName");
+
+    let targetContinent = continent;
+
+    // If no explicit continent, try to find it from the country name
+    if (!targetContinent && countryName) {
+      targetContinent = getRegionForCountry(countryName);
+      if (targetContinent) {
+        console.log(`🌍 Auto-detected continent for ${countryName}: ${targetContinent}`);
+      } else {
+        console.warn(`⚠️ Could not auto-detect continent for ${countryName}`);
+      }
+    }
+
+    if (targetContinent) {
+      setSelectedContinent(targetContinent);
       setMode("map");
 
       // ✅ Sync only (no zoom logic touched)
-      setExploreState({ mode: "map", selectedContinent: continent });
+      setExploreState({ mode: "map", selectedContinent: targetContinent });
     }
   }, [searchParams, setExploreState]);
 
@@ -84,16 +101,14 @@ export default function Globe2D3DShell({
     <div className="w-full h-full relative overflow-hidden bg-[#0a0a0a]">
       {/* Transition overlay */}
       <div
-        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${
-          isTransitioning ? "opacity-100" : "opacity-0"
-        }`}
+        className={`absolute inset-0 z-50 bg-[#0a0a0a] pointer-events-none transition-opacity duration-200 ${isTransitioning ? "opacity-100" : "opacity-0"
+          }`}
       />
 
       {/* ✅ 3D Globe View (MOUNT ONLY WHEN IN GLOBE MODE) */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${
-          mode === "globe" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-        }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${mode === "globe" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+          }`}
       >
         {mode === "globe" && (
           <NaturalStyledGlobe
@@ -105,9 +120,8 @@ export default function Globe2D3DShell({
 
       {/* 2D Map View */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${
-          mode === "map" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-        }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${mode === "map" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+          }`}
       >
         {mode === "map" && selectedContinent && (
           <GoogleContinentCountryMap

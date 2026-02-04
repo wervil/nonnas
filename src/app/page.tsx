@@ -6,8 +6,8 @@ import Image from 'next/image'
 import { button, Header } from '@/components/Header'
 import { useUser } from '@stackframe/stack'
 import { useTranslations } from 'next-intl'
-import { useCountries } from '@/hooks/useCountries'
-import { countriesReverseMap } from '@/utils/countries'
+// import { useCountries } from '@/hooks/useCountries'
+import { countriesData } from '@/utils/countries'
 import { Select } from '@/components/Select'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { WelcomeOverlay } from '@/components/Book/WelcomeOverlay'
@@ -29,7 +29,7 @@ export type ClusterPoint = {
 export default function Recipes() {
   const n = useTranslations('navigation')
   // const l = useTranslations('labels')
-  const countries = useCountries()
+  // const countries = useCountries() // Removed dynamic hook
   const path = usePathname()
   const searchParams = useSearchParams()
   const bookRef = useRef<BookHandle>(null)
@@ -49,11 +49,17 @@ export default function Recipes() {
     }
   }, [searchParams])
 
+  // Sort and Map all countries
+  const allCountries = Object.keys(countriesData).sort((a, b) =>
+    countriesData[a].name.localeCompare(countriesData[b].name)
+  )
+
   const countriesOptions = [
     { value: '', label: n('all') },
-    ...countries?.map((country: string) => ({
-      value: country,
-      label: `${countriesReverseMap[country]?.flag} ${country}`,
+    ...allCountries.map((code) => ({
+      value: countriesData[code].name, // Using Name as value to match existing logic
+      label: `${countriesData[code].flag} ${countriesData[code].name}`,
+      code: code // Store code for link generation
     })),
   ]
 
@@ -107,6 +113,7 @@ export default function Recipes() {
         }}
         results={filteredRecipes}
         onSelect={handleSelectRecipe}
+        selectedCountry={selectedCountry.value ? { name: selectedCountry.value, code: (selectedCountry as any).code } : undefined}
       />
       <div className="min-h-svh flex flex-col overflow-hidden">
         <div className="relative z-[60]">

@@ -13,14 +13,14 @@ type Admin0FeatureProps = {
   ADMIN?: string;
 };
 
-// Single consistent color for all nonna markers and UI elements
-const MARKER_COLOR = "#d97706"; // Amber/gold color matching the brand
-
-// Map GeoJSON country names to API expected names
-const COUNTRY_NAME_API_MAP: Record<string, string> = {
-  "United States of America": "United States",
-  // Add more mappings as needed
-};
+import {
+  MARKER_COLOR,
+  COUNTRY_NAME_API_MAP,
+  REGION_THEMES,
+  CONTINENT_THEMES,
+  REGION_TO_CONTINENT,
+  REGION_COUNTRIES,
+} from "./regionData";
 
 type Admin0FC = GeoJSON.FeatureCollection<GeoJSON.Geometry, Admin0FeatureProps>;
 
@@ -42,77 +42,6 @@ interface CachedGeoJSON {
   features: GeoJSONFeatureWithGeometry[];
   [key: string]: unknown;
 }
-
-// Region theme colors for dark theme (includes Asia sub-regions)
-const REGION_THEMES: Record<string, { primary: string; secondary: string; highlight: string; bg: string }> = {
-  // Africa
-  Africa: { primary: "#22c55e", secondary: "#14532d", highlight: "#4ade80", bg: "#052e16" },
-
-  // Asia sub-regions
-  "Middle East": { primary: "#f59e0b", secondary: "#451a03", highlight: "#fbbf24", bg: "#1c0a00" },
-  "South Asia": { primary: "#f97316", secondary: "#431407", highlight: "#fb923c", bg: "#1a0800" },
-  "East Asia": { primary: "#eab308", secondary: "#422006", highlight: "#facc15", bg: "#1a0f00" },
-  "Southeast Asia": { primary: "#10b981", secondary: "#064e3b", highlight: "#34d399", bg: "#022c22" },
-  "Central Asia": { primary: "#ca8a04", secondary: "#422006", highlight: "#eab308", bg: "#1a0f00" },
-  Asia: { primary: "#eab308", secondary: "#422006", highlight: "#facc15", bg: "#1a0f00" }, // Fallback
-
-  // Europe
-  Europe: { primary: "#3b82f6", secondary: "#1e3a8a", highlight: "#60a5fa", bg: "#0c1929" },
-
-  // Americas
-  "North America": { primary: "#ef4444", secondary: "#450a0a", highlight: "#f87171", bg: "#1a0505" },
-  "South America": { primary: "#a855f7", secondary: "#3b0764", highlight: "#c084fc", bg: "#1a0533" },
-
-  // Oceania & Pacific
-  Oceania: { primary: "#ec4899", secondary: "#500724", highlight: "#f472b6", bg: "#1a0511" },
-  "Pacific Islands": { primary: "#06b6d4", secondary: "#083344", highlight: "#22d3ee", bg: "#051b24" },
-
-  // Antarctica
-  Antarctica: { primary: "#64748b", secondary: "#1e293b", highlight: "#94a3b8", bg: "#0f172a" },
-};
-
-// Backward compatibility (used by external references)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const CONTINENT_THEMES = REGION_THEMES;
-
-// Map sub-regions to their parent continents for GeoJSON filtering
-const REGION_TO_CONTINENT: Record<string, string> = {
-  "Middle East": "Asia",
-  "South Asia": "Asia",
-  "East Asia": "Asia",
-  "Southeast Asia": "Asia",
-  "Central Asia": "Asia",
-  "Pacific Islands": "Oceania",
-};
-
-// Countries in each sub-region (for filtering)
-const REGION_COUNTRIES: Record<string, string[]> = {
-  "Middle East": [
-    "Turkey", "Iran", "Iraq", "Saudi Arabia", "Yemen", "Syria", "Jordan",
-    "United Arab Emirates", "Israel", "Lebanon", "Oman", "Kuwait", "Qatar",
-    "Bahrain", "Cyprus", "Palestine", "Georgia", "Armenia", "Azerbaijan",
-  ],
-  "South Asia": [
-    "India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Bhutan",
-    "Maldives", "Afghanistan",
-  ],
-  "East Asia": [
-    "China", "Japan", "South Korea", "North Korea", "Taiwan", "Mongolia",
-    "Russia", "Russian Federation", // Russia grouped with East Asia
-  ],
-  "Southeast Asia": [
-    "Thailand", "Vietnam", "Indonesia", "Philippines", "Malaysia", "Singapore",
-    "Myanmar", "Cambodia", "Laos", "Brunei", "Timor-Leste", "East Timor",
-  ],
-  "Central Asia": [
-    "Kazakhstan", "Uzbekistan", "Turkmenistan", "Kyrgyzstan", "Tajikistan",
-  ],
-  "Pacific Islands": [
-    "Fiji", "Papua New Guinea", "Solomon Islands", "Vanuatu", "New Caledonia",
-    "Samoa", "Tonga", "Micronesia", "Marshall Islands", "Palau", "Kiribati",
-    "New Zealand",
-  ],
-};
 
 // Load Google Maps API dynamically
 // let googleMapsPromise: Promise<void> | null = null;
@@ -443,69 +372,7 @@ export default function GoogleContinentCountryMap({
     return undefined;
   }, [normalizeStateName]);
 
-  // Check URL for country parameter (for testing)
-  useEffect(() => {
-    if (initialCountrySetRef.current) return;
-    const countryCode = searchParams?.get("country");
-    const countryName = searchParams?.get("countryName");
-    const stateName = searchParams?.get("state"); // NEW: Support direct state navigation
 
-    if (countryCode && countryName) {
-      initialCountrySetRef.current = true;
-      setSelectedCountry({ code: countryCode, name: countryName });
-
-      // Check if we're navigating directly to a state
-      if (stateName) {
-        console.log(`🎯 Direct navigation to state: ${stateName}`);
-        setDrill("state");
-        dataLayerRef.current?.revertStyle();
-
-        setSelectedState(stateName);
-
-        const loadStateView = async () => {
-          const data = await fetchStateData(countryCode, countryName);
-          // const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
-
-          // Find the specific state
-          const matchedState = data?.states.find(s =>
-            normalizeStateName(s.stateName) === normalizeStateName(stateName)
-          );
-
-          setPanel({
-            open: true,
-            region: stateName,
-            regionDisplayName: `${countryName} • ${stateName}`,
-            scope: 'state',
-            nonnas: matchedState?.nonnas || [],
-            initialTab: 'nonnas',
-          });
-        };
-
-        loadStateView();
-      } else {
-        // Just country view
-        setDrill("country");
-        dataLayerRef.current?.revertStyle();
-
-
-        const loadData = async () => {
-          const data = await fetchStateData(countryCode, countryName);
-          const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
-
-          setPanel({
-            open: true,
-            region: countryCode,
-            regionDisplayName: countryName,
-            scope: 'country',
-            nonnas: allNonnas,
-            initialTab: 'nonnas',
-          });
-        };
-
-        loadData();
-      }
-    }
-  }, [searchParams, fetchStateData, normalizeStateName]);
 
   // Fetch country data on mount
   useEffect(() => {
@@ -1047,6 +914,106 @@ export default function GoogleContinentCountryMap({
       return false;
     }
   }, [clearStateLayer, clearStateLabels, calculateCentroid, highlightState, zoomToState, normalizeStateName]);
+  // Check URL for country parameter (for testing)
+  // MOVED: To ensure loadStateBoundaries is defined and map is ready
+  useEffect(() => {
+    // Only run if map is ready and we haven't set initial country yet
+    if (!mapReady || initialCountrySetRef.current || !mapRef.current) return;
+
+    const countryCode = searchParams?.get("country");
+    const countryName = searchParams?.get("countryName");
+    const stateName = searchParams?.get("state"); // NEW: Support direct state navigation
+    const tabParam = searchParams?.get("tab"); // Support direct tab navigation
+
+    if (countryCode && countryName) {
+      initialCountrySetRef.current = true;
+      setSelectedCountry({ code: countryCode, name: countryName });
+
+      // Check if we're navigating directly to a state
+      if (stateName) {
+        console.log(`🎯 Direct navigation to state: ${stateName}`);
+        setDrill("state");
+        dataLayerRef.current?.revertStyle();
+
+        setSelectedState(stateName);
+
+        const loadStateView = async () => {
+          const data = await fetchStateData(countryCode, countryName);
+          // const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
+
+          // Find the specific state
+          const matchedState = data?.states.find(s =>
+            normalizeStateName(s.stateName) === normalizeStateName(stateName)
+          );
+
+          setPanel({
+            open: true,
+            region: stateName,
+            regionDisplayName: `${countryName} • ${stateName}`,
+            scope: 'state',
+            nonnas: matchedState?.nonnas || [],
+            initialTab: (tabParam as 'discussion' | 'nonnas') || 'nonnas',
+          });
+        };
+
+        loadStateView();
+      } else {
+        // Just country view
+        setDrill("country");
+        dataLayerRef.current?.revertStyle();
+
+
+        const loadData = async () => {
+          const data = await fetchStateData(countryCode, countryName);
+          const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
+
+          // Also load the state boundaries visually
+          if (mapRef.current) {
+            console.log('🗺️ Loading state boundaries from URL redirect...');
+            await loadStateBoundaries(mapRef.current, countryCode, countryName);
+          }
+
+          setPanel({
+            open: true,
+            region: countryCode,
+            regionDisplayName: countryName,
+            scope: 'country',
+            nonnas: allNonnas,
+            initialTab: (tabParam as 'discussion' | 'nonnas') || 'nonnas',
+          });
+
+          // FIX: Explicitly zoom to country bounds with padding for the panel
+          // This overrides the initial zoom in initMap which might not account for the panel
+          if (mapRef.current && dataLayerRef.current) {
+            const countryBounds = new google.maps.LatLngBounds();
+            let found = false;
+            dataLayerRef.current.forEach((feature) => {
+              const iso2 = (feature.getProperty("ISO_A2") as string | undefined) ?? "";
+              if (iso2 === countryCode) {
+                feature.getGeometry()?.forEachLatLng((latLng) => countryBounds.extend(latLng));
+                found = true;
+              }
+            });
+
+            if (found && !countryBounds.isEmpty()) {
+              console.log(`🔍 Zooming to country ${countryName} with panel padding`);
+              // Short delay to ensure panel state is processed
+              setTimeout(() => {
+                mapRef.current?.fitBounds(countryBounds, {
+                  top: 100,
+                  bottom: 80,
+                  left: 40,
+                  right: 500, // Padding for open panel
+                });
+              }, 100);
+            }
+          }
+        };
+
+        loadData();
+      }
+    }
+  }, [searchParams, fetchStateData, normalizeStateName, loadStateBoundaries, mapReady]);
 
   // Create country markers from API data - with click handlers to drill down
   const createCountryMarkers = useCallback((map: google.maps.Map) => {
