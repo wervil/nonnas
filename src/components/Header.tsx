@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { MessageCircle, Settings, User } from 'lucide-react'
+import { MessageCircle, Settings, User, Download } from 'lucide-react'
 import DotLottieGlobe from './LottieGlobe'
 
 
@@ -44,6 +44,8 @@ type Props = {
   isExplorePage?: boolean
   className?: string
   exploreState?: 'globe' | 'map'
+  onExport?: () => void
+  isExporting?: boolean
   // setExploreState?: Dispatch<SetStateAction<boolean>>
 }
 
@@ -58,6 +60,8 @@ export const Header = ({
   isExplorePage = false,
   className,
   exploreState,
+  onExport,
+  isExporting
   // setExploreState
 }: Props) => {
   const n = useTranslations('navigation')
@@ -73,7 +77,7 @@ export const Header = ({
   const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
 
   return (
-    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === 'map' ? ' fixed top-0 w-full ': ''}`}>
+    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === 'map' ? ' fixed top-0 w-full ' : ''}`}>
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
             Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
@@ -87,6 +91,16 @@ export const Header = ({
         />
       </Link>
       <div className={`items-center gap-1 relative ${navVisibilityClass}`}>
+        {onExport && (
+          <button
+            onClick={onExport}
+            disabled={isExporting}
+            className="mr-2 p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+            title="Export filtered recipes to ZIP"
+          >
+            <Download className={isExplorePage ? 'text-white' : 'text-[#5f5f13]'} size={20} />
+          </button>
+        )}
 
 
         {setSearch ? (

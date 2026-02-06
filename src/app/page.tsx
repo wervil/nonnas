@@ -2,6 +2,7 @@
 
 import { Book } from '@/components/Book/Book'
 import { useRecipes } from '@/hooks/useRecipes'
+import { useExportRecipes } from '@/hooks/useExportRecipes'
 import Image from 'next/image'
 import { button, Header } from '@/components/Header'
 import { useUser } from '@stackframe/stack'
@@ -85,6 +86,12 @@ export default function Recipes() {
 
   // State to control SearchResultsModal visibility independent of search/filter state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
+  const { isExporting, exportRecipesToZip } = useExportRecipes()
+
+  const handleExport = () => {
+    const filterName = search || selectedCountry.value || 'All'
+    exportRecipesToZip(filteredRecipes, filterName)
+  }
 
   // Open modal when search or country filter is active
   useEffect(() => {
@@ -132,6 +139,8 @@ export default function Recipes() {
             search={search}
             setSearch={setSearch}
             user={user}
+            onExport={handleExport}
+            isExporting={isExporting}
           />
         </div>
         <main className="grow flex flex-col w-full object-top object-cover relative main-gradient min-h-svh overflow-x-hidden">
