@@ -1711,8 +1711,8 @@ export default function GoogleContinentCountryMap({
             if (currentZoom <= 2) {
               if (drillRef.current !== "continent") return;
 
-              // ✅ DO NOT cleanup refs here (prevents ghost state)
-              onBackToGlobe();
+              // ✅ DISABLED: User requested button-only navigation
+              // onBackToGlobe();
             }
           })
         );
