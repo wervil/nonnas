@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Select } from "../Select";
 import { useSearchParams } from "next/navigation";
 import type { Nonna, GlobeApiResponse, CountryApiResponse } from "./sharedTypes";
 import DiscussionPanel from "../Map/DiscussionPanel";
@@ -245,6 +246,10 @@ export default function GoogleContinentCountryMap({
   const [countryData, setCountryData] = useState<CountryData[]>([]);
   const [stateData, setStateData] = useState<StateData[]>([]);
   const [geojsonLoaded, setGeojsonLoaded] = useState<string | null>(null); // Track which country's GeoJSON is loaded
+  const [allRegionCountries, setAllRegionCountries] = useState<{ name: string, code: string }[]>([]);
+  const [allCountryStates, setAllCountryStates] = useState<string[]>([]);
+
+
 
   // Ref to always have access to latest stateData in closures
   const stateDataRef = useRef<StateData[]>([]);
@@ -712,6 +717,16 @@ export default function GoogleContinentCountryMap({
       }
 
       console.log(`✓ Loaded ${geojson.features.length} state boundaries for ${countryCode}`);
+
+      // Extract all state names for the dropdown
+      const stateNamesList: string[] = [];
+      for (const feature of geojson.features) {
+        const name = String(feature.properties?.name || '');
+        if (name && !stateNamesList.includes(name)) {
+          stateNamesList.push(name);
+        }
+      }
+      setAllCountryStates(stateNamesList.sort((a, b) => a.localeCompare(b)));
 
       // Create a new Data layer for state boundaries
       const stateLayer = new google.maps.Data();
@@ -1743,6 +1758,7 @@ export default function GoogleContinentCountryMap({
         // Calculate bounds from actual region features
         const continentBounds = new google.maps.LatLngBounds();
         let hasFeatures = false;
+        const regionCountriesList: { name: string, code: string }[] = [];
 
         dataLayer.forEach((feature) => {
           if (isFeatureInRegion(feature)) {
@@ -1750,8 +1766,20 @@ export default function GoogleContinentCountryMap({
             feature.getGeometry()?.forEachLatLng((latLng) => {
               continentBounds.extend(latLng);
             });
+
+            const name = String(feature.getProperty("ADMIN") || feature.getProperty("NAME") || "");
+            const iso = String(feature.getProperty("ISO_A2") || "");
+            if (name && iso) {
+              // Check if already added (some geojsons have multiple features per country)
+              if (!regionCountriesList.some(c => c.code === iso)) {
+                regionCountriesList.push({ name, code: iso });
+              }
+            }
           }
         });
+
+        // Sort and set
+        setAllRegionCountries(regionCountriesList.sort((a, b) => a.name.localeCompare(b.name)));
 
         continentBoundsRef.current = continentBounds;
 
@@ -2416,24 +2444,240 @@ export default function GoogleContinentCountryMap({
     return "Back to Globe";
   })();
 
+  // ==========================================
+  // DROPDOWN LOGIC
+  // ==========================================
+
+  const countryOptions = useMemo(() => {
+    // If we have the full list from GeoJSON, use that
+    if (allRegionCountries.length > 0) {
+      return allRegionCountries.map(c => ({
+        label: c.name,
+        value: c.code
+      }));
+    }
+
+    // Fallback to API data if GeoJSON not ready yet
+    return countryData
+      .map(c => ({
+        label: c.countryName,
+        value: c.countryCode
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [countryData, allRegionCountries]);
+
+  const stateOptions = useMemo(() => {
+    // If we have the full list from GeoJSON, use that
+    if (allCountryStates.length > 0) {
+      return allCountryStates.map((s: string) => ({
+        label: s,
+        value: s
+      }));
+    }
+
+    // Fallback to API data if GeoJSON not ready
+    return stateData
+      .map(s => ({
+        label: s.stateName,
+        value: s.stateName
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [stateData, allCountryStates]);
+
+  const handleCountryHover = useCallback((option: { label: string; value: string } | null) => {
+    const dataLayer = dataLayerRef.current;
+    if (!dataLayer) return;
+
+    if (option) {
+      // Find feature and highlight
+      let foundFeature: google.maps.Data.Feature | null = null;
+      dataLayer.forEach(feature => {
+        const iso2 = String(feature.getProperty("ISO_A2") || "");
+        if (iso2 === option.value) {
+          foundFeature = feature;
+        }
+      });
+
+      if (foundFeature) {
+        dataLayer.overrideStyle(foundFeature as any, {
+          fillOpacity: 0.7,
+          strokeWeight: 2.5,
+        });
+      }
+    } else {
+      // Revert all styles
+      dataLayer.revertStyle();
+    }
+  }, []);
+
+  const handleStateHover = useCallback((option: { label: string; value: string } | null) => {
+    const stateLayer = stateLayerRef.current;
+    if (!stateLayer) return;
+
+    if (option) {
+      stateLayer.forEach(feature => {
+        const name = String(feature.getProperty("name") || "");
+        if (normalizeStateName(name) === normalizeStateName(option.value)) {
+          stateLayer.overrideStyle(feature, {
+            fillColor: MARKER_COLOR,
+            fillOpacity: 0.3,
+            strokeColor: MARKER_COLOR,
+            strokeWeight: 4,
+          });
+        }
+      });
+    } else {
+      stateLayer.revertStyle();
+      if (currentlyHighlightedStateRef.current) {
+        const feature = findStateFeature(stateLayer, currentlyHighlightedStateRef.current);
+        if (feature) {
+          stateLayer.overrideStyle(feature, {
+            fillColor: MARKER_COLOR,
+            fillOpacity: 0.4,
+            strokeColor: MARKER_COLOR,
+            strokeWeight: 5,
+            strokeOpacity: 1.0,
+          });
+        }
+      }
+    }
+  }, [normalizeStateName, findStateFeature]);
+
+  const handleCountrySelect = useCallback((option: { label: string; value: string }) => {
+    if (!option) return;
+    const { value: countryCode, label: countryName } = option;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    console.log(`Dropdown selecting country: ${countryName}`);
+
+    clearMarkers();
+
+    setSelectedCountry({ code: countryCode, name: countryName });
+    setIsTransitioning(true);
+    setDrill("country");
+    dataLayerRef.current?.revertStyle();
+
+    loadStateBoundaries(map, countryCode, countryName);
+
+    fetchStateData(countryCode, countryName).catch(err => console.error(err));
+
+    // Zoom logic
+    const dataLayer = dataLayerRef.current;
+    if (dataLayer) {
+      const countryBounds = new google.maps.LatLngBounds();
+      let found = false;
+      dataLayer.forEach((feature) => {
+        const iso2 = (feature.getProperty("ISO_A2") as string | undefined) ?? "";
+        if (iso2 === countryCode) {
+          found = true;
+          feature.getGeometry()?.forEachLatLng((latLng) => countryBounds.extend(latLng));
+        }
+      });
+
+      if (found) {
+        ignoreZoomChangeRef.current = true;
+        map.fitBounds(countryBounds, {
+          top: 100,
+          bottom: 80,
+          left: 40,
+          right: 500,
+        });
+        setTimeout(() => {
+          ignoreZoomChangeRef.current = false;
+          setIsTransitioning(false);
+        }, 1000);
+      } else {
+        setIsTransitioning(false);
+      }
+    }
+
+  }, [clearMarkers, loadStateBoundaries, fetchStateData]);
+
+  const handleStateSelect = useCallback((option: { label: string; value: string }) => {
+    if (!option) return;
+    const stateName = option.value;
+
+    setSelectedState(stateName);
+
+    const stateLayer = stateLayerRef.current;
+    if (stateLayer) {
+      highlightState(stateLayer, stateName, true);
+    }
+
+    setIsTransitioning(true);
+    setDrill("state");
+    dataLayerRef.current?.revertStyle();
+    ignoreZoomChangeRef.current = true;
+
+    const map = mapRef.current;
+    if (map && stateLayer) {
+      zoomToState(map, stateLayer, stateName).then(() => {
+        setTimeout(() => {
+          ignoreZoomChangeRef.current = false;
+          setIsTransitioning(false);
+        }, 1000);
+      });
+    }
+
+    const matchedState = stateData.find(s => normalizeStateName(s.stateName) === normalizeStateName(stateName));
+
+    setPanel({
+      open: true,
+      region: stateName,
+      regionDisplayName: `${selectedCountry?.name} • ${stateName}`,
+      scope: 'state',
+      nonnas: matchedState?.nonnas || [],
+      initialTab: 'nonnas',
+    });
+
+  }, [highlightState, zoomToState, stateData, selectedCountry, normalizeStateName]);
+
   return (
     <div className="relative w-full h-full font-[var(--font-bell)]" style={{ backgroundColor: '#f5f5f5' }}>
-      {/* Top bar - amber theme matching markers */}
-      <div className="absolute top-24 sm:left-25 left-5 z-10 flex items-center gap-3">
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20 !font-[var(--font-bell)]"
-          style={{ backgroundColor: MARKER_COLOR, fontFamily: "'Bell', serif" }}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          {backButtonLabel}
-        </button>
 
-        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg border border-white/10">
-          <div className="text-xs text-gray-400 uppercase tracking-wide">Viewing</div>
-          <div className="font-semibold text-white">{viewLabel}</div>
+
+      {/* Top bar - amber theme matching markers */}
+      <div className="fixed top-24 sm:left-25 left-5 z-10 flex sm:items-center items-start gap-3 sm:flex-row flex-col">
+        <div className="flex items-center gap-3 flox row">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20 !font-[var(--font-bell)]"
+            style={{ backgroundColor: MARKER_COLOR, fontFamily: "'Bell', serif" }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            {backButtonLabel}
+          </button>
+
+          <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg border border-white/10">
+            <div className="text-xs text-gray-400 uppercase tracking-wide">Viewing</div>
+            <div className="font-semibold text-white">{viewLabel}</div>
+          </div>
+        </div>
+        {/* Dropdowns */}
+        <div className=" w-64 flex flex-col gap-2 rounded-[25px]">
+          {drill === "continent" && (
+            <Select
+              options={countryOptions}
+              setSelectedOption={handleCountrySelect}
+              onOptionHover={handleCountryHover}
+              selectedOption={undefined}
+              placeholder="Select Country..."
+            />
+          )}
+          {(drill === "country" || drill === "state") && (
+            <Select
+              options={stateOptions}
+              setSelectedOption={handleStateSelect}
+              onOptionHover={handleStateHover}
+              // selectedOption={selectedState ? { label: selectedState, value: selectedState } : undefined}
+              selectedOption={undefined}
+              placeholder="Select Region..."
+            />
+          )}
         </div>
       </div>
 
