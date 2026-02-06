@@ -35,7 +35,7 @@ type ThreeGlobeInstance = THREE.Object3D & {
 
 // ---------- Constants ----------
 const GLOBE_RADIUS = 40;
-const CAMERA_DISTANCE = 340;
+const CAMERA_DISTANCE = 290;
 const ROTATION_SENSITIVITY = 0.004;
 const MAX_TILT = 1.2;
 
@@ -132,7 +132,7 @@ function createRingTextTexture(text: string, fontSize = 64): THREE.Texture {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context");
 
-  ctx.font = `bold ${fontSize}px "Bell", serif`;
+  ctx.font = `bold ${fontSize}px "Aharoni", sans-serif`;
   const metrics = ctx.measureText(text);
   const textWidth = metrics.width;
   const textHeight = fontSize * 1.3;
@@ -141,7 +141,7 @@ function createRingTextTexture(text: string, fontSize = 64): THREE.Texture {
   canvas.height = Math.ceil(textHeight + 20);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = `bold ${fontSize}px "Bell", serif`;
+  ctx.font = `bold ${fontSize}px "Aharoni", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#e8d5b7";
