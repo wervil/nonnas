@@ -83,14 +83,22 @@ export default function Recipes() {
     hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
   }
 
+  // State to control SearchResultsModal visibility independent of search/filter state
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
+
+  // Open modal when search or country filter is active
+  useEffect(() => {
+    if ((search.length > 0 || selectedCountry.value !== '') && !loading) {
+      setIsSearchModalOpen(true)
+    }
+  }, [search, selectedCountry, loading])
+
   const handleSelectRecipe = (recipeId: number) => {
-    // 1. Close modal (clear filters)
-    setSearch('')
-    setSelectedCountry({ value: '', label: n('all') })
+    // 1. Close modal (KEEP filters active)
+    setIsSearchModalOpen(false)
 
     // 2. Navigate Book
-    // Use timeout to allow state updates (clearing search) to settle and Book to re-render if needed
-    // This prevents the flipbook from resetting or ignoring the command during an update cycle
+    // Use timeout to allow state updates to settle and Book to re-render if needed
     setTimeout(() => {
       if (bookRef.current) {
         console.log('Page: Calling bookRef.goToRecipe (delayed)', recipeId)
@@ -101,16 +109,15 @@ export default function Recipes() {
     }, 300)
   }
 
-  const showSearchResults = (search.length > 0 || selectedCountry.value !== '') && !loading
+  // Determine if modal *should* be visible based on state
+  // It opens automatically on search per useEffect, but can be closed manually
+  const showSearchResults = isSearchModalOpen && (search.length > 0 || selectedCountry.value !== '') && !loading
 
   return (
     <>
       <SearchResultsModal
         isOpen={showSearchResults}
-        onClose={() => {
-          setSearch('')
-          setSelectedCountry({ value: '', label: n('all') })
-        }}
+        onClose={() => setIsSearchModalOpen(false)}
         results={filteredRecipes}
         onSelect={handleSelectRecipe}
         selectedCountry={selectedCountry.value ? { name: selectedCountry.value, code: (selectedCountry as any).code } : undefined}
@@ -175,7 +182,7 @@ export default function Recipes() {
           ) : (
             <Book
               ref={bookRef}
-              recipes={recipes}
+              recipes={filteredRecipes}
               tableOfContents={tableOfContents}
               initialRecipeId={initialRecipeId}
             />

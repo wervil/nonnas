@@ -90,12 +90,12 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
     setIsMobile(mobile)
     // Switch to single page if it's mobile OR if available space is too narrow
-    setIsSinglePage(mobile || availableWidth < 1200)
+    setIsSinglePage(mobile || availableWidth < 1200 || recipes.length === 0)
 
     setContentHeight(window.innerHeight - HEADER_HEIGHT)
     // Call layout check after screen size changes
     setTimeout(getCurrentLayout, 100)
-  }, [isSidebarOpen])
+  }, [isSidebarOpen, recipes.length])
 
   useEffect(() => {
     checkScreenSize()
@@ -142,7 +142,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
     flipbookRef.current?.pageFlip()?.flipPrev()
   }
 
-  const isPrevDisabled = currentPage === 0
+  const isPrevDisabled = currentPage === 0 || recipes.length === 0
   // Use ref (updated in onFlip) so double-page mode gets correct page immediately
   const pageForDisable = lastPageRef.current
   const isNextDisabled =
@@ -189,8 +189,19 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       }, 500)
       return () => clearTimeout(timer)
     }
-    // Don't set initial recipe - let user open the book first
-  }, [initialRecipeId, recipes, goToRecipe])
+  }, [initialRecipeId, recipes.length, goToRecipe]) // Added recipes.length to dependency to retry if loaded late
+
+  // Handle updates to the recipe list (e.g. search/filter)
+  useEffect(() => {
+    // When the recipe list changes (search/filter), effectively "reload" the book.
+    // Always reset to the cover (Page 0) and clear the active recipe.
+    console.log('Book: Recipes list changed, resetting to cover')
+    if (currentPage !== 0) {
+      setCurrentPage(0)
+    }
+    setCurrentRecipeId(null)
+
+  }, [recipes]) // Re-run whenever the recipes array reference changes (new filter)
 
   return (
     <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
@@ -228,70 +239,72 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
                 transform: !isSinglePage && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
               }}
             >
-              <HTMLFlipBook
-                key={isSinglePage ? 'single' : 'double'}
-                width={isMobile ? 300 : contentHeight * 0.75}
-                height={isMobile ? 550 : contentHeight}
-                minHeight={isMobile ? 550 : contentHeight}
-                maxShadowOpacity={0.5}
-                drawShadow={true}
-                showCover={true}
-                size="fixed"
-                useMouseEvents={false}
-                ref={flipbookRef}
-                className=""
-                startPage={0}
-                minWidth={isSinglePage ? (isMobile ? 300 : contentHeight * 0.75) : contentHeight * 1.5}
-                maxWidth={isSinglePage ? (isMobile ? 440 : contentHeight * 0.75) : contentHeight * 1.5}
-                maxHeight={isMobile ? 550 : contentHeight}
-                flippingTime={1000}
-                usePortrait={isSinglePage}
-                startZIndex={0}
-                autoSize={true}
-                swipeDistance={30}
-                showPageCorners={true}
-                disableFlipByClick={false}
-                onFlip={(e) => {
-                  const currentPageNum = e.data
-                  lastPageRef.current = currentPageNum
-                  setCurrentPage(currentPageNum)
+              {contentHeight > 0 && (
+                <HTMLFlipBook
+                  key={`${isSinglePage ? 'single' : 'double'}-${recipes.length}`}
+                  width={isMobile ? 300 : contentHeight * 0.75}
+                  height={isMobile ? 550 : contentHeight}
+                  minHeight={isMobile ? 550 : contentHeight}
+                  maxShadowOpacity={0.5}
+                  drawShadow={true}
+                  showCover={true}
+                  size="fixed"
+                  useMouseEvents={false}
+                  ref={flipbookRef}
+                  className=""
+                  startPage={0}
+                  minWidth={isSinglePage ? (isMobile ? 300 : contentHeight * 0.75) : contentHeight * 1.5}
+                  maxWidth={isSinglePage ? (isMobile ? 440 : contentHeight * 0.75) : contentHeight * 1.5}
+                  maxHeight={isMobile ? 550 : contentHeight}
+                  flippingTime={1000}
+                  usePortrait={isSinglePage}
+                  startZIndex={0}
+                  autoSize={true}
+                  swipeDistance={30}
+                  showPageCorners={true}
+                  disableFlipByClick={false}
+                  onFlip={(e) => {
+                    const currentPageNum = e.data
+                    lastPageRef.current = currentPageNum
+                    setCurrentPage(currentPageNum)
 
-                  if (currentPageNum < PAGES_BEFORE_RECIPES) {
-                    console.log('On cover page, clearing recipe')
-                    setCurrentRecipeId(null)
-                  } else {
-                    const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
-                    console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
-
-                    if (recipeIndex >= 0 && recipeIndex < recipes.length) {
-                      const recipeId = recipes[recipeIndex].id
-                      console.log('Setting recipe ID to:', recipeId)
-                      setCurrentRecipeId(recipeId)
-                    } else {
-                      console.log('Recipe index out of bounds')
+                    if (currentPageNum < PAGES_BEFORE_RECIPES) {
+                      console.log('On cover page, clearing recipe')
                       setCurrentRecipeId(null)
+                    } else {
+                      const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
+                      console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
+
+                      if (recipeIndex >= 0 && recipeIndex < recipes.length) {
+                        const recipeId = recipes[recipeIndex].id
+                        console.log('Setting recipe ID to:', recipeId)
+                        setCurrentRecipeId(recipeId)
+                      } else {
+                        console.log('Recipe index out of bounds')
+                        setCurrentRecipeId(null)
+                      }
                     }
-                  }
-                }}
-                mobileScrollSupport={false}
-                style={{}}
-                clickEventForward={true}
-              >
-                <div className="cover" key="cover">
-                  <Image
-                    src={
-                      window.innerWidth > 768
-                        ? '/cover.webp'
-                        : '/cover-mobile.webp'
-                    }
-                    alt="Title"
-                    layout="fill"
-                    objectFit="contain"
-                    priority
-                  />
-                </div>
-                {convertRecipesToPages(recipes, l, contentHeight, setImages)}
-              </HTMLFlipBook>
+                  }}
+                  mobileScrollSupport={false}
+                  style={{}}
+                  clickEventForward={true}
+                >
+                  <div className="cover" key="cover">
+                    <Image
+                      src={
+                        window.innerWidth > 768
+                          ? '/cover.webp'
+                          : '/cover-mobile.webp'
+                      }
+                      alt="Title"
+                      layout="fill"
+                      objectFit="contain"
+                      priority
+                    />
+                  </div>
+                  {convertRecipesToPages(recipes, l, contentHeight, setImages)}
+                </HTMLFlipBook>
+              )}
             </div>
 
             <button
