@@ -118,6 +118,24 @@ const COUNTRY_TO_REGION: Record<string, string> = {
   Azerbaijan: "Middle East",
 };
 
+// Approximate center points for continents (lat, lng) to auto-rotate
+const CONTINENT_CENTERS: Record<string, { lat: number; lng: number }> = {
+  "Africa": { lat: 0, lng: 20 },
+  "Asia": { lat: 35, lng: 90 },
+  "Europe": { lat: 48, lng: 15 },
+  "North America": { lat: 45, lng: -100 },
+  "South America": { lat: -15, lng: -60 },
+  "Oceania": { lat: -25, lng: 135 },
+  "Pacific Islands": { lat: -10, lng: 160 },
+  "Antarctica": { lat: -65, lng: 0 },
+  "Middle East": { lat: 25, lng: 45 },
+  "Southeast Asia": { lat: 0, lng: 115 },
+  "East Asia": { lat: 35, lng: 110 },
+  "South Asia": { lat: 22, lng: 78 },
+  "Central Asia": { lat: 45, lng: 65 },
+  "Russia": { lat: 60, lng: 90 },
+};
+
 // ---------- Helpers ----------
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -220,9 +238,11 @@ function deepDisposeScene(scene: THREE.Scene) {
 export default function NaturalStyledGlobe({
   active = true,
   onContinentClick,
+  initialFocusedContinent,
 }: {
   active?: boolean;
   onContinentClick: (continent: string) => void;
+  initialFocusedContinent?: string | null;
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
@@ -265,6 +285,33 @@ export default function NaturalStyledGlobe({
   useEffect(() => {
     onClickRef.current = onContinentClick;
   }, [onContinentClick]);
+
+  // Handle initial rotation if a continent was previously viewed
+  useEffect(() => {
+    if (!initialFocusedContinent) return;
+
+    // Resolve center
+    let center = CONTINENT_CENTERS[initialFocusedContinent];
+    if (!center && COUNTRY_TO_REGION[initialFocusedContinent]) {
+      center = CONTINENT_CENTERS[COUNTRY_TO_REGION[initialFocusedContinent]];
+    }
+
+    if (center) {
+      // Convert lat/lng to rotation angles
+      // Y rotation moves longitude: -lng * (PI/180) - PI/2
+      // X rotation moves latitude: lat * (PI/180)
+
+      const latRad = center.lat * (Math.PI / 180);
+      const lngRad = center.lng * (Math.PI / 180);
+
+      const targetX = latRad;
+      const targetY = -lngRad;
+
+      // Snap instantly to this rotation
+      rotationRef.current = { x: targetX, y: targetY };
+      targetRotationRef.current = { x: targetX, y: targetY };
+    }
+  }, [initialFocusedContinent]);
 
   // Load GeoJSON once
   useEffect(() => {

@@ -35,6 +35,7 @@ export default function Globe2D3DShell({
 
   const [mode, setMode] = useState<Mode>("globe");
   const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
+  const [lastViewedContinent, setLastViewedContinent] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Support testing via URL: /explore?continent=North%20America
@@ -85,6 +86,11 @@ export default function Globe2D3DShell({
     () => {
       setIsTransitioning(true);
 
+      // Ensure we capture the last continent before clearing it
+      if (selectedContinent) {
+        setLastViewedContinent(selectedContinent);
+      }
+
       window.setTimeout(() => {
         setMode("globe");
         setSelectedContinent(null);
@@ -94,7 +100,7 @@ export default function Globe2D3DShell({
         setExploreState({ mode: "globe", selectedContinent: null });
       }, 200);
     },
-    [setExploreState]
+    [setExploreState, selectedContinent, setLastViewedContinent]
   );
 
   return (
@@ -114,6 +120,7 @@ export default function Globe2D3DShell({
           <NaturalStyledGlobe
             active={!isTransitioning}
             onContinentClick={handleContinentClick}
+            initialFocusedContinent={lastViewedContinent}
           />
         )}
       </div>

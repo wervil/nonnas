@@ -46,7 +46,7 @@ export const Select = ({
   <ReactSelect
     className="basic-single"
     classNamePrefix="select"
-    isClearable={true}
+    isClearable={false}
     value={selectedOption}
     placeholder={placeholder}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
