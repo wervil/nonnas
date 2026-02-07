@@ -2543,7 +2543,7 @@ export default function GoogleContinentCountryMap({
     }
   }, [normalizeStateName, findStateFeature]);
 
-  const handleCountrySelect = useCallback((option: { label: string; value: string }) => {
+  const handleCountrySelect = useCallback(async (option: { label: string; value: string }) => {
     if (!option) return;
     const { value: countryCode, label: countryName } = option;
 
@@ -2559,9 +2559,39 @@ export default function GoogleContinentCountryMap({
     setDrill("country");
     dataLayerRef.current?.revertStyle();
 
-    loadStateBoundaries(map, countryCode, countryName);
+    try {
+      // 1. Load state boundaries (visual)
+      await loadStateBoundaries(map, countryCode, countryName);
 
-    fetchStateData(countryCode, countryName).catch(err => console.error(err));
+      // 2. Fetch data
+      const data = await fetchStateData(countryCode, countryName);
+
+      // 3. Open Panel with Discussion Tab
+      const allNonnas = data?.states.flatMap(s => s.nonnas) || [];
+      setPanel({
+        open: true,
+        region: countryCode,
+        regionDisplayName: countryName,
+        scope: 'country',
+        nonnas: allNonnas,
+        initialTab: 'discussion', // ✅ User requested discussion tab
+      });
+
+      // 4. Create markers if needed
+      if (data && geojsonLoaded === countryCode) {
+        createStateMarkers(map, { code: countryCode, name: countryName }, data.states);
+      }
+    } catch (err) {
+      console.error("Error in dropdown selection:", err);
+      setPanel({
+        open: true,
+        region: countryCode,
+        regionDisplayName: countryName,
+        scope: 'country',
+        nonnas: [],
+        initialTab: 'discussion',
+      });
+    }
 
     // Zoom logic
     const dataLayer = dataLayerRef.current;
@@ -2591,9 +2621,11 @@ export default function GoogleContinentCountryMap({
       } else {
         setIsTransitioning(false);
       }
+    } else {
+      setIsTransitioning(false);
     }
 
-  }, [clearMarkers, loadStateBoundaries, fetchStateData]);
+  }, [clearMarkers, loadStateBoundaries, fetchStateData, createStateMarkers, geojsonLoaded]);
 
   const handleStateSelect = useCallback((option: { label: string; value: string }) => {
     if (!option) return;
@@ -2619,6 +2651,12 @@ export default function GoogleContinentCountryMap({
           setIsTransitioning(false);
         }, 1000);
       });
+    } else {
+      // Fallback timeout if no zoom happens
+      setTimeout(() => {
+        ignoreZoomChangeRef.current = false;
+        setIsTransitioning(false);
+      }, 1000);
     }
 
     const matchedState = stateData.find(s => normalizeStateName(s.stateName) === normalizeStateName(stateName));
@@ -2629,7 +2667,7 @@ export default function GoogleContinentCountryMap({
       regionDisplayName: `${selectedCountry?.name} • ${stateName}`,
       scope: 'state',
       nonnas: matchedState?.nonnas || [],
-      initialTab: 'nonnas',
+      initialTab: 'discussion', // ✅ User requested discussion tab
     });
 
   }, [highlightState, zoomToState, stateData, selectedCountry, normalizeStateName]);
@@ -2673,8 +2711,7 @@ export default function GoogleContinentCountryMap({
               options={stateOptions}
               setSelectedOption={handleStateSelect}
               onOptionHover={handleStateHover}
-              // selectedOption={selectedState ? { label: selectedState, value: selectedState } : undefined}
-              selectedOption={undefined}
+              selectedOption={selectedState ? { label: selectedState, value: selectedState } : undefined}
               placeholder="Select Region..."
             />
           )}
