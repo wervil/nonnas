@@ -1,4 +1,7 @@
+"use client";
+
 import ReactSelect, { StylesConfig } from 'react-select'
+import { usePathname } from 'next/navigation'
 
 const colourStyles: StylesConfig = {
   singleValue: (styles) => ({ ...styles, color: 'grey' }),
@@ -42,23 +45,27 @@ export const Select = ({
   setSelectedOption,
   onOptionHover,
   placeholder,
-}: Props) => (
-  <ReactSelect
-    className="basic-single"
-    classNamePrefix="select"
-    isClearable={false}
-    value={selectedOption}
-    placeholder={placeholder}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onChange={(option: any) =>
-      setSelectedOption?.(option)
-    }
-    isSearchable
-    name="country"
-    options={options}
-    styles={colourStyles}
-    components={{
-      Option: (props) => <CustomOption {...props} onOptionHover={onOptionHover} />
-    }}
-  />
-)
+}: Props) => {
+  const pathname = usePathname()
+
+  return (
+    <ReactSelect
+      className="basic-single"
+      classNamePrefix="select"
+      isClearable={pathname === '/explore'}
+      value={selectedOption}
+      placeholder={placeholder}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onChange={(option: any) =>
+        setSelectedOption?.(option)
+      }
+      isSearchable
+      name="country"
+      options={options}
+      styles={colourStyles}
+      components={{
+        Option: (props) => <CustomOption {...props} onOptionHover={onOptionHover} />
+      }}
+    />
+  )
+}
