@@ -8,7 +8,7 @@ import { MessageCircle, Loader2 } from 'lucide-react'
 interface ThreadListProps {
     region?: string
     scope?: 'country' | 'state'
-    category?: string
+
     sort?: 'newest' | 'top' | 'relevant'
     userId?: string
     onThreadClick?: (threadId: number) => void
@@ -17,7 +17,7 @@ interface ThreadListProps {
 export default function ThreadList({
     region,
     scope,
-    category,
+
     sort = 'newest',
     userId,
     onThreadClick,
@@ -35,7 +35,7 @@ export default function ThreadList({
                 const params = new URLSearchParams()
                 if (region) params.append('region', region)
                 if (scope) params.append('scope', scope)
-                if (category) params.append('category', category)
+
                 if (sort) params.append('sort', sort)
                 if (userId) params.append('userId', userId)
 
@@ -56,7 +56,7 @@ export default function ThreadList({
         }
 
         fetchThreads()
-    }, [region, scope, category, sort, userId])
+    }, [region, scope, sort, userId])
 
     if (isLoading) {
         return (

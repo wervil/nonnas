@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
         const userId = searchParams.get('userId')
         const region = searchParams.get('region')
         const scope = searchParams.get('scope') // 'country' or 'state'
-        const category = searchParams.get('category')
+
         const sort = searchParams.get('sort') || 'newest' // 'newest', 'top', 'relevant'
 
         // Build filters
@@ -28,9 +28,7 @@ export async function GET(request: NextRequest) {
         if (scope && (scope === 'country' || scope === 'state')) {
             filters.push(eq(threads.scope, scope))
         }
-        if (category) {
-            filters.push(eq(threads.category, category))
-        }
+
 
 
         // Advanced Query with Joins for Sorting
@@ -82,10 +80,10 @@ export async function POST(request: NextRequest) {
         const userId = user.id
 
         const body = await request.json()
-        const { region, scope, category, title, content } = body
+        const { region, scope, title, content } = body
 
         // Validation
-        if (!region || !scope || !category || !title || !content) {
+        if (!region || !scope || !title || !content) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
@@ -127,7 +125,7 @@ export async function POST(request: NextRequest) {
         const newThread: NewThread = {
             region,
             scope,
-            category,
+
             title,
             content,
             user_id: userId,

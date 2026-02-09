@@ -10,14 +10,7 @@ interface CreateThreadFormProps {
     onSuccess?: () => void
 }
 
-const CATEGORIES = [
-    { value: 'General', icon: '💬' },
-    { value: 'Recipes', icon: '🍝' },
-    { value: 'Techniques', icon: '👨‍🍳' },
-    { value: 'Culture', icon: '🎭' },
-    { value: 'Ingredients', icon: '🥕' },
-    { value: 'History', icon: '📜' },
-]
+
 
 export default function CreateThreadForm({
     region,
@@ -27,7 +20,7 @@ export default function CreateThreadForm({
     const router = useRouter()
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
-    const [category, setCategory] = useState('General')
+
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -57,7 +50,7 @@ export default function CreateThreadForm({
                 body: JSON.stringify({
                     region,
                     scope,
-                    category,
+
                     title,
                     content,
                 }),
@@ -79,7 +72,7 @@ export default function CreateThreadForm({
             // Reset form
             setTitle('')
             setContent('')
-            setCategory('General')
+
 
             if (onSuccess) {
                 onSuccess()
@@ -103,25 +96,7 @@ export default function CreateThreadForm({
                 </div>
             )}
 
-            {/* Category */}
-            <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-2">
-                    Category
-                </label>
-                <select
-                    id="category"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all appearance-none cursor-pointer"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
-                >
-                    {CATEGORIES.map((cat) => (
-                        <option key={cat.value} value={cat.value} className="bg-[#1a1a1a] text-white">
-                            {cat.icon} {cat.value}
-                        </option>
-                    ))}
-                </select>
-            </div>
+
 
             {/* Title */}
             <div>

@@ -18,23 +18,10 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
     }
 
 
-        const pathname = usePathname();
-        const isProfilePage = pathname === "/profile";
+    const pathname = usePathname();
+    const isProfilePage = pathname === "/profile";
 
-    const getCategoryIcon = (category: string) => {
-        switch (category?.toLowerCase()) {
-            case 'recipes':
-                return '🍝'
-            case 'traditions':
-                return '🎭'
-            case 'stories':
-                return '📖'
-            case 'questions':
-                return '❓'
-            default:
-                return '💬'
-        }
-    }
+
 
     const formatDate = (date: Date | null) => {
         if (!date) return ''
@@ -49,7 +36,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
         if (diffMins < 60) return `${diffMins}m ago`
         if (diffHours < 24) return `${diffHours}h ago`
         if (diffDays < 7) return `${diffDays}d ago`
-        
+
         return threadDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -61,7 +48,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
             <div className="flex items-start gap-2.5">
                 {/* Category icon */}
                 <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
-                    {getCategoryIcon(thread.category)}
+                    💬
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -77,9 +64,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
                         >
                             {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
                         </span>
-                        <span className="px-1.5 py-0.5 bg-white/10 text-gray-300 rounded text-[10px] font-medium">
-                            {thread.category}
-                        </span>
+
                     </div>
 
                     {/* Content preview */}
@@ -122,10 +107,10 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
 
     return (
         <Link
-                href={`/community/thread/${thread.id}`}
-                target={isProfilePage ? "_blank" : undefined}
-                // rel={isProfilePage ? "noopener noreferrer" : undefined}
->
+            href={`/community/thread/${thread.id}`}
+            target={isProfilePage ? "_blank" : undefined}
+        // rel={isProfilePage ? "noopener noreferrer" : undefined}
+        >
             {content}
         </Link>
     )

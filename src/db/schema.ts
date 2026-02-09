@@ -105,7 +105,7 @@ export const threads = pgTable('threads', {
   id: serial('id').primaryKey(),
   region: text('region').notNull(), // region_id (e.g., 'italy', 'sicily')
   scope: threadScope('scope').notNull(), // 'country' or 'state'
-  category: text('category').notNull(),
+
   title: text('title').notNull(),
   content: text('content').notNull(),
   user_id: text('user_id').notNull(),

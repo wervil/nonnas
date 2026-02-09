@@ -259,9 +259,7 @@ export default function ThreadView({
                     >
                         {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
                     </span>
-                    <span className="px-2.5 py-0.5 bg-[var(--color-primary-border)]/30 text-[var(--color-yellow-light)] rounded-full text-xs font-medium font-[var(--font-bell)] border border-[var(--color-primary-border)]/50">
-                        {thread.category}
-                    </span>
+
                     <span className="text-[var(--color-text-pale)] text-xs font-[var(--font-bell)]">{thread.region}</span>
                 </div>
 
