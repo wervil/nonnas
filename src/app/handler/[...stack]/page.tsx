@@ -96,6 +96,11 @@ export default async function Handler(props: HandlerProps) {
               priority
             />
           </div>
+          {stack === "sign-in" && (
+            <p className="mt-2 text-md text-neutral-600 text-center mb-6 border border-gray p-2 rounded-[20px]">
+              We are in beta, if you have already signed up with our beta program you may sign in now. If not feel free to close this window and browse the virtual book.
+            </p>
+          )}
           <StackHandler
             fullPage={false}
             app={stackServerApp}
