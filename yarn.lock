@@ -2855,7 +2855,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@radix-ui/react-dropdown-menu@npm:^2.1.2":
+"@radix-ui/react-dropdown-menu@npm:^2.1.16, @radix-ui/react-dropdown-menu@npm:^2.1.2":
   version: 2.1.16
   resolution: "@radix-ui/react-dropdown-menu@npm:2.1.16"
   dependencies:
@@ -6115,6 +6115,7 @@ __metadata:
     "@lottiefiles/dotlottie-react": "npm:^0.17.13"
     "@neondatabase/serverless": "npm:^1.0.1"
     "@radix-ui/react-dialog": "npm:^1.1.15"
+    "@radix-ui/react-dropdown-menu": "npm:^2.1.16"
     "@radix-ui/react-hover-card": "npm:^1.1.15"
     "@stackframe/stack": "npm:^2.8.12"
     "@tailwindcss/postcss": "npm:^4.1.10"

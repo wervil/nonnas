@@ -8,8 +8,15 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { MessageCircle, Settings, User, Download, Loader2 } from 'lucide-react'
+import { MessageCircle, Settings, User, Download, Loader2, Menu, PlusCircle } from 'lucide-react'
 import DotLottieGlobe from './LottieGlobe'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 
 
@@ -71,8 +78,12 @@ export const Header = ({
   const imageFilterClass = 'text-[#5f5f13]';
   // const logoSrc = isExplorePage ? "/logoMain.svg" : "/logoMain.svg" // Keep same logo, maybe invert if needed? assuming logo looks ok or needs specific invert
 
-  const headerJustifyClass = isExplorePage ? 'justify-between' : 'justify-center md:justify-between'
+  // Always justify-between to keep logo left and content right
+  const headerJustifyClass = 'justify-between'
   const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
+
+  // Helper to render user icons (reused for desktop and mobile if needed, but structure differs)
+  // For mobile dropdown, we'll render DropdownMenuItem
 
   return (
     <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === 'map' ? ' fixed top-0 w-full ' : ''}`}>
@@ -113,7 +124,7 @@ export const Header = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="px-2 py-1 w-full max-w-md border-0 outline-0 italic text-gray-500"
+              className="px-2 py-1 w-full max-w-md border-0 outline-0 italic text-gray-500 min-w-[100px]"
             />
           </div>
         ) : null}
@@ -128,78 +139,168 @@ export const Header = ({
           </>
         ) : null}
       </div>
-      <div className={`gap-5 ${navVisibilityClass} items-center`}>
-        {/* Home Icon for Explore Page - placed next to Settings */}
-        {isExplorePage && (
-          <Link href="/">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="30"
-              height="30"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`cursor-pointer hover:opacity-80 transition-opacity ${imageFilterClass}`}
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </Link>
-        )}
 
-        {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
-        {!isExplorePage && (
-          <Link href="/explore" aria-label="Explore" className="inline-flex items-center">
-            <span className="inline-flex items-center justify-center w-[40px] h-[40px]">
-              <DotLottieGlobe
-                src="/lottie/earth-lottie.json"
-                size={40}
-                className="w-[40px] h-[40px] cursor-pointer hover:opacity-80 transition-opacity"
-              />
-            </span>
-          </Link>
-        )}
+      {/* Right Side Container: Always visible (flex), split into Desktop vs Mobile content */}
+      <div className="flex items-center gap-5">
 
+        {/* Desktop View (Hidden on Mobile) */}
+        <div className="hidden md:flex items-center gap-5">
+          {/* Home Icon for Explore Page - placed next to Settings */}
+          {isExplorePage && (
+            <Link href="/">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`cursor-pointer hover:opacity-80 transition-opacity ${imageFilterClass}`}
+              >
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </Link>
+          )}
 
+          {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
+          {!isExplorePage && (
+            <Link href="/explore" aria-label="Explore" className="inline-flex items-center">
+              <span className="inline-flex items-center justify-center w-[40px] h-[40px]">
+                <DotLottieGlobe
+                  src="/lottie/earth-lottie.json"
+                  size={40}
+                  className="w-[40px] h-[40px] cursor-pointer hover:opacity-80 transition-opacity"
+                />
+              </span>
+            </Link>
+          )}
 
-        {user ? (
-          hasAdminAccess ? (
-            <>
-              <Link href="/dashboard">
-                <Settings
-                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                />
-              </Link>
-              <Link href="/profile">
-                <User
-                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                />
-              </Link>
-              <Link href="/messages">
-                <MessageCircle
-                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                />
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/profile">
-                <Settings
-                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                />
-              </Link>
-              <Link href="/messages">
-                <MessageCircle
-                  className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                />
-              </Link>
-            </>
-          )
-        ) : null}
-        {button(path || '', n as (key: string) => string, hasAdminAccess)}
+          {user ? (
+            hasAdminAccess ? (
+              <>
+                <Link href="/dashboard">
+                  <Settings
+                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                  />
+                </Link>
+                <Link href="/profile">
+                  <User
+                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                  />
+                </Link>
+                <Link href="/messages">
+                  <MessageCircle
+                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                  />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/profile">
+                  <Settings
+                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                  />
+                </Link>
+                <Link href="/messages">
+                  <MessageCircle
+                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                  />
+                </Link>
+              </>
+            )
+          ) : null}
+          {button(path || '', n as (key: string) => string, hasAdminAccess)}
+        </div>
+
+        {/* Mobile View (Dropdown Menu) */}
+        <div className="flex md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="shrink" className="p-2">
+                <Menu className={`w-[30px] h-[30px] ${imageFilterClass}`} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
+              {isExplorePage && (
+                <DropdownMenuItem asChild>
+                  <Link href="/" className={`cursor-pointer ${imageFilterClass}`}>
+                    Home
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {!isExplorePage && (
+                <DropdownMenuItem asChild>
+                  <Link href="/explore" className={`cursor-pointer w-full flex items-center !px-0 gap-1 !text-green-dark`}>
+                    <DotLottieGlobe
+                      src="/lottie/earth-lottie.json"
+                      size={30}
+                      className="w-[30px] h-[30px] cursor-pointer hover:opacity-80 transition-opacity"
+                    />
+                    Explore
+                  </Link>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              {user ? (
+                <>
+                  {hasAdminAccess ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
+                          <Settings className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
+                          <User className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Profile
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/messages" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
+                          <MessageCircle className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Messages
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
+                          <Settings className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/messages" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
+                          <MessageCircle className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Messages
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              ) : null}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                {path === '/add-recipe' ? (
+                  <Link href="/" className={`cursor-pointer w-full !text-green-dark ${imageFilterClass}`}>
+                    {n('home')}
+                  </Link>
+                ) : (
+                  <Link href="/add-recipe" className={`cursor-pointer w-full !text-white bg-green-dark ${imageFilterClass}`}>
+                    <PlusCircle className={`mr-2 h-4 w-4 `} /> {n('addRecipe')}
+                  </Link>
+                )}
+              </DropdownMenuItem>
+
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   )

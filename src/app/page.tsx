@@ -157,7 +157,7 @@ export default function Recipes() {
             />
           </div>
           <div className="items-center relative flex flex-col md:hidden p-8 w-full gap-3">
-            {button(path || '', n as (key: string) => string, hasPermissions)}
+            {/* {button(path || '', n as (key: string) => string, hasPermissions)} */}
             {setSearch ? (
               <div className="flex items-center gap-1 border-2 border-green-dark rounded-full px-2 w-full bg-white">
                 <Image
