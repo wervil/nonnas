@@ -16,7 +16,8 @@ const button = cva(
       variant: {
         primary: ['bg-green-dark', 'text-primary-focus'],
         outline: ['border-1 border-primary-main', 'text-primary-main'],
-        ghost: ['bg-transparent', 'text-primary-main', 'hover:bg-primary-light' ],
+        ghost: ['bg-transparent', 'text-primary-main', 'hover:bg-primary-light'],
+        empty: [],
       },
       size: {
         shrink: ['px-1 py-0', 'text-sm!'],
@@ -28,7 +29,7 @@ const button = cva(
 
 export interface ButtonProps
   extends VariantProps<typeof button>,
-    Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'> {
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'> {
   children: React.ReactNode
   className?: string
   asChild?: boolean

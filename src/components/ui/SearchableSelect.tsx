@@ -8,6 +8,7 @@ export interface SearchableSelectProps {
     placeholder: string
     disabled?: boolean
     error?: string
+    variant?: 'dark' | 'light'
 }
 
 export const SearchableSelect = ({
@@ -17,6 +18,7 @@ export const SearchableSelect = ({
     placeholder,
     disabled,
     error,
+    variant = 'dark',
 }: SearchableSelectProps) => {
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
@@ -42,8 +44,14 @@ export const SearchableSelect = ({
         <div className="relative" ref={wrapperRef}>
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
-                className={`w-full px-3 py-4 border rounded-lg cursor-pointer flex items-center justify-between text-base font-[var(--font-merriweather)] ${disabled ? 'bg-gray-100 cursor-not-allowed text-gray-400' : 'bg-primary-hover text-text-pale'
-                    } ${error ? 'border-danger-main' : 'border-primary-main'}`}
+                className={`w-full px-3 py-4 border rounded-lg cursor-pointer flex items-center justify-between text-base font-[var(--font-merriweather)] 
+                ${disabled
+                        ? 'bg-gray-100 cursor-not-allowed text-gray-400'
+                        : variant === 'light'
+                            ? 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
+                            : 'bg-primary-hover text-text-pale border-primary-main'
+                    } 
+                ${error ? 'border-danger-main' : ''}`}
             >
                 <span className="truncate">
                     {selectedOption ? (
@@ -66,13 +74,18 @@ export const SearchableSelect = ({
             </div>
 
             {isOpen && !disabled && (
-                <div className="absolute z-50 w-full mt-1 bg-[#2e1d15] border border-primary-main rounded-lg shadow-lg">
-                    <div className="p-2 border-b border-primary-main/30">
+                <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg ${variant === 'light' ? 'bg-white border-gray-200' : 'bg-[#2e1d15] border-primary-main'
+                    }`}>
+                    <div className={`p-2 border-b ${variant === 'light' ? 'border-gray-200' : 'border-primary-main/30'}`}>
                         <input
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-2 py-1 text-sm bg-primary-hover border border-primary-border rounded text-text-pale focus:outline-none focus:border-primary-focus placeholder-text-pale/50"
+                            className={`w-full px-2 py-1 text-sm border rounded focus:outline-none 
+                            ${variant === 'light'
+                                    ? 'bg-gray-50 border-gray-200 text-gray-900 focus:border-amber-500 placeholder-gray-400'
+                                    : 'bg-primary-hover border-primary-border text-text-pale focus:border-primary-focus placeholder-text-pale/50'
+                                }`}
                             placeholder="Search..."
                             autoFocus
                             onClick={(e) => e.stopPropagation()}
@@ -88,7 +101,10 @@ export const SearchableSelect = ({
                                         setIsOpen(false)
                                         setSearchTerm('')
                                     }}
-                                    className={`px-3 py-2 cursor-pointer flex items-center gap-2 hover:bg-primary-main hover:text-white transition-colors text-text-pale ${value === option.value ? 'bg-primary-focus/20' : ''
+                                    className={`px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors 
+                                    ${variant === 'light'
+                                            ? `text-gray-900 hover:bg-gray-100 ${value === option.value ? 'bg-amber-50 text-amber-900' : ''}`
+                                            : `text-text-pale hover:bg-primary-main hover:text-white ${value === option.value ? 'bg-primary-focus/20' : ''}`
                                         }`}
                                 >
                                     {option.flag && <span>{option.flag}</span>}
@@ -96,7 +112,7 @@ export const SearchableSelect = ({
                                 </li>
                             ))
                         ) : (
-                            <li className="px-3 py-2 text-sm text-text-pale/50 text-center">No options found</li>
+                            <li className={`px-3 py-2 text-sm text-center ${variant === 'light' ? 'text-gray-500' : 'text-text-pale/50'}`}>No options found</li>
                         )}
                     </ul>
                 </div>

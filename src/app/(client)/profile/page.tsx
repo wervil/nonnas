@@ -102,7 +102,7 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
             </Button>
             <Button
               onClick={() => user?.signOut()}
-              className="bg-gray-100 hover:opacity-90 text-gray-900 hover:bg-gray-200"
+              className="bg-gray-100 hover:opacity-30! text-gray-900 "
             >
               {b('logOut')}
             </Button>
