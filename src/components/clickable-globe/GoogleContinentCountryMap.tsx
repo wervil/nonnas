@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Select } from "../Select";
+import { ExploreSelect } from "../Select";
 import { useSearchParams } from "next/navigation";
 import type { Nonna, GlobeApiResponse, CountryApiResponse } from "./sharedTypes";
 import DiscussionPanel from "../Map/DiscussionPanel";
@@ -2698,7 +2698,7 @@ export default function GoogleContinentCountryMap({
         {/* Dropdowns */}
         <div className=" w-64 flex flex-col gap-2 rounded-[25px]">
           {drill === "continent" && (
-            <Select
+            <ExploreSelect
               options={countryOptions}
               setSelectedOption={handleCountrySelect}
               onOptionHover={handleCountryHover}
@@ -2707,7 +2707,7 @@ export default function GoogleContinentCountryMap({
             />
           )}
           {(drill === "country" || drill === "state") && (
-            <Select
+            <ExploreSelect
               options={stateOptions}
               setSelectedOption={handleStateSelect}
               onOptionHover={handleStateHover}
