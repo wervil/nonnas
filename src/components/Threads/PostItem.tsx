@@ -282,7 +282,6 @@ export default function PostItem({
                                         <img
                                             src={att.url}
                                             alt="Attachment"
-                                            alt="Attachment"
                                             className="max-h-48 rounded-lg border border-gray-200 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                             onClick={() => setSelectedImage(att.url)}
                                         />
