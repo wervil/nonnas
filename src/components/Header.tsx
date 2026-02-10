@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { MessageCircle, Settings, User, Download, Loader2, Menu, PlusCircle } from 'lucide-react'
+import { MessageCircle, Settings, User, Download, Loader2, Menu, PlusCircle, Home } from 'lucide-react'
 import DotLottieGlobe from './LottieGlobe'
 import {
   DropdownMenu,
@@ -227,8 +227,8 @@ export const Header = ({
             <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
               {isExplorePage && (
                 <DropdownMenuItem asChild>
-                  <Link href="/" className={`cursor-pointer ${imageFilterClass}`}>
-                    Home
+                  <Link href="/" className={`cursor-pointer ${imageFilterClass} !text-green-dark`}>
+                  <Home className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Home
                   </Link>
                 </DropdownMenuItem>
               )}

@@ -116,7 +116,7 @@ export const UserRecipe = ({
             className="flex items-center gap-2 !px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 border-none"
           >
             <ArrowLeft size={16} />
-            {b('goBack')}
+            <span className='hidden sm:block'>{b('goBack')}</span>
           </Button>
           <div className="flex items-center text-sm">
             <b className="text-gray-900 mr-2">{l('published')}:</b>{' '}

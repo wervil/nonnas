@@ -115,7 +115,7 @@ export function EditProfileModal({
             </div>
           )}
 
-          <DialogFooter className="gap-0 sm:gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-2">
             <Button
               type="button"
               variant="outline"

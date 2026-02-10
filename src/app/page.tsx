@@ -127,7 +127,11 @@ export default function Recipes() {
         onClose={() => setIsSearchModalOpen(false)}
         results={filteredRecipes}
         onSelect={handleSelectRecipe}
-        selectedCountry={selectedCountry.value ? { name: selectedCountry.value, code: (selectedCountry as any).code } : undefined}
+        selectedCountry={selectedCountry.value ? selectedCountry : undefined}
+        search={search}
+        setSearch={setSearch}
+        countriesOptions={countriesOptions}
+        setSelectedCountry={setSelectedCountry}
       />
       <div className="min-h-svh flex flex-col overflow-hidden">
         <div className="relative z-[60]">
@@ -176,7 +180,7 @@ export default function Recipes() {
               </div>
             ) : null}
             {countriesOptions ? (
-              <div className="w-full relative bg-white rounded-[20px]">
+              <div className="w-full relative bg-white rounded-[20px] z-10">
                 <Select
                   options={countriesOptions}
                   selectedOption={selectedCountry}
