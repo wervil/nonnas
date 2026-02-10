@@ -14,11 +14,11 @@ export const MessagesClient = () => {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-[var(--color-brown-dark)] overflow-hidden">
+        <div className="flex flex-col h-screen bg-white overflow-hidden">
             <Header
                 hasAdminAccess={hasPermissions}
                 user={user}
-                className="!bg-[var(--color-brown-dark)]/80 border-b border-[var(--color-primary-border)]/20 shrink-0"
+                className="!bg-white/80 border-b border-gray-200 backdrop-blur-md shrink-0"
                 // Pass undefined explicitly to hide search and country selector
                 countriesOptions={undefined}
                 selectedCountry={undefined}

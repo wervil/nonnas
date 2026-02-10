@@ -129,31 +129,31 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
     };
 
     return (
-        <div className="flex flex-col h-full bg-[var(--color-brown-pale)] min-h-0 overflow-hidden">
+        <div className="flex flex-col h-full bg-white min-h-0 overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-[var(--color-primary-border)]/20 flex items-center bg-[var(--color-brown-light)]/30 shrink-0">
+            <div className="p-6 border-b border-gray-200 flex items-center bg-white shrink-0">
                 <button
                     onClick={onBack}
-                    className="group inline-flex items-center gap-1 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
+                    className="group inline-flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors"
                 >
                     <span className="group-hover:-translate-x-1 transition-transform font-[var(--font-bell)]">←</span>
                     <span className="font-[var(--font-bell)]">Back</span>
                 </button>
-                <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-[var(--color-yellow-light)]">
+                <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-gray-900">
                     Chat with {otherUserName || "--"}...
                 </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[var(--color-brown-dark)] min-h-0" ref={scrollRef}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white min-h-0" ref={scrollRef}>
                 {messages.map((msg) => {
                     const isMe = msg.sender_id === currentUserId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-xl p-3 font-[var(--font-bell)] ${isMe ? '!bg-[var(--color-green-dark)] !text-[var(--color-yellow-light)]' : 'bg-[var(--color-brown-pale)] text-[var(--color-text-pale)] border border-[var(--color-primary-border)]/20'}`}>
+                            <div className={`max-w-[80%] rounded-xl p-3 font-[var(--font-bell)] ${isMe ? 'bg-amber-600 text-white shadow-sm' : 'bg-gray-100 text-gray-900 border border-gray-200'}`}>
                                 {msg.content && <p className="break-words">{msg.content}</p>}
                                 {renderAttachment(msg)}
-                                <div className={`text-[10px] mt-1 ${isMe ? 'text-[var(--color-yellow-light)]/70' : 'text-[var(--color-text-pale)]/70'}`}>
+                                <div className={`text-[10px] mt-1 ${isMe ? 'text-amber-100' : 'text-gray-500'}`}>
                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                             </div>
@@ -169,26 +169,26 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
 
             {/* Input */}
             {attachment && (
-                <div className="px-4 py-2 border-t border-[var(--color-primary-border)]/20 bg-[var(--color-brown-light)]/30 flex items-center justify-between shrink-0">
+                <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3 overflow-hidden">
                         {attachment.type === 'image' ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={attachment.preview} alt="Preview" className="h-12 w-12 object-cover rounded-md" />
+                            <img src={attachment.preview} alt="Preview" className="h-12 w-12 object-cover rounded-md border border-gray-200" />
                         ) : attachment.type === 'video' ? (
-                            <video src={attachment.preview} className="h-12 w-12 object-cover rounded-md" />
+                            <video src={attachment.preview} className="h-12 w-12 object-cover rounded-md border border-gray-200" />
                         ) : (
-                            <div className="h-12 w-12 bg-[var(--color-brown-pale)] rounded-md flex items-center justify-center text-[var(--color-text-pale)] border border-[var(--color-primary-border)]/20">
+                            <div className="h-12 w-12 bg-white rounded-md flex items-center justify-center text-gray-500 border border-gray-200">
                                 {attachment.type === 'audio' ? <FileAudio size={20} /> : <LinkIcon size={20} />}
                             </div>
                         )}
                         <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-medium truncate max-w-[150px] text-[var(--color-yellow-light)] font-[var(--font-bell)]">{attachment.file.name}</span>
-                            <span className="text-xs text-[var(--color-text-pale)] uppercase font-[var(--font-bell)]">{attachment.type}</span>
+                            <span className="text-sm font-medium truncate max-w-[150px] text-gray-900 font-[var(--font-bell)]">{attachment.file.name}</span>
+                            <span className="text-xs text-gray-500 uppercase font-[var(--font-bell)]">{attachment.type}</span>
                         </div>
                     </div>
                     <button
                         onClick={() => setAttachment(null)}
-                        className="p-1 hover:bg-[var(--color-brown-pale)] rounded-full transition-colors text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)]"
+                        className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500 hover:text-gray-900"
                         aria-label="Remove attachment"
                         title="Remove attachment"
                     >
@@ -196,10 +196,10 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     </button>
                 </div>
             )}
-            <div className="p-3 border-t border-[var(--color-primary-border)]/20 bg-[var(--color-brown-light)]/30 flex items-center gap-2 shrink-0">
+            <div className="p-3 border-t border-gray-200 bg-white flex items-center gap-2 shrink-0">
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
+                    className="p-2 text-gray-500 hover:text-amber-600 transition-colors"
                     aria-label="Attach file"
                     title="Attach file"
                 >
@@ -214,7 +214,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                 // accept="image/*,video/*,audio/*" // allow all
                 />
                 <textarea
-                    className="flex-1 bg-[var(--color-brown-pale)] border border-[var(--color-primary-border)]/30 rounded-md px-4 py-2 text-[var(--color-text-pale)] placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 font-[var(--font-bell)]"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-md px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 font-[var(--font-bell)] transition-all"
                     placeholder="Type a message..."
                     maxLength={5000}
                     rows={2}
@@ -227,7 +227,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                 <button
                     disabled={isSending || (!inputText && !attachment)}
                     onClick={handleSend}
-                    className="p-2 !bg-[var(--color-green-dark)] !text-[var(--color-yellow-light)] rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="p-2 bg-amber-600 text-white rounded-full hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                     aria-label="Send message"
                     title="Send message"
                 >

@@ -175,14 +175,14 @@ export const MessagingInterface = () => {
     if (!user) return <div className="p-8 text-center text-[var(--color-text-pale)] font-[var(--font-bell)]">Please sign in to view messages.</div>;
 
     return (
-        <div className="flex h-full w-full bg-[var(--color-brown-dark)] min-h-0 overflow-hidden">
+        <div className="flex h-full w-full bg-white min-h-0 overflow-hidden">
             {/* Sidebar List - Hidden on mobile if activeConvo is selected */}
             <div className={`
-                w-full md:w-80 lg:w-96 border-r border-[var(--color-primary-border)]/20 bg-[var(--color-brown-pale)] flex flex-col shadow-lg min-w-0 shrink-0
+                w-full md:w-80 lg:w-96 border-r border-gray-200 bg-gray-50 flex flex-col shadow-lg min-w-0 shrink-0
                 ${activeConvo ? 'hidden md:flex' : 'flex'}
             `}>
-                <div className="p-4 border-b border-[var(--color-primary-border)]/20 shrink-0">
-                    <h2 className="font-bold text-xl text-[var(--color-yellow-light)] font-[var(--font-bell)]">Messages</h2>
+                <div className="p-4 border-b border-gray-200 shrink-0">
+                    <h2 className="font-bold text-xl text-gray-900 font-[var(--font-bell)]">Messages</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto min-h-0">
                     <ConversationList
@@ -196,7 +196,7 @@ export const MessagingInterface = () => {
 
             {/* Chat Area - Hidden on mobile if no activeConvo */}
             <div className={`
-                flex-1 flex flex-col bg-[var(--color-brown-pale)] min-w-0 min-h-0
+                flex-1 flex flex-col bg-white min-w-0 min-h-0
                 ${!activeConvo ? 'hidden md:flex' : 'flex'}
             `}>
                 {activeConvo ? (() => {
@@ -215,9 +215,9 @@ export const MessagingInterface = () => {
                         />
                     );
                 })() : (
-                    <div className="flex-1 flex items-center justify-center text-[var(--color-text-pale)] bg-[var(--color-brown-dark)]">
+                    <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
                         <div className="text-center">
-                            <p className="text-lg font-medium text-[var(--color-yellow-light)] font-[var(--font-bell)]">Select a conversation</p>
+                            <p className="text-lg font-medium text-gray-900 font-[var(--font-bell)]">Select a conversation</p>
                             <p className="text-sm font-[var(--font-bell)]">Choose a chat from the list to start messaging</p>
                         </div>
                     </div>
