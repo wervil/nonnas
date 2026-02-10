@@ -21,9 +21,7 @@ export const button = (path: string, n: (key: string) => string, hasAdminAccess:
       </Link>
     )
   }
-  if (hasAdminAccess) {
-    return ("")
-  }
+
   return (
     <Link href="/add-recipe">
       <Button>{n('addRecipe')}</Button>
@@ -91,7 +89,7 @@ export const Header = ({
         />
       </Link>
       <div className={`items-center gap-1 relative ${navVisibilityClass}`}>
-        {onExport && (
+        {onExport && user && (
           <button
             onClick={onExport}
             disabled={isExporting}

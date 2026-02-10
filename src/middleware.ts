@@ -10,7 +10,7 @@ const ADMIN_PATHS = [/^\/dashboard(\/|$)/, /^\/print(\/|$)/]
 
 // Logged-in user routes (non-admin area)
 const USER_PATHS = [
-  /^\/add-recipe(\/|$)/,
+  // /^\/add-recipe(\/|$)/,
   /^\/checkout(\/|$)/,
 ]
 

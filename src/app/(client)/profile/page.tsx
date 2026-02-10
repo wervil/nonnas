@@ -42,12 +42,7 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
   const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
   const hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
 
-  useEffect(() => {
-    if (hasPermissions && !hasInitializedTab.current) {
-      setActiveTab('saved')
-      hasInitializedTab.current = true
-    }
-  }, [hasPermissions])
+
 
   useEffect(() => {
     if (activeTab === 'my_recipes') loadMyRecipes(user.id)
@@ -116,21 +111,19 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
 
         {/* Tabs */}
         <div className="flex border-b border-[var(--color-primary-border)]/20 mb-8 overflow-x-auto justify-center md:justify-start">
-          {!hasPermissions && (
-            <button
-              onClick={() => setActiveTab('my_recipes')}
-              className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'my_recipes'
-                ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
-                : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
-                }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              My Recipes
-              {activeTab === 'my_recipes' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('my_recipes')}
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'my_recipes'
+              ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
+              : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
+              }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            My Recipes
+            {activeTab === 'my_recipes' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
+            )}
+          </button>
           <button
             onClick={() => setActiveTab('saved')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'saved'
@@ -161,7 +154,7 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
 
         {/* Content */}
         <div className="min-h-[400px]">
-          {!hasPermissions && activeTab === 'my_recipes' && (
+          {activeTab === 'my_recipes' && (
             loading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="animate-spin text-[var(--color-yellow-light)] w-8 h-8" />

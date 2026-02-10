@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 import { recipes, likes } from '@/db/schema'
 import { eq, sql, and, ilike, inArray } from 'drizzle-orm'
+import { stackServerApp } from '@/stack'
+import { checkAdminPermission } from '@/utils/checkAdminPermission'
 // import * as deepl from 'deepl-node'
 // import { availableLanguages } from '@/utils/availableLanguages'
 // import { translateText } from '../services/libretranslate'
@@ -66,6 +68,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for admin permissions to auto-publish
+    const user = await stackServerApp.getUser()
+    const isAdmin = user ? await checkAdminPermission(user) : false
+
     // Insert the recipe into the database
     const newRecipe = await db
       .insert(recipes)
@@ -87,6 +93,7 @@ export async function POST(request: NextRequest) {
         recipe_image: body.recipe_image || null,
         dish_image: body.dish_image || null,
         release_signature: body.release_signature || false,
+        published: isAdmin, // Auto-publish if admin
       })
       .returning()
 
