@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Post } from '@/db/schema'
 import LikeButton from '../LikeButton'
@@ -32,7 +32,7 @@ export default function PostItem({
     onReplySubmit,
 }: PostItemProps) {
     const [isEditing, setIsEditing] = useState(false)
-    const [editContent, setEditContent] = useState(post.content)
+    const [editContent, setEditContent] = useState<string>(String(post.content || ''))
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -42,7 +42,7 @@ export default function PostItem({
     const [localReplies, setLocalReplies] = useState<Post[]>(post.replies || [])
 
     // Local display state for immediate updates
-    const [displayContent, setDisplayContent] = useState(post.content)
+    const [displayContent, setDisplayContent] = useState<string>(String(post.content || ''))
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
     const [mounted, setMounted] = useState(false)
 
@@ -57,7 +57,7 @@ export default function PostItem({
 
     // Sync display content when prop changes
     useEffect(() => {
-        setDisplayContent(post.content)
+        setDisplayContent(String(post.content || ''))
     }, [post.content])
 
     const isOwner = currentUserId === post.user_id
@@ -163,6 +163,22 @@ export default function PostItem({
         if (onEdit) onEdit(childId, content)
     }
 
+    const contentSection: any = isEditing ? (
+        <div className="space-y-2">
+            <textarea
+                value={editContent || ''}
+                onChange={(e) => setEditContent(e.target.value)}
+                maxLength={5000}
+                rows={3}
+                aria-label="Edit post content"
+                placeholder="Edit your post..."
+                className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none font-[var(--font-bell)]"
+            />
+        </div>
+    ) : (
+        <p className="text-[var(--color-text-pale)] text-sm mb-2 whitespace-pre-wrap leading-relaxed font-[var(--font-bell)]">{String(displayContent || '')}</p>
+    )
+
     return (
         <>
             <div
@@ -210,13 +226,14 @@ export default function PostItem({
                         </div>
 
                         {/* Actions */}
-                        {isOwner && !isEditing && (
+                        {isOwner && !isEditing ? (
                             <div className="flex items-center gap-0.5">
-                                {!(post.attachments as any[])?.some((a: any) => a.type === 'audio') && (
+                                {!((post.attachments || []) as Attachment[]).some((a) => a.type === 'audio') && (
                                     <button
                                         onClick={() => setIsEditing(true)}
                                         className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
                                         title="Edit"
+                                        type="button"
                                     >
                                         <Edit2 className="w-3.5 h-3.5" />
                                     </button>
@@ -228,12 +245,14 @@ export default function PostItem({
                                             onClick={handleDelete}
                                             disabled={isDeleting}
                                             className="px-2 py-0.5 text-xs bg-[var(--color-danger-main)] text-white rounded hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)] flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            type="button"
                                         >
                                             {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
                                         </button>
                                         <button
                                             onClick={() => setShowDeleteConfirm(false)}
                                             className="px-2 py-0.5 text-xs text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 rounded transition-colors font-[var(--font-bell)]"
+                                            type="button"
                                         >
                                             No
                                         </button>
@@ -243,30 +262,15 @@ export default function PostItem({
                                         onClick={() => setShowDeleteConfirm(true)}
                                         className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-danger-main)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
                                         title="Delete"
+                                        type="button"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                 )}
                             </div>
-                        )}
+                        ) : null}
                     </div>
-
-                    {/* Content */}
-                    {isEditing ? (
-                        <div className="space-y-2">
-                            <textarea
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                maxLength={5000}
-                                rows={3}
-                                aria-label="Edit post content"
-                                placeholder="Edit your post..."
-                                className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none font-[var(--font-bell)]"
-                            />
-                        </div>
-                    ) : (
-                        <p className="text-[var(--color-text-pale)] text-sm mb-2 whitespace-pre-wrap leading-relaxed font-[var(--font-bell)]">{displayContent}</p>
-                    )}
+                    {contentSection}
 
                     {/* Attachments - Always visible */}
                     {post.attachments && (post.attachments as any[]).length > 0 && (
