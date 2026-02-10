@@ -152,9 +152,9 @@ export default function CreateThreadForm({
 
             {/* Title */}
             <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                     Title{' '}
-                    <span className={`${title.length > 100 ? 'text-amber-400' : 'text-gray-500'}`}>
+                    <span className={`${title.length > 100 ? 'text-amber-600' : 'text-gray-400'}`}>
                         ({title.length}/120)
                     </span>
                 </label>
@@ -166,15 +166,15 @@ export default function CreateThreadForm({
                     maxLength={120}
                     required
                     placeholder="What's your discussion about?"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all font-[var(--font-bell)]"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all font-[var(--font-bell)]"
                 />
             </div>
 
             {/* Content */}
             <div>
-                <label htmlFor="content" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
                     Content{' '}
-                    <span className={`${content.length > 4500 ? 'text-amber-400' : 'text-gray-500'}`}>
+                    <span className={`${content.length > 4500 ? 'text-amber-600' : 'text-gray-400'}`}>
                         ({content.length}/5000)
                     </span>
                 </label>
@@ -186,14 +186,14 @@ export default function CreateThreadForm({
                     required
                     rows={6}
                     placeholder="Share your thoughts, questions, or stories..."
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none font-[var(--font-bell)]"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none font-[var(--font-bell)]"
                 />
 
                 {/* Attachments Preview */}
                 {attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3 p-2 bg-white/5 rounded-xl border border-white/10">
+                    <div className="flex flex-wrap gap-2 mt-3 p-2 bg-gray-50 rounded-xl border border-gray-200">
                         {attachments.map((att, i) => (
-                            <div key={i} className="relative group bg-gray-800 rounded-lg overflow-hidden border border-gray-700 w-20 h-20 flex items-center justify-center">
+                            <div key={i} className="relative group bg-white rounded-lg overflow-hidden border border-gray-200 w-20 h-20 flex items-center justify-center">
                                 {att.type === 'image' ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={att.url} alt="attachment" className="w-full h-full object-cover" />
@@ -227,27 +227,27 @@ export default function CreateThreadForm({
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
-                        className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 transition-colors border border-white/10"
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm text-gray-600 transition-colors border border-gray-200"
                     >
                         {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
                         Attach file
                     </button>
-                    <span className="text-xs text-gray-500 italic">
+                    <span className="text-xs text-gray-400 italic">
                         Images, video, or audio (max 50MB)
                     </span>
                 </div>
             </div>
 
             {/* Region and Scope Info */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-[var(--font-bell)]">
-                <div className="flex items-center gap-4 text-gray-400">
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm font-[var(--font-bell)]">
+                <div className="flex items-center gap-4 text-gray-600">
                     <span>
-                        <strong className="text-gray-300">Region:</strong> {region}
+                        <strong className="text-gray-900">Region:</strong> {region}
                     </span>
-                    <span className="text-gray-600">•</span>
+                    <span className="text-gray-400">•</span>
                     <span>
-                        <strong className="text-gray-300">Scope:</strong>{' '}
-                        <span className={scope === 'country' ? 'text-blue-400' : 'text-emerald-400'}>
+                        <strong className="text-gray-900">Scope:</strong>{' '}
+                        <span className={scope === 'country' ? 'text-blue-600' : 'text-emerald-600'}>
                             {scope === 'country' ? '🌍 Country' : '📍 State'}
                         </span>
                     </span>

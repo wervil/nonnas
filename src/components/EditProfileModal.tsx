@@ -65,12 +65,12 @@ export function EditProfileModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[var(--color-brown-pale)] border-[var(--color-primary-border)]/20 sm:max-w-md">
+      <DialogContent className="bg-white border-gray-200 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[var(--color-yellow-light)] font-[var(--font-bell)] text-xl">
+          <DialogTitle className="text-gray-900 font-[var(--font-bell)] text-xl">
             Edit profile
           </DialogTitle>
-          <DialogDescription className="text-[var(--color-text-pale)] font-[var(--font-bell)]">
+          <DialogDescription className="text-gray-500 font-[var(--font-bell)]">
             Update your display name. This is how you appear across the app.
           </DialogDescription>
         </DialogHeader>
@@ -79,7 +79,7 @@ export function EditProfileModal({
           <div>
             <label
               htmlFor="edit-displayName"
-              className="block text-sm font-medium text-[var(--color-yellow-light)] mb-1.5 font-[var(--font-bell)]"
+              className="block text-sm font-medium text-gray-700 mb-1.5 font-[var(--font-bell)]"
             >
               {l('fullName')}
             </label>
@@ -92,43 +92,43 @@ export function EditProfileModal({
                 if (val.length <= 100) setDisplayName(val)
               }}
               maxLength={100}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--color-primary-border)]/40 bg-[var(--color-brown-dark)]/50 text-[var(--color-yellow-light)] placeholder:text-[var(--color-text-pale)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-success-main)] font-[var(--font-bell)]"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 font-[var(--font-bell)] transition-all"
               placeholder="Your name"
               required
             />
-            <p className="mt-1 text-xs text-[var(--color-text-pale)]/80 font-[var(--font-bell)]">
+            <p className="mt-1 text-xs text-gray-400 font-[var(--font-bell)]">
               {displayName.length}/100
             </p>
           </div>
 
           {user?.primaryEmail != null && user.primaryEmail !== '' && (
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-pale)] mb-1.5 font-[var(--font-bell)]">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5 font-[var(--font-bell)]">
                 Email
               </label>
-              <p className="text-sm text-[var(--color-text-pale)]/90 font-[var(--font-bell)]">
+              <p className="text-sm text-gray-600 font-[var(--font-bell)]">
                 {user.primaryEmail}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-pale)]/60 font-[var(--font-bell)]">
+              <p className="mt-0.5 text-xs text-gray-400 font-[var(--font-bell)]">
                 Email cannot be changed here. Use your account settings.
               </p>
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="gap-0 sm:gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="border-[var(--color-primary-border)]/40 text-[var(--color-text-pale)] hover:bg-[var(--color-brown-dark)]/50"
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 bg-white"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={saving || !displayName.trim()}
-              className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
+              className="bg-gray-900 hover:bg-gray-800 text-white"
             >
               {saving ? (
                 <>

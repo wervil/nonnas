@@ -66,9 +66,9 @@ export const Header = ({
   const path = usePathname()
 
   // Dynamic classes based on page type
-  const headerBgClass = isExplorePage ? 'bg-black/80 backdrop-blur-sm' : 'bg-white'
+  const headerBgClass = 'bg-white'
   // const iconColorClass = isExplorePage ? 'text-white' : 'text-gray-700'
-  const imageFilterClass = isExplorePage ? 'text-white' : 'text-[#5f5f13]';
+  const imageFilterClass = 'text-[#5f5f13]';
   // const logoSrc = isExplorePage ? "/logoMain.svg" : "/logoMain.svg" // Keep same logo, maybe invert if needed? assuming logo looks ok or needs specific invert
 
   const headerJustifyClass = isExplorePage ? 'justify-between' : 'justify-center md:justify-between'

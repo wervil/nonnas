@@ -71,14 +71,14 @@ export default function DiscussionPanel({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed top-[80px] right-0 h-[calc(100vh-80px)] w-full md:w-[480px] bg-gradient-to-b from-[#1a1a1a] to-[#0d0d0d] shadow-2xl z-[99999] border-l border-amber-500/20 animate-in slide-in-from-right duration-300 flex flex-col">
+        <div className="fixed top-[80px] right-0 h-[calc(100vh-80px)] w-full md:w-[480px] bg-white shadow-2xl z-[99999] border-l border-gray-200 animate-in slide-in-from-right duration-300 flex flex-col">
             {/* Header with beautiful gradient */}
             <div className="relative overflow-hidden">
                 {/* Background decoration */}
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-600/20 via-orange-600/10 to-transparent" />
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 via-orange-50/30 to-transparent" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl" />
 
-                <div className="relative px-6 py-5 border-b border-white/10">
+                <div className="relative px-6 py-5 border-b border-gray-100">
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
@@ -90,7 +90,7 @@ export default function DiscussionPanel({
                                     )}
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white leading-tight">
+                                    <h2 className="text-xl font-bold text-gray-900 leading-tight">
                                         {regionDisplayName}
                                     </h2>
                                     <div className="flex items-center gap-2 mt-0.5">
@@ -106,7 +106,7 @@ export default function DiscussionPanel({
                         </div>
                         <button
                             onClick={onClose}
-                            className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-all duration-200"
+                            className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-500 hover:text-gray-700 transition-all duration-200"
                             aria-label="Close"
                         >
                             <X className="w-5 h-5" />
@@ -116,12 +116,12 @@ export default function DiscussionPanel({
             </div>
 
             {/* Tabs with glow effect */}
-            <div className="flex border-b border-white/10 bg-black/20">
+            <div className="flex border-b border-gray-100 bg-gray-50/50">
                 <button
                     onClick={() => setActiveTab("discussion")}
                     className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative ${activeTab === "discussion"
-                        ? "text-amber-400"
-                        : "text-gray-500 hover:text-gray-300"
+                        ? "text-amber-600"
+                        : "text-gray-500 hover:text-gray-700"
                         }`}
                 >
                     <div className="flex items-center justify-center gap-2">
@@ -135,8 +135,8 @@ export default function DiscussionPanel({
                 <button
                     onClick={() => setActiveTab("nonnas")}
                     className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative ${activeTab === "nonnas"
-                        ? "text-amber-400"
-                        : "text-gray-500 hover:text-gray-300"
+                        ? "text-amber-600"
+                        : "text-gray-500 hover:text-gray-700"
                         }`}
                 >
                     <div className="flex items-center justify-center gap-2">
@@ -163,8 +163,8 @@ export default function DiscussionPanel({
                                 {/* Header with action button */}
                                 <div className="mb-6 flex justify-between items-center">
                                     <div>
-                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                            <Sparkles className="w-5 h-5 text-amber-400" />
+                                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                            <Sparkles className="w-5 h-5 text-amber-500" />
                                             Regional Discussions
                                         </h3>
                                         <p className="text-sm text-gray-500 mt-1">
@@ -181,7 +181,7 @@ export default function DiscussionPanel({
                                     ) : (
                                         <button
                                             onClick={() => router.push("/handler/sign-in")}
-                                            className="px-4 py-2.5 bg-white/5 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/10 transition-all duration-200 text-sm font-semibold"
+                                            className="px-4 py-2.5 bg-gray-50 text-amber-600 border border-amber-500/30 rounded-xl hover:bg-amber-50 transition-all duration-200 text-sm font-semibold"
                                         >
                                             Log in to start discussion
                                         </button>
@@ -204,12 +204,12 @@ export default function DiscussionPanel({
                                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                                     <span className="font-medium">Back to discussions</span>
                                 </button>
-                                <div className="bg-gradient-to-br from-white/5 to-white/[0.02] rounded-2xl p-6 border border-white/10">
-                                    <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                                        <MessageCircle className="w-5 h-5 text-amber-400" />
+                                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                                        <MessageCircle className="w-5 h-5 text-amber-500" />
                                         Start a Discussion
                                     </h3>
-                                    <p className="text-gray-400 text-sm mb-6">
+                                    <p className="text-gray-500 text-sm mb-6">
                                         Share your thoughts with the {regionDisplayName} community
                                     </p>
                                     <CreateThreadForm
@@ -247,8 +247,8 @@ export default function DiscussionPanel({
                                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
                                     <span className="text-4xl">👵</span>
                                 </div>
-                                <h3 className="text-lg font-bold text-white mb-2">No Nonnas Yet</h3>
-                                <p className="text-gray-400 mb-1">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2">No Nonnas Yet</h3>
+                                <p className="text-gray-500 mb-1">
                                     No grandmothers have shared recipes from this area yet.
                                 </p>
                                 <p className="text-sm text-gray-500">
@@ -258,13 +258,13 @@ export default function DiscussionPanel({
                         ) : (
                             <div className="space-y-4">
                                 {/* Stats header */}
-                                <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                                <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-amber-50 border border-amber-100">
                                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
                                         <Users className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
-                                        <div className="text-2xl font-bold text-white">{nonnas.length}</div>
-                                        <div className="text-sm text-gray-400">
+                                        <div className="text-2xl font-bold text-gray-900">{nonnas.length}</div>
+                                        <div className="text-sm text-gray-500">
                                             {nonnas.length === 1 ? "Nonna" : "Nonnas"} in {regionDisplayName}
                                         </div>
                                     </div>
@@ -274,7 +274,7 @@ export default function DiscussionPanel({
                                 {nonnas.map((nonna, index) => (
                                     <div
                                         key={nonna.id}
-                                        className="group relative bg-gradient-to-br from-white/5 to-white/[0.02] rounded-2xl border border-white/10 overflow-hidden hover:border-amber-500/40 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300"
+                                        className="group relative bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-amber-500/40 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300"
                                         style={{ animationDelay: `${index * 50}ms` }}
                                     >
                                         <div className="flex">
@@ -299,11 +299,11 @@ export default function DiscussionPanel({
                                             <div className="flex-1 p-4 min-w-0">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="font-bold text-white text-lg truncate group-hover:text-amber-400 transition-colors">
+                                                        <h3 className="font-bold text-gray-900 text-lg truncate group-hover:text-amber-600 transition-colors">
                                                             {nonna.name}
                                                         </h3>
                                                         {nonna.recipeTitle && (
-                                                            <p className="text-sm font-medium mt-1 text-amber-400/80 truncate">
+                                                            <p className="text-sm font-medium mt-1 text-amber-600/80 truncate">
                                                                 🍝 {nonna.recipeTitle}
                                                             </p>
                                                         )}
@@ -318,7 +318,7 @@ export default function DiscussionPanel({
                                                 )}
 
                                                 {nonna.history && (
-                                                    <p className="mt-2 text-sm text-gray-400 line-clamp-2 leading-relaxed">
+                                                    <p className="mt-2 text-sm text-gray-500 line-clamp-2 leading-relaxed">
                                                         {nonna.history}
                                                     </p>
                                                 )}

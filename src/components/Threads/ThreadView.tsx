@@ -211,7 +211,7 @@ export default function ThreadView({
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary-main)]" />
+        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
       </div>
     )
   }
@@ -237,27 +237,27 @@ export default function ThreadView({
   const threadContent = toText(thread?.content, '')
 
   return (
-    <div className="bg-[var(--color-background-main)] min-h-screen font-[var(--font-bell)] pb-32">
+    <div className="bg-white min-h-screen font-[var(--font-bell)] pb-32">
       {/* Main Thread Post */}
-      <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/80 via-[var(--color-brown-pale)]/60 to-[var(--color-brown-light)]/40 border border-[var(--color-primary-border)]/30 rounded-xl p-5 mb-6 shadow-lg">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 shadow-sm">
         {/* Meta info - top */}
         <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-2 text-xs text-[var(--color-text-pale)] bg-[var(--color-brown-light)]/30 px-2.5 py-1 rounded-full border border-[var(--color-primary-border)]/20">
-            <span className="capitalize font-medium text-[var(--color-yellow-light)]">
+          <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
+            <span className="capitalize font-medium text-amber-600">
               {toText(thread.scope, '')}
             </span>
-            <span className="text-[var(--color-primary-border)]/40">|</span>
+            <span className="text-gray-300">|</span>
             <span className="capitalize">{toText(thread.region, '')}</span>
           </div>
         </div>
 
         {/* Title */}
-        <h2 className="text-lg font-bold mb-2 text-[var(--color-yellow-light)] capitalize font-[var(--font-bell)]">
+        <h2 className="text-lg font-bold mb-2 text-gray-900 capitalize font-[var(--font-bell)]">
           {threadTitle}
         </h2>
 
         {/* Content */}
-        <p className="text-[var(--color-text-pale)] text-sm whitespace-pre-wrap mb-4 leading-relaxed font-[var(--font-bell)]">
+        <p className="text-gray-700 text-sm whitespace-pre-wrap mb-4 leading-relaxed font-[var(--font-bell)]">
           {threadContent}
         </p>
 
@@ -271,13 +271,13 @@ export default function ThreadView({
                   <img
                     src={att.url}
                     alt="Attachment"
-                    className="max-h-64 rounded-lg border border-[var(--color-primary-border)]/30 object-cover"
+                    className="max-h-64 rounded-lg border border-gray-200 object-cover"
                   />
                 ) : att?.type === 'video' ? (
                   <video
                     src={att.url}
                     controls
-                    className="max-h-64 rounded-lg border border-[var(--color-primary-border)]/30"
+                    className="max-h-64 rounded-lg border border-gray-200"
                   />
                 ) : (
                   <AudioPlayer src={att.url} className="w-full" />
@@ -288,7 +288,7 @@ export default function ThreadView({
         )}
 
         {/* Toolbar */}
-        <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--color-primary-border)]/20">
+        <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
           <LikeButton
             likeableId={thread.id}
             likeableType="thread"
@@ -297,12 +297,12 @@ export default function ThreadView({
             isAuthenticated={isAuthenticated}
           />
 
-          <div className="flex items-center gap-1.5 text-[var(--color-text-pale)] text-xs">
+          <div className="flex items-center gap-1.5 text-gray-500 text-xs">
             <MessageSquare className="w-3.5 h-3.5" />
             <span>{posts.length} replies</span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[var(--color-text-pale)] text-xs ml-auto">
+          <div className="flex items-center gap-1.5 text-gray-400 text-xs ml-auto">
             <span className="opacity-70">
               {new Date((thread as any).created_at || Date.now()).toLocaleDateString()}
             </span>
@@ -312,15 +312,15 @@ export default function ThreadView({
 
       {/* Reply Input */}
       <div className="mb-8">
-        <h3 className="text-sm font-medium text-[var(--color-text-main)] mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
           <MessageSquare className="w-4 h-4" />
           Reply to this discussion
         </h3>
 
         {isAuthenticated ? (
-          <CommentEditor onSubmit={handleReply} onCancel={() => {}} placeholder="Share your thoughts..." />
+          <CommentEditor onSubmit={handleReply} onCancel={() => { }} placeholder="Share your thoughts..." />
         ) : (
-          <div className="bg-[var(--color-brown-light)]/30 p-4 rounded-lg text-center text-sm text-[var(--color-text-pale)]">
+          <div className="bg-gray-50 p-4 rounded-lg text-center text-sm text-gray-500 border border-gray-200">
             Please sign in to reply to this discussion.
           </div>
         )}
@@ -329,7 +329,7 @@ export default function ThreadView({
       {/* Posts List */}
       <div className="space-y-4">
         {posts.length === 0 ? (
-          <div className="text-center py-8 text-[var(--color-text-pale)] text-sm italic opacity-60">
+          <div className="text-center py-8 text-gray-400 text-sm italic opacity-60">
             No replies yet. Be the first to share your thoughts!
           </div>
         ) : (

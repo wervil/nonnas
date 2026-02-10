@@ -13,8 +13,8 @@ interface ThreadCardProps {
 export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
     const getScopeBadgeStyle = (scope: string) => {
         return scope === 'country'
-            ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+            ? 'bg-blue-50 text-blue-700 border-blue-200'
+            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
     }
 
 
@@ -44,16 +44,16 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
     }
 
     const content = (
-        <div className="group bg-gradient-to-br from-white/[0.05] to-white/[0.02] border rounded-lg p-3 border-amber-500/40 hover:bg-white/[0.08] transition-all duration-200 cursor-pointer">
+        <div className="group bg-white border border-gray-200 rounded-lg p-3 hover:border-amber-500/40 hover:shadow-md transition-all duration-200 cursor-pointer">
             <div className="flex items-start gap-2.5">
                 {/* Category icon */}
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
                     💬
                 </div>
 
                 <div className="flex-1 min-w-0">
                     {/* Title */}
-                    <h3 className="text-sm font-semibold text-amber-400 transition-colors line-clamp-1 mb-1">
+                    <h3 className="text-sm font-semibold text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-1 mb-1">
                         {thread.title}
                     </h3>
 
@@ -68,7 +68,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
                     </div>
 
                     {/* Content preview */}
-                    <p className="text-gray-400 text-xs line-clamp-1 mb-2">
+                    <p className="text-gray-500 text-xs line-clamp-1 mb-2">
                         {thread.content}
                     </p>
 
@@ -91,7 +91,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
 
                 {/* Arrow indicator */}
                 <div className="flex-shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ChevronRight className="w-4 h-4 text-amber-400" />
+                    <ChevronRight className="w-4 h-4 text-amber-500" />
                 </div>
             </div>
         </div>

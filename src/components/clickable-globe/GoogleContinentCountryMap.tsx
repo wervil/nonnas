@@ -2673,7 +2673,7 @@ export default function GoogleContinentCountryMap({
   }, [highlightState, zoomToState, stateData, selectedCountry, normalizeStateName]);
 
   return (
-    <div className="relative w-full h-full font-[var(--font-bell)]" style={{ backgroundColor: '#f5f5f5' }}>
+    <div className="relative w-full h-full font-[var(--font-bell)]" style={{ backgroundColor: '#ffffff' }}>
 
 
       {/* Top bar - amber theme matching markers */}
@@ -2690,9 +2690,9 @@ export default function GoogleContinentCountryMap({
             {backButtonLabel}
           </button>
 
-          <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg border border-white/10">
-            {/* <div className="text-xs text-gray-400 uppercase tracking-wide">Viewing</div> */}
-            <div className="font-semibold text-white">{viewLabel}</div>
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg border border-gray-200">
+            {/* <div className="text-xs text-gray-500 uppercase tracking-wide">Viewing</div> */}
+            <div className="font-semibold text-gray-900">{viewLabel}</div>
           </div>
         </div>
         {/* Dropdowns */}
@@ -2720,13 +2720,13 @@ export default function GoogleContinentCountryMap({
 
       {/* Loading overlay */}
       {(isLoading || isTransitioning) && (
-        <div className="absolute inset-0 z-20 bg-black/80 flex items-center justify-center">
+        <div className="absolute inset-0 z-20 bg-black/30 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <div
               className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin"
               style={{ borderColor: `${MARKER_COLOR} transparent transparent transparent` }}
             />
-            <span className="text-gray-300">
+            <span className="text-white">
               {isLoading ? "Loading map..." :
                 drill === "state" ? "Loading state view..." :
                   drill === "country" ? "Loading country view..." :
@@ -2740,8 +2740,8 @@ export default function GoogleContinentCountryMap({
       <div ref={mapDivRef} className="w-full h-full" />
 
       {/* Legend - amber theme matching markers */}
-      <div className="absolute bottom-4 right-4 z-10 bg-black/70 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-white/10">
-        <div className="text-xs font-semibold text-gray-400 mb-2">LEGEND</div>
+      <div className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-200">
+        <div className="text-xs font-semibold text-gray-500 mb-2">LEGEND</div>
         <div className="flex items-center gap-2 mb-1">
           <div
             className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
@@ -2749,14 +2749,14 @@ export default function GoogleContinentCountryMap({
           >
             N
           </div>
-          <span className="text-sm text-gray-300">Click cluster to view Nonnas</span>
+          <span className="text-sm text-gray-700">Click cluster to view Nonnas</span>
         </div>
         <div className="flex items-center gap-2 mb-1">
           <div
             className="w-6 h-6 rounded border-2 bg-transparent"
-            style={{ borderColor: "#444444" }}
+            style={{ borderColor: "#e5e7eb" }}
           />
-          <span className="text-sm text-gray-300">
+          <span className="text-sm text-gray-700">
             {drill === "continent" ? "Click country to drill down" :
               drill === "country" ? "Click state/region to drill down" :
                 "Click to view discussions"}
@@ -2768,7 +2768,7 @@ export default function GoogleContinentCountryMap({
               className="w-6 h-6 rounded border-2"
               style={{ borderColor: MARKER_COLOR, backgroundColor: `${MARKER_COLOR}20` }}
             />
-            <span className="text-sm text-gray-300">
+            <span className="text-sm text-gray-700">
               {drill === "country" ? "State/region boundaries" : "Selected region"}
             </span>
           </div>

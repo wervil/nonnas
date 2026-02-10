@@ -72,13 +72,13 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
   }
 
   return (
-    <div className="flex flex-col min-h-svh w-full relative bg-[var(--color-brown-dark)]">
+    <div className="flex flex-col min-h-svh w-full relative bg-white">
 
       <div className="relative z-10 w-full ">
         <Header
           hasAdminAccess={hasPermissions}
           user={user}
-          className="!bg-[var(--color-brown-dark)]/80  border-b border-[var(--color-primary-border)]/20"
+          className="!bg-white/80 border-b border-gray-200 backdrop-blur-md"
         />
       </div>
 
@@ -86,23 +86,23 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 mt-4">
           <div className="text-center md:text-left min-w-0 max-w-full">
-            <h1 className="text-4xl md:text-5xl font-bold !text-[var(--color-yellow-light)] font-[var(--font-bell)] mb-2 break-words overflow-hidden line-clamp-3 max-w-[600px] mx-auto md:mx-0" title={user.displayName || undefined}>
+            <h1 className="text-4xl md:text-5xl font-bold !text-gray-900 font-[var(--font-bell)] mb-2 break-words overflow-hidden line-clamp-3 max-w-[600px] mx-auto md:mx-0" title={user.displayName || undefined}>
               {user.displayName || 'Profile'}
             </h1>
-            <p className="text-[var(--color-text-pale)] font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
+            <p className="text-gray-500 font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
           </div>
           <div className="flex gap-3 shrink-0">
             <Button
               onClick={() => setEditProfileOpen(true)}
               variant="outline"
-              className="border-[var(--color-primary-border)]/40 text-[var(--color-yellow-light)] hover:bg-[var(--color-brown-dark)]/50"
+              className="border-gray-200 !text-gray-700 hover:bg-gray-50"
             >
               <Pencil className="w-4 h-4 mr-2" />
               {b('edit')}
             </Button>
             <Button
               onClick={() => user?.signOut()}
-              className="bg-[var(--color-brown-light)] hover:opacity-90 text-[var(--color-yellow-light)]"
+              className="bg-gray-100 hover:opacity-90 text-gray-900 hover:bg-gray-200"
             >
               {b('logOut')}
             </Button>
@@ -110,44 +110,44 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[var(--color-primary-border)]/20 mb-8 overflow-x-auto justify-center md:justify-start">
+        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto justify-center md:justify-start">
           <button
             onClick={() => setActiveTab('my_recipes')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'my_recipes'
-              ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
-              : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
+              ? 'text-amber-600 bg-amber-50/50'
+              : 'text-gray-500 hover:text-amber-600 bg-transparent'
               }`}
           >
             <BookOpen className="w-4 h-4" />
             My Recipes
             {activeTab === 'my_recipes' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
             )}
           </button>
           <button
             onClick={() => setActiveTab('saved')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'saved'
-              ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
-              : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
+              ? 'text-amber-600 bg-amber-50/50'
+              : 'text-gray-500 hover:text-amber-600 bg-transparent'
               }`}
           >
             <Heart className="w-4 h-4" />
             Saved Recipes
             {activeTab === 'saved' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
             )}
           </button>
           <button
             onClick={() => setActiveTab('activity')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'activity'
-              ? 'text-[var(--color-yellow-light)] bg-gradient-to-b from-[var(--color-green-dark)]/20 to-transparent'
-              : 'text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] bg-transparent'
+              ? 'text-amber-600 bg-amber-50/50'
+              : 'text-gray-500 hover:text-amber-600 bg-transparent'
               }`}
           >
             <MessageCircle className="w-4 h-4" />
             My Activity
             {activeTab === 'activity' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[var(--color-green-dark)] via-[var(--color-success-main)] to-[var(--color-green-dark)]" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
             )}
           </button>
         </div>
@@ -173,7 +173,7 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
             ) : (
               <>
                 {savedRecipes.length === 0 ? (
-                  <div className="text-center py-12 text-[var(--color-text-pale)] font-light font-[var(--font-bell)]">
+                  <div className="text-center py-12 text-gray-500 font-light font-[var(--font-bell)]">
                     You haven&apos;t saved any recipes yet.
                   </div>
                 ) : (
@@ -185,7 +185,7 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
 
           {activeTab === 'activity' && (
             <div className="mx-auto md:mx-0">
-              <h3 className="text-xl font-bold text-[var(--color-yellow-light)] mb-6 font-[var(--font-bell)]">Values & Discussions</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6 font-[var(--font-bell)]">Values & Discussions</h3>
               <ThreadList userId={user.id} />
             </div>
           )}

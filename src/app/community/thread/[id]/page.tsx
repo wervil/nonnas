@@ -21,13 +21,13 @@ export default async function ThreadPage({
 
 
     return (
-        <div className="flex flex-col min-h-svh w-full relative bg-[var(--color-brown-dark)]">
+        <div className="flex flex-col min-h-svh w-full relative bg-white">
             <div className="relative z-10 w-full">
                 <Header
                     hasAdminAccess={false}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     user={user ? (user as any).toClientJson() : null}
-                    className="!bg-[var(--color-brown-dark)]/80 border-b border-[var(--color-primary-border)]/20"
+                    className="!bg-white/80 border-b border-gray-200 backdrop-blur-md"
                 />
             </div>
 

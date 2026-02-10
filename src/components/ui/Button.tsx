@@ -5,7 +5,7 @@ import { clsx } from 'clsx'
 const button = cva(
   [
     'flex items-center justify-center rounded-md',
-    'text-xl leading-6 font-medium text-white',
+    'text-xl leading-6 font-medium ',
     'transition-all duration-200 ease-in-out',
     'cursor-pointer',
     'disabled:cursor-not-allowed',

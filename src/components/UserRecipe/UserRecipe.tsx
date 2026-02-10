@@ -109,40 +109,46 @@ export const UserRecipe = ({
 
   return (
     <div className="w-full mx-auto">
-      <div className="flex gap-4 p-4 action-buttons">
-        <Button
-          onClick={goBack}
-          // variant="outline"
-          className="flex items-center gap-2 !px-4"
-        >
-          <ArrowLeft size={16} />
-          {b('goBack')}
-        </Button>
-        <div className=" flex items-center justify-center">
-          <b>{l('published')}:</b>{' '}
-          {sanitizedRecipe.published ? d('yes') : d('no')}
+      <div className="flex gap-4 p-4 action-buttons bg-white border-b border-gray-200 justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={goBack}
+            className="flex items-center gap-2 !px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 border-none"
+          >
+            <ArrowLeft size={16} />
+            {b('goBack')}
+          </Button>
+          <div className="flex items-center text-sm">
+            <b className="text-gray-900 mr-2">{l('published')}:</b>{' '}
+            <span className={sanitizedRecipe.published ? 'text-emerald-600 font-medium' : 'text-gray-500'}>
+              {sanitizedRecipe.published ? d('yes') : d('no')}
+            </span>
+          </div>
         </div>
-        {hasAdminAccess ? (
-          <>
-            <button
-              className={`px-4 py-2 rounded cursor-pointer ${sanitizedRecipe.published
-                ? 'bg-green-500 text-white'
-                : 'bg-yellow-500 text-white'
-                }`}
-              onClick={togglePublished}
-            >
-              {sanitizedRecipe.published ? b('unpublish') : b('publish')}
-            </button>
-            <Button onClick={() => window.print()}>{b('browserPrint')}</Button>
-          </>
-        ) : (
-          <Link href={`${id}/edit`}>
-            <Button>{b('edit')}</Button>
-          </Link>
-        )}
-        <Button onClick={() => setShowDeleteDialog(true)} disabled={deleting} className='bg-red-800'>
-          {deleting ? 'Deleting...' : b('delete')}
-        </Button>
+
+        <div className="flex items-center gap-3">
+          {hasAdminAccess ? (
+            <>
+              <button
+                className={`px-4 py-2 rounded-lg cursor-pointer text-sm font-medium transition-colors ${sanitizedRecipe.published
+                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                  : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  }`}
+                onClick={togglePublished}
+              >
+                {sanitizedRecipe.published ? b('unpublish') : b('publish')}
+              </button>
+              <Button onClick={() => window.print()} className="bg-gray-900 text-white hover:bg-gray-800">{b('browserPrint')}</Button>
+            </>
+          ) : (
+            <Link href={`${id}/edit`}>
+              <Button className="bg-gray-900 text-white hover:bg-gray-800">{b('edit')}</Button>
+            </Link>
+          )}
+          <Button onClick={() => setShowDeleteDialog(true)} disabled={deleting} className='bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'>
+            {deleting ? 'Deleting...' : b('delete')}
+          </Button>
+        </div>
       </div>
       <div id="cookbook-content" className="w-fullpage">
         {convertRecipesToHTML([recipe], l)}
@@ -162,12 +168,13 @@ export const UserRecipe = ({
               onClick={() => {
                 setShowDeleteDialog(false)
               }}
+              className="bg-gray-100 text-gray-900 hover:bg-gray-200"
             >
               Cancel
             </Button>
 
             <Button
-              className='bg-red-800'
+              className='bg-red-600 text-white hover:bg-red-700'
               onClick={deleteRecipe}
               disabled={deleting}
             >

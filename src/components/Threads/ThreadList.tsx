@@ -61,8 +61,8 @@ export default function ThreadList({
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4">
-                    <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
+                    <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
                 </div>
                 <p className="text-gray-500 text-sm">Loading discussions...</p>
             </div>
@@ -72,10 +72,10 @@ export default function ThreadList({
     if (error) {
         return (
             <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
                     <span className="text-2xl">⚠️</span>
                 </div>
-                <p className="text-red-400 font-medium">{error}</p>
+                <p className="text-red-600 font-medium">{error}</p>
                 <p className="text-gray-500 text-sm mt-2">Please try again later</p>
             </div>
         )
@@ -84,10 +84,10 @@ export default function ThreadList({
     if (threads.length === 0) {
         return (
             <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-500/10 to-orange-500/10 flex items-center justify-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-50 flex items-center justify-center">
                     <MessageCircle className="w-10 h-10 text-amber-500/50" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">No Discussions Yet</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Discussions Yet</h3>
                 <p className="text-gray-500 text-sm max-w-xs mx-auto">
                     Be the first to start a conversation in this region!
                 </p>

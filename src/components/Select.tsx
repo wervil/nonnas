@@ -9,10 +9,10 @@ const exploreStyles: StylesConfig = {
   option: (provided, state) => ({
     ...provided,
     backgroundColor: state.isSelected
-      ? '#5f5f13' // Selected option color
+      ? '#fffbeb' // amber-50
       : state.isFocused
-        ? 'rgba(95, 95, 19, 0.3)' // Hovered option color
-        : '#white',
+        ? '#f3f4f6' // gray-100
+        : 'white',
   }),
 }
 
@@ -45,7 +45,7 @@ const CustomOption = (props: any) => {
       {...innerProps}
       onMouseEnter={() => onOptionHover?.(data)}
       onMouseLeave={() => onOptionHover?.(null)}
-      className={`px-3 py-2 cursor-pointer hover:bg-[rgba(95,95,19,0.3)] ${props.isSelected ? 'bg-[#5f5f13] text-white' : 'text-gray-700'}`}
+      className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${props.isSelected ? 'bg-amber-50 text-amber-900 font-medium' : 'text-gray-700'}`}
     >
       {props.label}
     </div>
