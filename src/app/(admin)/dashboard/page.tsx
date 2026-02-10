@@ -12,15 +12,24 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useUser } from '@stackframe/stack'
 
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter
-} from '@/components/ui/dialog';
+} from '@/components/ui/dialog'
 
 import { toast } from "sonner";
+import { Home, LogOut, Menu } from 'lucide-react'
 
 type StackUserRow = {
   id: string
@@ -29,6 +38,8 @@ type StackUserRow = {
   signedUpAt?: string
   role: string // expected: "team_member" for admins; otherwise treat as client
 }
+
+const imageFilterClass = 'text-[#5f5f13]';
 
 const fetchStackUsers = async () => {
   const res = await fetch('/api/admin/users', { cache: 'no-store' })
@@ -274,11 +285,13 @@ function DashboardInner({
     <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">
+        <div className="flex flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <span className="sm:text-4xl text-2xl font-bold text-gray-900">
             {l('dashboard')}
 
-          </h1>
+          </span>
+
+          <div className='flex flex-row gap-2'>
 
           <div className="flex flex-wrap gap-3">
             {hasPermissions && (
@@ -291,7 +304,7 @@ function DashboardInner({
               </Button>
             )}
 
-            <Link href="/">
+            <Link href="/" className='hidden sm:block'>
               <Button className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors" variant="empty">
                 {b('returnHome')}
               </Button>
@@ -302,14 +315,37 @@ function DashboardInner({
                 await user.signOut()
                 window.location.href = '/'
               }}
-              className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors"
+              className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors hidden sm:block"
               variant="empty"
             >
               {b('logOut')}
             </Button>
           </div>
-        </div>
 
+            {/* Mobile View (Dropdown Menu) */}
+            <div className="flex md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="shrink" className="p-2">
+                    <Menu className={`w-[30px] h-[30px] `} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
+                  
+                    <DropdownMenuItem >
+                      <Link href="/" className={`cursor-pointer flex flex-row  ${imageFilterClass} !text-green-dark `}>
+                        <Home className={`mr-2 h-4 w-4 `} /> Home
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => user?.signOut()} className='bg-red-200 text-red-800'>
+                        <LogOut className={`mr-2 h-4 w-4 `} /> Logout
+                    </DropdownMenuItem>
+
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
         {/* TABS */}
         <div className="flex flex-wrap gap-3 mb-6">
           <button
@@ -369,10 +405,10 @@ function DashboardInner({
             </div>
           </div>
         ) : tab === 'users' ? (
-          <div className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
-            <div className="grid grid-cols-6 gap-4 p-4 font-[var(--font-bell)] bg-gray-50 text-gray-700 font-medium min-w-0 border-b border-gray-200">
-              <div className="min-w-0">Name</div>
-              <div className="min-w-0">Email</div>
+          <div className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm overflow-x-auto">
+            <div className="grid grid-cols-6 gap-4 p-4 font-[var(--font-bell)] bg-gray-50 text-gray-700 font-medium  border-b border-gray-200 min-w-[450px]">
+              <div className="">Name</div>
+              <div className="">Email</div>
               <div>Role</div>
               <div>Signed up</div>
               <div className="text-right">Action</div>
@@ -389,17 +425,17 @@ function DashboardInner({
               return (
                 <div
                   key={u.id}
-                  className={`grid grid-cols-6 gap-4 p-4 border-t border-gray-100 items-center transition-colors hover:bg-gray-50 min-w-0 ${isSuper ? 'bg-amber-50/50' : ''
+                  className={`flex flex-row gap-4 p-4 border-t border-gray-100 items-center transition-colors hover:bg-gray-50  min-w-[450px] ${isSuper ? 'bg-amber-50/50' : ''
                     }`}
                 >
-                  <div className="min-w-0 truncate text-gray-900 font-[var(--font-bell)]" title={u.displayName || undefined}>
+                  <div className="  truncate text-gray-900 font-[var(--font-bell)]" title={u.displayName || undefined}>
                     {u.displayName || '—'}
                   </div>
-                  <div className="min-w-0 truncate text-gray-600 font-[var(--font-bell)]" title={u.primaryEmail || undefined}>
+                  <div className="  truncate text-gray-600 font-[var(--font-bell)]" title={u.primaryEmail || undefined}>
                     {u.primaryEmail || '—'}
                   </div>
 
-                  <div>
+                  <div className='whitespace-nowrap min-w-[100px]'>
                     {isSuper ? (
                       <span className="text-xs px-3 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold border border-amber-200">
                         {badge}
