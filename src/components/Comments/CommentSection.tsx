@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import CommentItem from './CommentItem'
-import CommentEditor from './CommentEditor'
+import CommentEditor, { Attachment } from './CommentEditor'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -16,6 +16,7 @@ interface Comment {
     depth: number
     created_at: string
     replies: Comment[]
+    attachments?: Attachment[]
 }
 
 interface CommentSectionProps {
@@ -50,7 +51,7 @@ export default function CommentSection({
         fetchComments()
     }, [fetchComments])
 
-    const handleAddComment = async (content: string) => {
+    const handleAddComment = async (content: string, attachments?: Attachment[]) => {
         try {
             const res = await fetch('/api/recipe-comments', {
                 method: 'POST',
@@ -59,6 +60,7 @@ export default function CommentSection({
                     recipe_id: recipeId,
                     user_id: userId,
                     content,
+                    attachments,
                 }),
             })
 

@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Thread, Post } from '@/db/schema'
+import React, { useEffect, useState } from 'react'
+import type { Thread, Post } from '@/db/schema'
 import PostItem from './PostItem'
+import CommentEditor, { Attachment } from '../Comments/CommentEditor'
 import LikeButton from '../LikeButton'
 import { MessageSquare, Eye, Calendar, Loader2, Send } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Button from '../ui/Button'
+import AudioPlayer from '../ui/AudioPlayer'
 
 interface ThreadViewProps {
     threadId: number
@@ -30,14 +32,13 @@ export default function ThreadView({
     threadId,
     currentUserId,
     isAuthenticated,
-    // onBack,
-    // hideBackButton,
+    onBack,
+    hideBackButton,
 }: ThreadViewProps) {
     const [thread, setThread] = useState<EnrichedThread | null>(null)
     const [posts, setPosts] = useState<PostWithReplies[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [replyContent, setReplyContent] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     // Add a key that changes each time to force refetch
     const [fetchKey, setFetchKey] = useState(Date.now())
@@ -61,323 +62,274 @@ export default function ThreadView({
                 if (parent) {
                     parent.replies.push(postWithReplies)
                 } else {
-                    // Parent not found, treat as root
+                    // Parent not found (deleted?), treat as root or orphan
+                    // For now, treat as root if parent missing, or discard?
+                    // Let's treat as root so it shows up
                     rootPosts.push(postWithReplies)
                 }
             } else {
-                // This is a top-level post
                 rootPosts.push(postWithReplies)
             }
         })
 
+        // Sort by date (oldest first for nested, usually)
+        // Or newest first? Threads usually oldest first. comments newest first?
+        // Let's do oldest first for readability of conversation
+        const sortPosts = (posts: PostWithReplies[]) => {
+            posts.sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+            posts.forEach(p => sortPosts(p.replies))
+        }
+
+        sortPosts(rootPosts)
         return rootPosts
     }
 
-    useEffect(() => {
-        const fetchThread = async () => {
+    const fetchThread = async () => {
+        try {
             setIsLoading(true)
-            setError(null)
 
-            try {
-                const response = await fetch(`/api/threads/${threadId}`)
+            // 1. Fetch Thread
+            const threadRes = await fetch(`/api/threads?id=${threadId}`)
+            if (!threadRes.ok) throw new Error('Failed to fetch thread')
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch thread')
-                }
+            const threadDataRaw = await threadRes.json()
+            // Handle array response (current API behavior) or object wrapper (potential future)
+            const threadData = Array.isArray(threadDataRaw) ? threadDataRaw[0] : (threadDataRaw.threads ? threadDataRaw.threads[0] : null)
 
-                const data: EnrichedThread = await response.json()
-                setThread(data)
-                // Build tree structure from flat posts array
-                const treePosts = buildPostTree(data.posts || [])
-                setPosts(treePosts)
-            } catch (err) {
-                console.error('Error fetching thread:', err)
-                setError('Failed to load thread')
-            } finally {
+            if (!threadData) {
+                setError('Thread not found')
                 setIsLoading(false)
+                return
             }
-        }
 
-        fetchThread()
-    }, [threadId, fetchKey]) // Include fetchKey to refetch when it changes
+            setThread(threadData)
+
+            // 2. Fetch Posts (since they are not included in thread response)
+            const postsRes = await fetch(`/api/posts?thread_id=${threadId}`)
+            if (postsRes.ok) {
+                const postsData = await postsRes.json()
+                setPosts(buildPostTree(postsData))
+            } else {
+                setPosts([])
+            }
+
+        } catch (err: any) {
+            console.error('Error in fetchThread:', err)
+            setError(err.message || 'An error occurred')
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     useEffect(() => {
-        // Force refetch when component mounts (e.g., when reopening the same thread)
-        setFetchKey(Date.now())
-    }, [])
+        fetchThread()
+    }, [threadId, currentUserId, fetchKey])
 
-    const handleReply = async () => {
-        if (!replyContent.trim()) return
-
-        setIsSubmitting(true)
+    const handleReply = async (content: string, attachments?: Attachment[]) => {
+        if (!currentUserId || !thread) return
 
         try {
-            const response = await fetch('/api/posts', {
+            setIsSubmitting(true)
+            const res = await fetch('/api/posts', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    thread_id: threadId,
-                    parent_post_id: null, // Top-level reply only
-                    content: replyContent,
+                    thread_id: thread.id,
+                    content,
+                    attachments, // Pass attachments
                 }),
             })
 
-            if (!response.ok) {
-                const data = await response.json()
-                if (response.status === 400) {
-                    toast.error(data.error || 'Failed to post reply')
-                    return
-                }
-                throw new Error('Failed to create reply')
-            }
+            if (!res.ok) throw new Error('Failed to post reply')
 
-            const newPost = await response.json()
+            const newPost = await res.json()
+
             // Optimistically add to posts
-            setPosts([...posts, newPost])
-            setReplyContent('')
-        } catch (error) {
-            console.error('Error creating reply:', error)
+            // We convert the post to PostWithReplies and assume it's a top-level reply
+            // This prevents full thread reload
+            const optimisticPost: PostWithReplies = { ...newPost, replies: [] }
+            setPosts(prev => [...prev, optimisticPost])
+
+            toast.success('Reply posted!')
+
+            // Update thread post count or view count if we tracked it
+        } catch (err) {
+            toast.error('Failed to post reply')
+            console.error(err)
         } finally {
             setIsSubmitting(false)
         }
     }
 
-    const handlePostEdit = () => {
-        // Refetch thread data to show updated post content
-        setFetchKey(Date.now())
-    }
+    const handleNestedReply = async (parentPostId: number, content: string, attachments?: Attachment[]) => {
+        if (!currentUserId || !thread) throw new Error('You must be logged in')
 
-    const handlePostDelete = (postId: number) => {
-        // Optimistically remove from state instead of refetching
-        setPosts((currentPosts) => {
-            // Helper function to recursively remove post
-            const removePost = (posts: PostWithReplies[]): PostWithReplies[] => {
-                return posts.filter(p => {
-                    if (p.id === postId) return false
-                    if (p.replies) {
-                        p.replies = removePost(p.replies)
-                    }
-                    return true
-                })
-            }
-            return removePost(currentPosts)
-        })
-    }
+        try {
+            const res = await fetch('/api/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    thread_id: thread.id,
+                    content,
+                    parent_post_id: parentPostId,
+                    attachments,
+                }),
+            })
 
-    // Handle inline reply submission (for nested replies)
-    const handleReplySubmit = async (parentPostId: number, content: string): Promise<Post> => {
-        const response = await fetch('/api/posts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                thread_id: threadId,
-                parent_post_id: parentPostId,
-                content: content,
-            }),
-        })
+            if (!res.ok) throw new Error('Failed to post reply')
 
-        if (!response.ok) {
-            const data = await response.json()
-            if (response.status === 400) {
-                toast.error(data.error || 'Failed to post reply')
-                throw new Error('MODERATION_ERROR') // specific error to catch/ignore
-            }
-            throw new Error('Failed to create reply')
+            const newPost: Post = await res.json()
+
+            // Re-fetch removed to prevent full reload
+            // PostItem handles its own optimistic UI update for nested replies
+            toast.success('Reply posted!')
+
+            return newPost
+        } catch (err) {
+            toast.error('Failed to post reply')
+            console.error(err)
+            throw err
         }
-
-        const newPost = await response.json()
-        return newPost
     }
 
-    const formatDate = (date: Date | null) => {
-        if (!date) return ''
-        return new Date(date).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-        })
+    const handleDeletePost = (postId: number) => {
+        setPosts(prev => prev.filter(p => p.id !== postId))
+        toast.success('Post deleted')
     }
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-green-dark)]/20 to-[var(--color-success-main)]/20 flex items-center justify-center mb-4">
-                    <Loader2 className="w-6 h-6 text-[var(--color-yellow-light)] animate-spin" />
-                </div>
-                <p className="text-[var(--color-text-pale)] text-sm font-[var(--font-bell)]">Loading discussion...</p>
+            <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--color-primary-main)]" />
             </div>
         )
     }
 
     if (error || !thread) {
         return (
-            <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--color-danger-main)]/10 flex items-center justify-center">
-                    <span className="text-2xl">⚠️</span>
-                </div>
-                <p className="text-[var(--color-danger-main)] font-medium font-[var(--font-bell)]">{error || 'Thread not found'}</p>
+            <div className="text-center py-12">
+                <p className="text-[var(--color-danger-main)] mb-4">{error || 'Thread not found'}</p>
+                {onBack && (
+                    <div onClick={onBack} className="text-[var(--color-primary-main)] hover:underline cursor-pointer">
+                        Back to discussions
+                    </div>
+                )}
             </div>
         )
     }
 
+    // Force string type for safe rendering
+    const threadTitle = thread?.title ? String(thread.title) : 'Untitled'
+    const threadContent = thread?.content ? String(thread.content) : ''
+
     return (
-        <div className="max-w-4xl mx-auto">
-            {/* Back Button */}
+        <div className="bg-[var(--color-background-main)] min-h-screen font-[var(--font-bell)] pb-32">
+            {/* Header */}
             {/* {!hideBackButton && (
-                onBack ? (
+                <div className="mb-4">
                     <button
                         onClick={onBack}
-                        className="inline-flex items-center gap-2 text-gray-400 hover:text-amber-400 mb-6 transition-colors group"
+                        // ...
                     >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-medium">Back to discussions</span>
+                        ← Back to discussions
                     </button>
-                ) : (
-                    <Link
-                        href="/community"
-                        className="inline-flex items-center gap-2 text-gray-400 hover:text-amber-400 mb-6 transition-colors group"
-                    >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-medium">Back to discussions</span>
-                    </Link>
-                )
+                </div>
             )} */}
 
-            {/* Thread Header */}
-            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/80 via-[var(--color-brown-pale)]/60 to-[var(--color-brown-light)]/40 border border-[var(--color-primary-border)]/20 rounded-xl p-5 mb-4 shadow-lg">
-                {/* Badges */}
-                <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-lg bg-[var(--color-brown-light)]/50">
-                    <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium font-[var(--font-bell)] border ${thread.scope === 'country'
-                            ? 'bg-[var(--color-info-main)]/30 text-[var(--color-info-main)] border-[var(--color-info-main)]/50'
-                            : 'bg-[var(--color-success-main)]/30 text-[var(--color-success-main)] border-[var(--color-success-main)]/50'
-                            }`}
-                    >
-                        {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
-                    </span>
-
-                    <span className="text-[var(--color-text-pale)] text-xs font-[var(--font-bell)]">{thread.region}</span>
+            {/* Main Thread Post */}
+            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/80 via-[var(--color-brown-pale)]/60 to-[var(--color-brown-light)]/40 border border-[var(--color-primary-border)]/30 rounded-xl p-5 mb-6 shadow-lg">
+                {/* Meta info - top */}
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2 text-xs text-[var(--color-text-pale)] bg-[var(--color-brown-light)]/30 px-2.5 py-1 rounded-full border border-[var(--color-primary-border)]/20">
+                        <span className="capitalize font-medium text-[var(--color-yellow-light)]">{String(thread.scope)}</span>
+                        <span className="text-[var(--color-primary-border)]/40">|</span>
+                        <span className="capitalize">{thread.region}</span>
+                    </div>
                 </div>
 
-                {/* Title - smaller and more compact */}
-                <h2 className="text-lg font-bold mb-2 text-[var(--color-yellow-light)] capitalize font-[var(--font-bell)]">{thread.title}</h2>
+                {/* Title */}
+                <h2 className="text-lg font-bold mb-2 text-[var(--color-yellow-light)] capitalize font-[var(--font-bell)]">{threadTitle}</h2>
 
                 {/* Content */}
-                <p className="text-[var(--color-text-pale)] text-sm whitespace-pre-wrap mb-4 leading-relaxed font-[var(--font-bell)]">{thread.content}</p>
+                <p className="text-[var(--color-text-pale)] text-sm whitespace-pre-wrap mb-4 leading-relaxed font-[var(--font-bell)]">{threadContent}</p>
 
-                {/* Meta info - more compact */}
-                <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-pale)] mb-3 pb-3 border-b border-[var(--color-primary-border)]/20">
-                    {/* Avatar and Name */}
-                    <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[var(--color-green-dark)] to-[var(--color-success-main)] flex items-center justify-center text-[var(--color-yellow-light)] font-bold text-[9px] uppercase">
-                            {(thread.author_name || thread.user_id || '??').slice(0, 2)}
-                        </div>
-                        <span className="text-[var(--color-text-pale)] truncate max-w-[150px] font-medium font-[var(--font-bell)]">
-                            {thread.author_name || (thread.user_id ? `${thread.user_id.slice(0, 8)}...` : 'Unknown')}
-                        </span>
+                {/* Attachments */}
+                {thread.attachments && (thread.attachments as any[]).length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {(thread.attachments as any[]).map((att, i) => (
+                            <div key={i} className="max-w-md w-full">
+                                {att.type === 'image' ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={att.url} alt="Attachment" className="max-h-64 rounded-lg border border-[var(--color-primary-border)]/30 object-cover" />
+                                ) : att.type === 'video' ? (
+                                    <video src={att.url} controls className="max-h-64 rounded-lg border border-[var(--color-primary-border)]/30" />
+                                ) : (
+                                    <AudioPlayer src={att.url} className="w-full" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
-                        {/* Message Icon after 1 hour */}
-                        {isAuthenticated && (!thread.created_at || (Date.now() - new Date(thread.created_at).getTime() > 3600000)) && currentUserId !== thread.user_id && (
-                            <Link
-                                href={`/messages?chatWith=${thread.user_id}&name=${encodeURIComponent(thread.author_name || '')}`}
-                                target="_blank"
-                                className="text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors ml-1"
-                                title="Message User"
-                            >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                            </Link>
-                        )}
+                {/* Toolbar */}
+                <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--color-primary-border)]/20">
+                    <LikeButton
+                        likeableId={thread.id}
+                        likeableType="thread"
+                        initialCount={thread.like_count || 0}
+                        initialLiked={thread.user_has_liked || false}
+                        isAuthenticated={isAuthenticated}
+                    />
+
+                    <div className="flex items-center gap-1.5 text-[var(--color-text-pale)] text-xs">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>{posts.length} replies</span>
                     </div>
 
-                    <span className="flex items-center gap-1 font-[var(--font-bell)]">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{formatDate(thread.created_at)}</span>
-                    </span>
-                    <span className="flex items-center gap-1 font-[var(--font-bell)]">
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>{thread.view_count || 0} views</span>
-                    </span>
+                    <div className="flex items-center gap-1.5 text-[var(--color-text-pale)] text-xs ml-auto">
+                        <span className="opacity-70">
+                            {new Date(thread.created_at || Date.now()).toLocaleDateString()}
+                        </span>
+                    </div>
                 </div>
-
-                <LikeButton
-                    likeableId={thread.id}
-                    likeableType="thread"
-                    isAuthenticated={isAuthenticated}
-                    initialLiked={thread.user_has_liked}
-                    initialCount={thread.like_count}
-                />
             </div>
 
-            {/* Reply Form */}
-            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/60 via-[var(--color-brown-pale)]/40 to-[var(--color-brown-light)]/30 border border-[var(--color-primary-border)]/20 rounded-xl p-4 mb-4 shadow-lg">
-                <h2 className="text-sm font-semibold text-[var(--color-yellow-light)] mb-3 flex items-center gap-2 font-[var(--font-bell)]">
-                    <MessageSquare className="w-4 h-4 text-[var(--color-yellow-light)]" />
+            {/* Reply Input */}
+            <div className="mb-8">
+                <h3 className="text-sm font-medium text-[var(--color-text-main)] mb-3 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
                     Reply to this discussion
-                </h2>
-                <textarea
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    maxLength={5000}
-                    rows={3}
-                    placeholder={
-                        isAuthenticated
-                            ? 'Share your thoughts...'
-                            : 'Sign in to join the discussion'
-                    }
-                    disabled={!isAuthenticated}
-                    className="w-full px-3 py-2.5 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none mb-3 disabled:opacity-50 disabled:cursor-not-allowed font-[var(--font-bell)]"
-                />
-                <div className="flex justify-between items-center">
-                    <span className={`text-xs font-[var(--font-bell)] ${replyContent.length > 4500 ? 'text-[var(--color-yellow-light)]' : 'text-[var(--color-text-pale)]'}`}>
-                        {replyContent.length}/5000
-                    </span>
-                    <Button
-                        variant="primary"
-                        size={"shrink"}
-                        className='gap-2 text-sm w-fit disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1.5'
-                        onClick={() => handleReply()}
-                        disabled={!isAuthenticated || !replyContent.trim() || isSubmitting}
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Posting...
-                            </>
-                        ) : (
-                            <>
-                                <Send className="w-4 h-4" />
-                                Post Reply
-                            </>
-                        )}
-                    </Button>
-                </div>
+                </h3>
+
+                {isAuthenticated ? (
+                    <CommentEditor
+                        onSubmit={handleReply}
+                        onCancel={() => { }}
+                        placeholder="Share your thoughts..."
+                    />
+                ) : (
+                    <div className="bg-[var(--color-brown-light)]/30 p-4 rounded-lg text-center text-sm text-[var(--color-text-pale)]">
+                        Please sign in to reply to this discussion.
+                    </div>
+                )}
             </div>
 
-            {/* Posts */}
-            <div className="space-y-3">
+            {/* Posts List */}
+            <div className="space-y-4">
                 {posts.length === 0 ? (
-                    <div className="text-center py-8">
-                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-[var(--color-green-dark)]/20 to-[var(--color-success-main)]/20 flex items-center justify-center">
-                            <MessageSquare className="w-6 h-6 text-[var(--color-yellow-light)]/50" />
-                        </div>
-                        <p className="text-[var(--color-text-pale)] text-sm font-medium font-[var(--font-bell)]">No replies yet</p>
-                        <p className="text-[var(--color-text-pale)]/70 text-xs mt-1 font-[var(--font-bell)]">Be the first to reply!</p>
+                    <div className="text-center py-8 text-[var(--color-text-pale)] text-sm italic opacity-60">
+                        No replies yet. Be the first to share your thoughts!
                     </div>
                 ) : (
-                    posts.map((post) => (
+                    posts.map(post => (
                         <PostItem
                             key={post.id}
                             post={post}
-                            threadId={threadId}
+                            threadId={thread.id}
                             currentUserId={currentUserId}
                             isAuthenticated={isAuthenticated}
-                            onEdit={handlePostEdit}
-                            onDelete={handlePostDelete}
-                            onReplySubmit={handleReplySubmit}
+                            onReplySubmit={handleNestedReply} // Pass the handler
+                            onDelete={handleDeletePost} // Pass deletion handler
                         />
                     ))
                 )}

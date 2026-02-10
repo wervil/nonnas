@@ -11,14 +11,22 @@ const db = drizzle(process.env.DATABASE_URL!)
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
+        const id = searchParams.get('id')
         const userId = searchParams.get('userId')
         const region = searchParams.get('region')
         const scope = searchParams.get('scope') // 'country' or 'state'
+
+        // Get current viewer for 'user_has_liked'
+        const user = await stackServerApp.getUser()
+        const viewerId = user?.id
 
         const sort = searchParams.get('sort') || 'newest' // 'newest', 'top', 'relevant'
 
         // Build filters
         const filters = []
+        if (id) {
+            filters.push(eq(threads.id, parseInt(id)))
+        }
         if (userId) {
             filters.push(eq(threads.user_id, userId))
         }
@@ -36,6 +44,9 @@ export async function GET(request: NextRequest) {
             .select({
                 ...getTableColumns(threads),
                 like_count: count(likes.id),
+                user_has_liked: viewerId
+                    ? sql<boolean>`EXISTS(SELECT 1 FROM ${likes} WHERE ${likes.likeable_id} = ${threads.id} AND ${likes.likeable_type} = 'thread' AND ${likes.user_id} = ${viewerId})`
+                    : sql<boolean>`false`
             })
             .from(threads)
             // Join likes
@@ -80,7 +91,7 @@ export async function POST(request: NextRequest) {
         const userId = user.id
 
         const body = await request.json()
-        const { region, scope, title, content } = body
+        const { region, scope, title, content, attachments } = body
 
         // Validation
         if (!region || !scope || !title || !content) {
@@ -130,6 +141,7 @@ export async function POST(request: NextRequest) {
             content,
             user_id: userId,
             author_name: user.displayName || user.id, // Fallback to ID if no display name
+            attachments,
         }
 
         const [thread] = await db.insert(threads).values(newThread).returning()

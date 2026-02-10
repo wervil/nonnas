@@ -9,6 +9,35 @@ import { drizzle } from 'drizzle-orm/neon-serverless'
 
 const db = drizzle(process.env.DATABASE_URL!)
 
+// GET /api/posts - Fetch posts for a thread
+export async function GET(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url)
+        const threadId = searchParams.get('thread_id')
+
+        if (!threadId) {
+            return NextResponse.json(
+                { error: 'thread_id is required' },
+                { status: 400 }
+            )
+        }
+
+        const threadPosts = await db
+            .select()
+            .from(posts)
+            .where(eq(posts.thread_id, parseInt(threadId)))
+            .orderBy(posts.created_at) // Oldest first for threads usually
+
+        return NextResponse.json(threadPosts)
+    } catch (error) {
+        console.error('Error fetching posts:', error)
+        return NextResponse.json(
+            { error: 'Failed to fetch posts' },
+            { status: 500 }
+        )
+    }
+}
+
 // POST /api/posts - Create a new post (reply to thread or post)
 export async function POST(request: NextRequest) {
     try {
@@ -21,12 +50,15 @@ export async function POST(request: NextRequest) {
         const userId = user.id
 
         const body = await request.json()
-        const { thread_id, parent_post_id, content } = body
+        const { thread_id, parent_post_id, content, attachments } = body
 
         // Validation
-        if (!thread_id || !content) {
+        const hasContent = content && content.trim().length > 0;
+        const hasAttachments = attachments && attachments.length > 0;
+
+        if (!thread_id || (!hasContent && !hasAttachments)) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Missing required fields (content or attachments)' },
                 { status: 400 }
             )
         }
@@ -64,7 +96,7 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        const isFlagged = await moderateContent(content)
+        const isFlagged = hasContent ? await moderateContent(content) : false;
         if (isFlagged) {
             return NextResponse.json(
                 { error: 'Content flagged as inappropriate.' },
@@ -79,6 +111,7 @@ export async function POST(request: NextRequest) {
             author_name: user.displayName || '--', // Fallback to '--'
             content,
             depth,
+            attachments,
         }
 
         const [post] = await db.insert(posts).values(newPost).returning()

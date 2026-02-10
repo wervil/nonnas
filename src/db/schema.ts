@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   // type PgTableWithColumns,
   type PgColumn,
+  json,
 } from 'drizzle-orm/pg-core'
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm'
 import { customType } from 'drizzle-orm/pg-core'
@@ -113,6 +114,7 @@ export const threads = pgTable('threads', {
   view_count: integer('view_count').default(0),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
+  attachments: json('attachments'),
 })
 
 export type Thread = InferSelectModel<typeof threads>
@@ -136,6 +138,7 @@ export const posts = pgTable('posts', {
   depth: integer('depth').default(0),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
+  attachments: json('attachments'),
 })
 
 export type Post = InferSelectModel<typeof posts>
@@ -157,6 +160,7 @@ export const recipe_comments = pgTable('recipe_comments', {
   depth: integer('depth').default(0),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
+  attachments: json('attachments'),
 })
 
 export type RecipeComment = InferSelectModel<typeof recipe_comments>

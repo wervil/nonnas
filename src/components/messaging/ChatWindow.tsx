@@ -3,6 +3,7 @@ import { FileAudio, Link as LinkIcon, Paperclip, Send, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ImagesModal } from '../ui/ImagesModal';
 import { AttachmentType, Message } from './types';
+import AudioPlayer from '../ui/AudioPlayer';
 
 interface ChatWindowProps {
     messages: Message[];
@@ -119,7 +120,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
             case 'video':
                 return <video src={msg.attachment_url} controls className="max-w-[200px] rounded-lg mt-2" />;
             case 'audio':
-                return <audio src={msg.attachment_url} controls className="mt-2 w-full max-w-[250px]" />;
+                return <AudioPlayer src={msg.attachment_url} className="mt-2 w-full max-w-[250px]" />;
             case 'link':
                 return <a href={msg.attachment_url} target="_blank" rel="noreferrer" className="text-[var(--color-yellow-light)] underline break-all mt-1 block hover:text-[var(--color-success-main)] transition-colors">{msg.attachment_url}</a>;
             default:

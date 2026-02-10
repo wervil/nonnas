@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import CommentEditor from './CommentEditor'
+import CommentEditor, { Attachment } from './CommentEditor'
 import Link from 'next/link'
-import { MessageSquare, Loader2 } from 'lucide-react'
+import { MessageSquare, Loader2, Play, FileAudio } from 'lucide-react'
 import { toast } from 'sonner'
+import { ImagesModal } from '../ui/ImagesModal'
+import AudioPlayer from '../ui/AudioPlayer'
 
 interface Comment {
     id: number
@@ -16,6 +18,7 @@ interface Comment {
     depth: number
     created_at: string
     replies: Comment[]
+    attachments?: Attachment[]
 }
 
 interface CommentItemProps {
@@ -74,14 +77,14 @@ export default function CommentItem({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [localReplies, setLocalReplies] = useState<Comment[]>(comment.replies || [])
+    const [viewImage, setViewImage] = useState<string | null>(null)
 
     // Sync local replies when prop changes (e.g. after deletion in parent)
     useEffect(() => {
         setLocalReplies(comment.replies || [])
-        console.log(localReplies)
     }, [comment.replies])
 
-    const handleReply = async (content: string) => {
+    const handleReply = async (content: string, attachments?: Attachment[]) => {
         try {
             const res = await fetch('/api/recipe-comments', {
                 method: 'POST',
@@ -91,6 +94,7 @@ export default function CommentItem({
                     parent_comment_id: comment.id,
                     user_id: userId,
                     content,
+                    attachments,
                 }),
             })
 
@@ -134,6 +138,10 @@ export default function CommentItem({
 
     return (
         <div className={`comment-item ${comment.depth > 0 ? 'ml-6 md:ml-10' : ''}`}>
+            <ImagesModal
+                images={viewImage ? [viewImage] : null}
+                onClose={() => setViewImage(null)}
+            />
             <div className={`
                 relative p-4 rounded-lg transition-all duration-200
                 ${comment.depth === 0
@@ -190,6 +198,29 @@ export default function CommentItem({
                         <p className="mt-2 text-[var(--color-brown-dark)] font-[var(--font-bell)] leading-relaxed whitespace-pre-wrap break-words">
                             {comment.content}
                         </p>
+
+                        {/* Attachments */}
+                        {comment.attachments && comment.attachments.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {comment.attachments.map((att, i) => (
+                                    <div key={i} className="max-w-xs">
+                                        {att.type === 'image' ? (
+                                            <div
+                                                className="cursor-pointer overflow-hidden rounded-lg border border-[var(--color-primary-border)]/30 hover:opacity-90 transition-opacity"
+                                                onClick={() => setViewImage(att.url)}
+                                            >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={att.url} alt="Attachment" className="max-h-48 object-cover" />
+                                            </div>
+                                        ) : att.type === 'video' ? (
+                                            <video src={att.url} controls className="max-h-48 rounded-lg border border-[var(--color-primary-border)]/30" />
+                                        ) : (
+                                            <AudioPlayer src={att.url} className="w-full min-w-[200px]" />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Actions */}
                         <div className="flex items-center gap-4 mt-3 pt-2 border-t border-[var(--color-primary-border)]/20">

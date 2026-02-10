@@ -112,12 +112,16 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { recipe_id, parent_comment_id, content } = body
+        const { recipe_id, parent_comment_id, content, attachments } = body
 
         // Validate
-        if (!recipe_id || !content) {
+        // Validate
+        const hasContent = content && content.trim().length > 0;
+        const hasAttachments = attachments && attachments.length > 0;
+
+        if (!recipe_id || (!hasContent && !hasAttachments)) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Missing required fields (content or attachments)' },
                 { status: 400 }
             )
         }
@@ -173,6 +177,7 @@ export async function POST(request: NextRequest) {
                 author_name: user.displayName || 'Unknown User',
                 content,
                 depth,
+                attachments,
             })
             .returning()
 

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Post } from '@/db/schema'
 import LikeButton from '../LikeButton'
 import Link from 'next/link'
-import { Reply, Trash2, Edit2, Loader2, Check, X, Send, MessageSquare } from 'lucide-react'
+import { Reply, Trash2, Edit2, Loader2, Check, X, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
-import Button from '../ui/Button'
+import CommentEditor, { Attachment } from '../Comments/CommentEditor'
+import AudioPlayer from '../ui/AudioPlayer'
 
 interface PostItemProps {
     post: Post & { replies?: PostItemProps['post'][] }
@@ -16,7 +18,7 @@ interface PostItemProps {
     onReply?: (postId: number) => void
     onDelete?: (postId: number) => void
     onEdit?: (postId: number, content: string) => void
-    onReplySubmit?: (parentPostId: number, content: string) => Promise<Post>
+    onReplySubmit?: (parentPostId: number, content: string, attachments?: Attachment[]) => Promise<Post>
 }
 
 export default function PostItem({
@@ -37,14 +39,26 @@ export default function PostItem({
 
     // Inline reply form state
     const [showReplyForm, setShowReplyForm] = useState(false)
-    const [replyContent, setReplyContent] = useState('')
-    const [isReplySubmitting, setIsReplySubmitting] = useState(false)
     const [localReplies, setLocalReplies] = useState<Post[]>(post.replies || [])
+
+    // Local display state for immediate updates
+    const [displayContent, setDisplayContent] = useState(post.content)
+    const [selectedImage, setSelectedImage] = useState<string | null>(null)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     // Sync local replies when prop changes (e.g. after deletion in parent)
     useEffect(() => {
         setLocalReplies(post.replies || [])
     }, [post.replies])
+
+    // Sync display content when prop changes
+    useEffect(() => {
+        setDisplayContent(post.content)
+    }, [post.content])
 
     const isOwner = currentUserId === post.user_id
     const canReply = (post.depth || 0) < 5
@@ -75,6 +89,7 @@ export default function PostItem({
             if (onEdit) {
                 onEdit(post.id, editContent)
             }
+            setDisplayContent(editContent)
             setIsEditing(false)
         } catch (error) {
             console.error('Error updating post:', error)
@@ -101,15 +116,14 @@ export default function PostItem({
         }
     }
 
-    const handleInlineReply = async () => {
-        if (!replyContent.trim() || !onReplySubmit) return
+    const handleInlineReply = async (content: string, attachments?: Attachment[]) => {
+        if ((!content.trim() && (!attachments || attachments.length === 0)) || !onReplySubmit) return
 
-        setIsReplySubmitting(true)
+        // setIsReplySubmitting(true) // Handled by CommentEditor loading state mostly
         try {
-            const newPost = await onReplySubmit(post.id, replyContent)
+            const newPost = await onReplySubmit(post.id, content, attachments)
             // Optimistically add the new reply to local state
             setLocalReplies([...localReplies, newPost])
-            setReplyContent('')
             setShowReplyForm(false)
         } catch (error) {
             if (error instanceof Error && error.message === 'MODERATION_ERROR') {
@@ -117,8 +131,6 @@ export default function PostItem({
                 return
             }
             console.error('Error posting reply:', error)
-        } finally {
-            setIsReplySubmitting(false)
         }
     }
 
@@ -142,101 +154,146 @@ export default function PostItem({
         })
     }
 
+    const handleChildDelete = (childId: number) => {
+        setLocalReplies(prev => prev.filter(r => r.id !== childId))
+    }
+
+    const handleChildEdit = (childId: number, content: string) => {
+        setLocalReplies(prev => prev.map(r => r.id === childId ? { ...r, content } : r))
+        if (onEdit) onEdit(childId, content)
+    }
+
     return (
-        <div
-            className="pl-3 py-1"
-            style={{ marginLeft: `${(post.depth || 0) * 12}px` }}
-        >
-            <div className="bg-gradient-to-br from-[var(--color-brown-pale)]/60 via-[var(--color-brown-pale)]/40 to-[var(--color-brown-light)]/30 rounded-lg p-3 border border-[var(--color-primary-border)]/20 hover:border-[var(--color-primary-border)]/40 transition-colors shadow-sm">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 text-xs">
-                        {/* Avatar with Initials */}
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--color-green-dark)] to-[var(--color-success-main)] flex items-center justify-center text-[var(--color-yellow-light)] font-bold text-[10px] uppercase">
-                            {(post.author_name || post.user_id || '??').slice(0, 2)}
+        <>
+            <div
+                className="pl-3 py-1"
+                style={{ marginLeft: `${(post.depth || 0) * 12}px` }}
+            >
+                <div className={`rounded-lg p-3 transition-colors ${(post.depth || 0) > 0
+                    ? 'bg-transparent border-transparent pl-0'
+                    : 'bg-gradient-to-br from-[var(--color-brown-pale)]/60 via-[var(--color-brown-pale)]/40 to-[var(--color-brown-light)]/30 border border-[var(--color-primary-border)]/20 shadow-sm'
+                    } hover:border-[var(--color-primary-border)]/40`}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-xs">
+                            {/* Avatar with Initials */}
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--color-green-dark)] to-[var(--color-success-main)] flex items-center justify-center text-[var(--color-yellow-light)] font-bold text-[10px] uppercase">
+                                {(post.author_name || post.user_id || '??').slice(0, 2)}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="font-medium text-[var(--color-yellow-light)] text-xs font-[var(--font-bell)]">
+                                    {post.author_name || (post.user_id ? `${post.user_id.slice(0, 8)}...` : 'Unknown')}
+                                </span>
+                                <span className="text-[var(--color-text-pale)] font-[var(--font-bell)]">
+                                    • {formatDate(post.created_at)}
+                                    {post.updated_at && post.updated_at !== post.created_at && (
+                                        <span className="text-[var(--color-text-pale)]/70 ml-1">(edited)</span>
+                                    )}
+                                </span>
+                                {currentUserId && currentUserId !== post.user_id && (
+                                    <Link
+                                        href={`/messages?chatWith=${post.user_id}&name=${encodeURIComponent(post.author_name || '')}`}
+                                        target="_blank"
+                                        className="ml-2 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
+                                        title="Message User"
+                                    >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                    </Link>
+                                )}
+                                {isOwner && (
+                                    <span className="px-2 py-0.5 text-xs bg-[var(--color-primary-focus)] text-[var(--color-primary-main)] rounded-full font-[var(--font-bell)] ml-2">
+                                        You
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="font-medium text-[var(--color-yellow-light)] text-xs font-[var(--font-bell)]">
-                                {post.author_name || (post.user_id ? `${post.user_id.slice(0, 8)}...` : 'Unknown')}
-                            </span>
-                            <span className="text-[var(--color-text-pale)] font-[var(--font-bell)]">
-                                • {formatDate(post.created_at)}
-                                {post.updated_at && post.updated_at !== post.created_at && (
-                                    <span className="text-[var(--color-text-pale)]/70 ml-1">(edited)</span>
+                        {/* Actions */}
+                        {isOwner && !isEditing && (
+                            <div className="flex items-center gap-0.5">
+                                {!(post.attachments as any[])?.some((a: any) => a.type === 'audio') && (
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
+                                        title="Edit"
+                                    >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
                                 )}
-                            </span>
-                            {currentUserId && currentUserId !== post.user_id && (
-                                <Link
-                                    href={`/messages?chatWith=${post.user_id}&name=${encodeURIComponent(post.author_name || '')}`}
-                                    target="_blank"
-                                    className="ml-2 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] transition-colors"
-                                    title="Message User"
-                                >
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                </Link>
-                            )}
-                            {isOwner && (
-                                <span className="px-2 py-0.5 text-xs bg-[var(--color-primary-focus)] text-[var(--color-primary-main)] rounded-full font-[var(--font-bell)] ml-2">
-                                    You
-                                </span>
-                            )}
-                        </div>
+                                {showDeleteConfirm ? (
+                                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200 bg-[var(--color-brown-light)]/20 rounded-md px-2 py-1 ml-1">
+                                        <span className="text-xs text-[var(--color-danger-main)] font-[var(--font-bell)] whitespace-nowrap">Delete?</span>
+                                        <button
+                                            onClick={handleDelete}
+                                            disabled={isDeleting}
+                                            className="px-2 py-0.5 text-xs bg-[var(--color-danger-main)] text-white rounded hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)] flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowDeleteConfirm(false)}
+                                            className="px-2 py-0.5 text-xs text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 rounded transition-colors font-[var(--font-bell)]"
+                                        >
+                                            No
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                        className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-danger-main)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
+                                        title="Delete"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    {/* Actions */}
-                    {isOwner && !isEditing && (
-                        <div className="flex items-center gap-0.5">
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-yellow-light)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
-                                title="Edit"
-                            >
-                                <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            {showDeleteConfirm ? (
-                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200 bg-[var(--color-brown-light)]/20 rounded-md px-2 py-1 ml-1">
-                                    <span className="text-xs text-[var(--color-danger-main)] font-[var(--font-bell)] whitespace-nowrap">Delete?</span>
-                                    <button
-                                        onClick={handleDelete}
-                                        disabled={isDeleting}
-                                        className="px-2 py-0.5 text-xs bg-[var(--color-danger-main)] text-white rounded hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)] flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
-                                    </button>
-                                    <button
-                                        onClick={() => setShowDeleteConfirm(false)}
-                                        className="px-2 py-0.5 text-xs text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 rounded transition-colors font-[var(--font-bell)]"
-                                    >
-                                        No
-                                    </button>
+                    {/* Content */}
+                    {isEditing ? (
+                        <div className="space-y-2">
+                            <textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                maxLength={5000}
+                                rows={3}
+                                aria-label="Edit post content"
+                                placeholder="Edit your post..."
+                                className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none font-[var(--font-bell)]"
+                            />
+                        </div>
+                    ) : (
+                        <p className="text-[var(--color-text-pale)] text-sm mb-2 whitespace-pre-wrap leading-relaxed font-[var(--font-bell)]">{displayContent}</p>
+                    )}
+
+                    {/* Attachments - Always visible */}
+                    {post.attachments && (post.attachments as any[]).length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2 mt-2">
+                            {(post.attachments as any[]).map((att, i) => (
+                                <div key={i} className={att.type === 'video' || att.type === 'image' ? "max-w-xs" : "w-full"}>
+                                    {att.type === 'image' ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={att.url}
+                                            alt="Attachment"
+                                            className="max-h-48 rounded-lg border border-[var(--color-primary-border)]/30 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => setSelectedImage(att.url)}
+                                        />
+                                    ) : att.type === 'video' ? (
+                                        <video src={att.url} controls className="max-h-48 rounded-lg border border-[var(--color-primary-border)]/30" />
+                                    ) : (
+                                        <AudioPlayer src={att.url} className="w-full" />
+                                    )}
                                 </div>
-                            ) : (
-                                <button
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="p-1.5 text-[var(--color-text-pale)] hover:text-[var(--color-danger-main)] hover:bg-[var(--color-brown-light)]/50 rounded transition-all"
-                                    title="Delete"
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                            )}
+                            ))}
                         </div>
                     )}
-                </div>
 
-                {/* Content */}
-                {isEditing ? (
-                    <div className="space-y-2">
-                        <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            maxLength={5000}
-                            rows={3}
-                            aria-label="Edit post content"
-                            placeholder="Edit your post..."
-                            className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none font-[var(--font-bell)]"
-                        />
-                        <div className="flex gap-2">
+                    {/* Edit Actions OR Footer */}
+                    {isEditing ? (
+                        <div className="flex gap-2 mt-2">
                             <button
                                 onClick={handleEdit}
                                 disabled={isSubmitting}
@@ -260,90 +317,85 @@ export default function PostItem({
                                 Cancel
                             </button>
                         </div>
+                    ) : (
+                        <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-primary-border)]/10">
+                            <LikeButton
+                                likeableId={post.id}
+                                likeableType="post"
+                                isAuthenticated={isAuthenticated}
+                            />
+                            {canReply && (
+                                <button
+                                    onClick={() => setShowReplyForm(!showReplyForm)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--color-brown-light)]/30 text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 hover:text-[var(--color-yellow-light)] transition-all text-xs font-medium font-[var(--font-bell)] border border-[var(--color-primary-border)]/20"
+                                >
+                                    <Reply className="w-3 h-3" />
+                                    <span>{showReplyForm ? 'Cancel' : 'Reply'}</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                </div>
+
+
+                {/* Inline Reply Form */}
+                {showReplyForm && (
+                    <div className="mt-3 ml-3">
+                        <CommentEditor
+                            onSubmit={handleInlineReply}
+                            onCancel={() => setShowReplyForm(false)}
+                            placeholder={isAuthenticated ? "Write your reply..." : "Sign in to reply"}
+                            isReply={true}
+                        />
                     </div>
-                ) : (
-                    <p className="text-[var(--color-text-pale)] text-sm mb-2 whitespace-pre-wrap leading-relaxed font-[var(--font-bell)]">{post.content}</p>
                 )}
 
-                {/* Footer */}
-                {!isEditing && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-primary-border)]/10">
-                        <LikeButton
-                            likeableId={post.id}
-                            likeableType="post"
-                            isAuthenticated={isAuthenticated}
-                        />
-                        {canReply && (
-                            <button
-                                onClick={() => setShowReplyForm(!showReplyForm)}
-                                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--color-brown-light)]/30 text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 hover:text-[var(--color-yellow-light)] transition-all text-xs font-medium font-[var(--font-bell)] border border-[var(--color-primary-border)]/20"
-                            >
-                                <Reply className="w-3 h-3" />
-                                <span>{showReplyForm ? 'Cancel' : 'Reply'}</span>
-                            </button>
-                        )}
+                {/* Nested Replies */}
+                {localReplies && localReplies.length > 0 && (
+                    <div className="mt-2 border-l-2 border-[var(--color-green-dark)]/30">
+                        {localReplies.map((reply) => (
+                            <PostItem
+                                key={reply.id}
+                                post={reply}
+                                threadId={threadId}
+                                currentUserId={currentUserId}
+                                isAuthenticated={isAuthenticated}
+                                onReply={onReply}
+                                onDelete={handleChildDelete}
+                                onEdit={handleChildEdit}
+                                onReplySubmit={onReplySubmit}
+                            />
+                        ))}
                     </div>
                 )}
             </div>
 
-            {/* Inline Reply Form */}
-            {showReplyForm && (
-                <div className="mt-3 ml-3 bg-gradient-to-br from-[var(--color-brown-pale)]/50 via-[var(--color-brown-pale)]/30 to-[var(--color-brown-light)]/20 border border-[var(--color-primary-border)]/20 rounded-lg p-3 shadow-sm">
-                    <textarea
-                        value={replyContent}
-                        onChange={(e) => setReplyContent(e.target.value)}
-                        maxLength={5000}
-                        rows={3}
-                        placeholder={isAuthenticated ? 'Write your reply...' : 'Sign in to reply'}
-                        disabled={!isAuthenticated}
-                        className="w-full px-3 py-2 bg-[var(--color-brown-light)]/50 border border-[var(--color-primary-border)]/30 rounded-lg text-[var(--color-text-pale)] text-sm placeholder-[var(--color-text-pale)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-green-dark)]/50 focus:border-[var(--color-green-dark)]/50 transition-all resize-none mb-2 disabled:opacity-50 disabled:cursor-not-allowed font-[var(--font-bell)]"
-                    />
-                    <div className="flex justify-between items-center">
-                        <span className={`text-xs font-[var(--font-bell)] ${replyContent.length > 4500 ? 'text-[var(--color-yellow-light)]' : 'text-[var(--color-text-pale)]'}`}>
-                            {replyContent.length}/5000
-                        </span>
-                        <Button
-                            variant="primary"
-                            size={"shrink"}
-                            className='gap-2 text-sm w-fit disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1.5'
-                            onClick={handleInlineReply}
-                            disabled={!isAuthenticated || !replyContent.trim() || isReplySubmitting}
-
+            {/* Full Image Modal */}
+            {
+                selectedImage && mounted && createPortal(
+                    <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <button
+                            onClick={() => setSelectedImage(null)}
+                            className="fixed top-4 right-4 p-2 text-white/70 hover:text-white bg-black/50 rounded-full transition-colors z-[110]"
                         >
-                            {isReplySubmitting ? (
-                                <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Posting...
-                                </>
-                            ) : (
-                                <>
-                                    <Send className="w-3 h-3" />
-                                    Post Reply
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Nested Replies */}
-            {localReplies && localReplies.length > 0 && (
-                <div className="mt-2 border-l-2 border-[var(--color-green-dark)]/30">
-                    {localReplies.map((reply) => (
-                        <PostItem
-                            key={reply.id}
-                            post={reply}
-                            threadId={threadId}
-                            currentUserId={currentUserId}
-                            isAuthenticated={isAuthenticated}
-                            onReply={onReply}
-                            onDelete={onDelete}
-                            onEdit={onEdit}
-                            onReplySubmit={onReplySubmit}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
+                            <X className="w-6 h-6" />
+                        </button>
+                        <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={selectedImage}
+                                alt="Full size"
+                                className="max-w-[95vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            />
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
+        </>
     )
 }
