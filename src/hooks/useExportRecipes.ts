@@ -72,7 +72,7 @@ ${stripHtml(recipe.directions)}
                 const addImageToFolder = async (url: string, targetFolder: JSZip | null, prefix: string, index: number) => {
                     if (!url || !targetFolder) return
                     try {
-                        const response = await fetch(url, { mode: 'cors' })
+                        const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}`)
                         if (response.ok) {
                             const blob = await response.blob()
                             const ext = url.split('.').pop()?.split('?')[0] || 'jpg'

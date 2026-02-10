@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { Dispatch, SetStateAction } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { MessageCircle, Settings, User, Download } from 'lucide-react'
+import { MessageCircle, Settings, User, Download, Loader2 } from 'lucide-react'
 import DotLottieGlobe from './LottieGlobe'
 
 
@@ -96,7 +96,11 @@ export const Header = ({
             className="mr-2 p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
             title="Export filtered recipes to ZIP"
           >
-            <Download className={isExplorePage ? 'text-white' : 'text-[#5f5f13]'} size={20} />
+            {isExporting ? (
+              <Loader2 className={`animate-spin ${isExplorePage ? 'text-white' : 'text-[#5f5f13]'}`} size={20} />
+            ) : (
+              <Download className={isExplorePage ? 'text-white' : 'text-[#5f5f13]'} size={20} />
+            )}
           </button>
         )}
 
