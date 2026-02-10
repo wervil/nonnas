@@ -31,7 +31,7 @@ export default function ExploreContent() {
   })
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0a0a0a] overflow-hidden pb-8">
+    <div className="flex flex-col h-screen w-full bg-[#0a0a0a] overflow-hidden ">
       {/* Header */}
       <div className="z-49 relative shrink-0">
         <Header
