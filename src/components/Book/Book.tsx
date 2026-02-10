@@ -334,7 +334,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
         {!isSidebarOpen && currentRecipeId && (
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="absolute top-8 right-8 z-[100] bg-[#352721] text-white p-3 rounded-full shadow-lg hover:bg-[#4a362e] transition-colors border-2 border-[#dbc9b9] flex items-center gap-2"
+            className="absolute top-8 right-8 z-[100] bg-amber-600 text-white p-3 rounded-full shadow-lg hover:bg-amber-700 transition-colors border-2 border-amber-500 flex items-center gap-2"
           >
             <MessageCircle size={24} />
             <span className="font-serif">Discussions</span>
@@ -344,14 +344,14 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
       {/* Sidebar - Comments Section */}
       <div
-        className={`fixed right-0 top-0 h-full bg-[#1b060d] border-l border-[#dbc9b9]/20 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden ${isSidebarOpen ? 'translate-x-[0px]' : 'translate-x-[400px]'
+        className={`fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden ${isSidebarOpen ? 'translate-x-[0px]' : 'translate-x-[400px]'
           }`}
         style={{ width: '400px' }}
       >
         <div className="h-full flex flex-col relative">
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="absolute top-4 right-4 z-10 text-[#dbc9b9] hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-4 right-4 z-10 text-gray-500 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100 transition-colors"
             aria-label="Close sidebar"
           >
             <X size={24} />
@@ -359,7 +359,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-16">
             {/* Decorative background with vintage paper texture effect */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 pointer-events-none -z-10" />
+            {/* <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 pointer-events-none -z-10" /> */}
 
             <div className="relative z-10">
               {currentRecipeId ? (
@@ -369,8 +369,8 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
                   userId={user?.id}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-[50vh] text-[#dbc9b9] text-center p-6">
-                  <h3 className="text-xl font-serif mb-2">Select a Recipe</h3>
+                <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500 text-center p-6">
+                  <h3 className="text-xl font-serif text-gray-900 mb-2">Select a Recipe</h3>
                   <p className="opacity-70">Turn the pages to view discussions for each recipe.</p>
                 </div>
               )}

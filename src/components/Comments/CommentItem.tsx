@@ -145,13 +145,13 @@ export default function CommentItem({
             <div className={`
                 relative p-4 rounded-lg transition-all duration-200
                 ${comment.depth === 0
-                    ? 'bg-[var(--color-primary-secondary)] border border-[var(--color-primary-border)]'
-                    : 'bg-white/60 border border-[var(--color-primary-border)]/50'
+                    ? 'bg-gray-50 border border-gray-200'
+                    : 'bg-white border border-gray-100'
                 }
             `}>
                 {/* Reply indicator line */}
                 {comment.depth > 0 && (
-                    <div className="absolute -left-6 md:-left-10 top-0 bottom-0 w-[2px] bg-gradient-to-b from-[var(--color-primary-border)] to-transparent" />
+                    <div className="absolute -left-6 md:-left-10 top-0 bottom-0 w-[2px] bg-gradient-to-b from-gray-200 to-transparent" />
                 )}
 
                 <div className="flex gap-3">
@@ -167,11 +167,11 @@ export default function CommentItem({
                     <div className="flex-1 min-w-0">
                         {/* Header */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-[var(--font-imprint)] text-[var(--color-primary-main)] truncate">
+                            <span className="font-[var(--font-imprint)] text-gray-900 truncate">
                                 {comment.author_name || (comment.user_id.length > 12 ? `${comment.user_id.slice(0, 12)}...` : comment.user_id)}
                             </span>
-                            <span className="text-[var(--color-text-pale)] text-xs">•</span>
-                            <span className="text-[#7b3900] text-xs italic font-[var(--font-bell)]">
+                            <span className="text-gray-400 text-xs">•</span>
+                            <span className="text-gray-500 text-xs italic font-[var(--font-bell)]">
                                 {formatDate(comment.created_at)}
                             </span>
 
@@ -180,7 +180,7 @@ export default function CommentItem({
                                 <Link
                                     href={`/messages?chatWith=${comment.user_id}&name=${encodeURIComponent(comment.author_name || '')}`}
                                     target="_blank"
-                                    className="text-[#7b3900] hover:text-[var(--color-primary-main)] transition-colors ml-1"
+                                    className="text-gray-500 hover:text-amber-600 transition-colors ml-1"
                                     title="Message User"
                                 >
                                     <MessageSquare className="w-3.5 h-3.5" />
@@ -188,14 +188,14 @@ export default function CommentItem({
                             )}
 
                             {isOwner && (
-                                <span className="px-2 py-0.5 text-xs bg-[var(--color-primary-focus)] text-[var(--color-primary-main)] rounded-full font-[var(--font-bell)]">
+                                <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full font-[var(--font-bell)]">
                                     You
                                 </span>
                             )}
                         </div>
 
                         {/* Content */}
-                        <p className="mt-2 text-[var(--color-brown-dark)] font-[var(--font-bell)] leading-relaxed whitespace-pre-wrap break-words">
+                        <p className="mt-2 text-gray-800 font-[var(--font-bell)] leading-relaxed whitespace-pre-wrap break-words">
                             {comment.content}
                         </p>
 
@@ -206,14 +206,14 @@ export default function CommentItem({
                                     <div key={i} className="max-w-xs">
                                         {att.type === 'image' ? (
                                             <div
-                                                className="cursor-pointer overflow-hidden rounded-lg border border-[var(--color-primary-border)]/30 hover:opacity-90 transition-opacity"
+                                                className="cursor-pointer overflow-hidden rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
                                                 onClick={() => setViewImage(att.url)}
                                             >
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={att.url} alt="Attachment" className="max-h-48 object-cover" />
                                             </div>
                                         ) : att.type === 'video' ? (
-                                            <video src={att.url} controls className="max-h-48 rounded-lg border border-[var(--color-primary-border)]/30" />
+                                            <video src={att.url} controls className="max-h-48 rounded-lg border border-gray-200" />
                                         ) : (
                                             <AudioPlayer src={att.url} className="w-full min-w-[200px]" />
                                         )}
@@ -223,12 +223,12 @@ export default function CommentItem({
                         )}
 
                         {/* Actions */}
-                        <div className="flex items-center gap-4 mt-3 pt-2 border-t border-[var(--color-primary-border)]/20">
+                        <div className="flex items-center gap-4 mt-3 pt-2 border-t border-gray-200/50">
                             {userId && canReply && (
                                 <button
                                     onClick={() => setShowReplyEditor(!showReplyEditor)}
-                                    className="flex items-center gap-1.5 text-sm text-[var(--color-primary-main)] 
-                                             hover:text-[var(--color-primary-hover)] transition-colors duration-200 
+                                    className="flex items-center gap-1.5 text-sm text-gray-500 
+                                             hover:text-amber-600 transition-colors duration-200 
                                              font-[var(--font-bell)] group"
                                 >
                                     <svg className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,7 +253,7 @@ export default function CommentItem({
                                             </button>
                                             <button
                                                 onClick={() => setShowDeleteConfirm(false)}
-                                                className="px-2 py-1 text-xs text-[var(--color-primary-main)] hover:bg-[var(--color-primary-focus)] 
+                                                className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 
                                                          rounded transition-colors font-[var(--font-bell)]"
                                             >
                                                 Keep it
