@@ -2691,7 +2691,7 @@ export default function GoogleContinentCountryMap({
           </button>
 
           <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg border border-white/10">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">Viewing</div>
+            {/* <div className="text-xs text-gray-400 uppercase tracking-wide">Viewing</div> */}
             <div className="font-semibold text-white">{viewLabel}</div>
           </div>
         </div>

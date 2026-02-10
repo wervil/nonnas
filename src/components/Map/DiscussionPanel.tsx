@@ -71,7 +71,7 @@ export default function DiscussionPanel({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed top-[80px] right-0 h-[100dvh - 80px] w-full md:w-[480px] bg-gradient-to-b from-[#1a1a1a] to-[#0d0d0d] shadow-2xl z-[99999] border-l border-amber-500/20 animate-in slide-in-from-right duration-300">
+        <div className="fixed top-[80px] right-0 h-[calc(100vh-80px)] w-full md:w-[480px] bg-gradient-to-b from-[#1a1a1a] to-[#0d0d0d] shadow-2xl z-[99999] border-l border-amber-500/20 animate-in slide-in-from-right duration-300 flex flex-col">
             {/* Header with beautiful gradient */}
             <div className="relative overflow-hidden">
                 {/* Background decoration */}
@@ -155,9 +155,9 @@ export default function DiscussionPanel({
             </div>
 
             {/* Content */}
-            <div className="overflow-y-auto h-[calc(100vh-180px)] custom-scrollbar">
+            <div className="overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                 {activeTab === "discussion" ? (
-                    <div className="p-6">
+                    <div className="p-6 pb-24">
                         {viewMode === "list" && (
                             <>
                                 {/* Header with action button */}
