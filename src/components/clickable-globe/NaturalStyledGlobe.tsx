@@ -12,7 +12,7 @@ type LatLng = { lat: number; lng: number };
 
 type GeoFeature = {
   type: "Feature";
-  properties: { CONTINENT?: string;[k: string]: unknown };
+  properties: { CONTINENT?: string; [k: string]: unknown };
   geometry: {
     type: "Polygon" | "MultiPolygon";
     coordinates: number[][][] | number[][][][];
@@ -120,20 +120,20 @@ const COUNTRY_TO_REGION: Record<string, string> = {
 
 // Approximate center points for continents (lat, lng) to auto-rotate
 const CONTINENT_CENTERS: Record<string, { lat: number; lng: number }> = {
-  "Africa": { lat: 0, lng: 20 },
-  "Asia": { lat: 35, lng: 90 },
-  "Europe": { lat: 48, lng: 15 },
+  Africa: { lat: 0, lng: 20 },
+  Asia: { lat: 35, lng: 90 },
+  Europe: { lat: 48, lng: 15 },
   "North America": { lat: 45, lng: -100 },
   "South America": { lat: -15, lng: -60 },
-  "Oceania": { lat: -25, lng: 135 },
+  Oceania: { lat: -25, lng: 135 },
   "Pacific Islands": { lat: -10, lng: 160 },
-  "Antarctica": { lat: -65, lng: 0 },
+  Antarctica: { lat: -65, lng: 0 },
   "Middle East": { lat: 25, lng: 45 },
   "Southeast Asia": { lat: 0, lng: 115 },
   "East Asia": { lat: 35, lng: 110 },
   "South Asia": { lat: 22, lng: 78 },
   "Central Asia": { lat: 45, lng: 65 },
-  "Russia": { lat: 60, lng: 90 },
+  Russia: { lat: 60, lng: 90 },
 };
 
 // ---------- Helpers ----------
@@ -278,6 +278,9 @@ export default function NaturalStyledGlobe({
   // A token to ignore stale async init (StrictMode / rapid remount)
   const initTokenRef = useRef(0);
 
+  // ✅ NEW: small screen flag (Tailwind sm is 640px)
+  const isSmallRef = useRef(false);
+
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
@@ -290,24 +293,18 @@ export default function NaturalStyledGlobe({
   useEffect(() => {
     if (!initialFocusedContinent) return;
 
-    // Resolve center
     let center = CONTINENT_CENTERS[initialFocusedContinent];
     if (!center && COUNTRY_TO_REGION[initialFocusedContinent]) {
       center = CONTINENT_CENTERS[COUNTRY_TO_REGION[initialFocusedContinent]];
     }
 
     if (center) {
-      // Convert lat/lng to rotation angles
-      // Y rotation moves longitude: -lng * (PI/180) - PI/2
-      // X rotation moves latitude: lat * (PI/180)
-
       const latRad = center.lat * (Math.PI / 180);
       const lngRad = center.lng * (Math.PI / 180);
 
       const targetX = latRad;
       const targetY = -lngRad;
 
-      // Snap instantly to this rotation
       rotationRef.current = { x: targetX, y: targetY };
       targetRotationRef.current = { x: targetX, y: targetY };
     }
@@ -510,7 +507,7 @@ export default function NaturalStyledGlobe({
     cleanupFnsRef.current.forEach((fn) => {
       try {
         fn();
-      } catch { }
+      } catch {}
     });
     cleanupFnsRef.current = [];
 
@@ -526,12 +523,12 @@ export default function NaturalStyledGlobe({
         const gl = rendererRef.current.getContext();
         const lose = gl?.getExtension("WEBGL_lose_context");
         lose?.loseContext();
-      } catch { }
+      } catch {}
 
       try {
         rendererRef.current.dispose();
         rendererRef.current.forceContextLoss();
-      } catch { }
+      } catch {}
 
       rendererRef.current = null;
     }
@@ -589,6 +586,12 @@ export default function NaturalStyledGlobe({
         if (cancelled || token !== initTokenRef.current) return;
 
         mount.innerHTML = "";
+
+        // ✅ NEW: compute small-screen status
+        const computeIsSmall = () => {
+          isSmallRef.current = window.matchMedia("(max-width: 640px)").matches;
+        };
+        computeIsSmall();
 
         // Scene
         const scene = new THREE.Scene();
@@ -748,7 +751,7 @@ export default function NaturalStyledGlobe({
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
           try {
             renderer.domElement.setPointerCapture(e.pointerId);
-          } catch { }
+          } catch {}
         };
 
         const onPointerMove = (e: PointerEvent) => {
@@ -769,6 +772,9 @@ export default function NaturalStyledGlobe({
             currentHoverRef.current = null;
             setHoveredContinent(null);
           } else {
+            // ✅ NEW: on small screens skip hover raycast (no hover UX + avoids jank)
+            if (isSmallRef.current) return;
+
             const { continent } = raycastContinent(e.clientX, e.clientY);
             if (continent !== currentHoverRef.current) {
               currentHoverRef.current = continent;
@@ -784,7 +790,7 @@ export default function NaturalStyledGlobe({
 
           try {
             renderer.domElement.releasePointerCapture(e.pointerId);
-          } catch { }
+          } catch {}
 
           if (!hasDraggedRef.current && activeRef.current) {
             const { continent } = raycastContinent(e.clientX, e.clientY);
@@ -798,14 +804,25 @@ export default function NaturalStyledGlobe({
           updatePolygonColors(null);
         };
 
+        // ✅ NEW: wheel rotation only on >= sm screens; on sm allow page scroll
         const onWheel = (e: WheelEvent) => {
           if (!activeRef.current) return;
+
+          if (isSmallRef.current) {
+            // Let the page scroll naturally on small screens
+            return;
+          }
+
           e.preventDefault();
           e.stopPropagation();
-          targetRotationRef.current.y += e.deltaY * 0.002;
+
+          const delta = Math.max(-50, Math.min(50, e.deltaY));
+          targetRotationRef.current.y += delta * 0.002;
         };
 
         const onResize = () => {
+          computeIsSmall();
+
           if (!cameraRef.current || !rendererRef.current || !mountRef.current) return;
           const w = mountRef.current.clientWidth;
           const h = mountRef.current.clientHeight;
@@ -893,20 +910,18 @@ export default function NaturalStyledGlobe({
   }
 
   return (
-    <div className="w-full h-full relative" style={{ background: "#0a0a0a" }}>
+    <div className="w-full h-full relative overflow-hidden" style={{ background: "#0a0a0a" }}>
       {geoStatus !== "ok" && (
         <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-gray-700">
           <div className="text-xs text-gray-400">
             Data:{" "}
-            <span className={geoStatus === "fail" ? "text-red-400" : "text-amber-400"}>
-              {geoStatus}
-            </span>
+            <span className={geoStatus === "fail" ? "text-red-400" : "text-amber-400"}>{geoStatus}</span>
           </div>
         </div>
       )}
 
       {hoveredContinent && (
-        <div className="absolute top-[-15px] left-0 right-0 flex justify-center z-10 pointer-events-none">
+        <div className="absolute top-[9px] left-0 right-0 flex justify-center z-10 pointer-events-none">
           <h2
             className="text-2xl md:text-3xl font-bold tracking-wide text-amber-400"
             style={{
@@ -921,10 +936,12 @@ export default function NaturalStyledGlobe({
 
       <div
         ref={mountRef}
-        className="w-full h-full mt-8 transition-opacity duration-1000 ease-in-out"
+        className="w-full h-full mt-2 md:mt-8 transition-opacity duration-1000 ease-in-out"
         style={{
           cursor: hoveredContinent ? "pointer" : "grab",
-          opacity: canvasOpacity
+          opacity: canvasOpacity,
+          // ✅ allow vertical scroll on touch while still allowing pointer drag rotation
+          touchAction: "pan-y",
         }}
       />
     </div>
