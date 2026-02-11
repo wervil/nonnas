@@ -86,7 +86,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   const checkScreenSize = useCallback(() => {
     const sidebarWidth = isSidebarOpen ? 400 : 0
     const availableWidth = window.innerWidth - sidebarWidth
-    const mobile = window.innerWidth < 1024
+    const mobile = window.innerWidth < 776 //1024
 
     setIsMobile(mobile)
     // Switch to single page if it's mobile OR if available space is too narrow
