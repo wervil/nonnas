@@ -144,7 +144,7 @@ export const Header = ({
       <div className="flex items-center gap-5">
 
         {/* Desktop View (Hidden on Mobile) */}
-        <div className="hidden md:flex items-center gap-5">
+        <div className="hidden lg:flex items-center gap-5">
           {/* Home Icon for Explore Page - placed next to Settings */}
           {isExplorePage && (
             <Link href="/">
@@ -217,7 +217,7 @@ export const Header = ({
         </div>
 
         {/* Mobile View (Dropdown Menu) */}
-        <div className="flex md:hidden">
+        <div className="flex lg:hidden">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="shrink" className="p-2">
@@ -228,7 +228,7 @@ export const Header = ({
               {isExplorePage && (
                 <DropdownMenuItem asChild>
                   <Link href="/" className={`cursor-pointer ${imageFilterClass} !text-green-dark`}>
-                  <Home className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Home
+                    <Home className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Home
                   </Link>
                 </DropdownMenuItem>
               )}
