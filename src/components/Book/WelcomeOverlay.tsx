@@ -25,23 +25,23 @@ export const WelcomeOverlay = () => {
 
     return (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-lg p-4 animate-in fade-in duration-500">
-            <div className="relative w-full max-w-[100vw] md:max-w-[500px] aspect-[3/4] animate-in  duration-500 ">
+            <div className="relative w-full max-w-[100vw] md:max-w-[500px] h-[90%] md:h-auto aspect-[3/4] animate-in  duration-500 ">
 
-            
+
                 <div className="absolute inset-0 flex items-center justify-center ">
 
                     <div className="info-wrap flex flex-col items-center justify-center text-center !px-6 !rounded-[20px] w-full h-full ">
-                     {/* Logo */}
-                     <div className="mb-4 flex justify-center">
-                      <Image
-                        src="/logoMain.svg"      // or /logo.png
-                        alt="App logo"
-                        width={148}
-                        height={88}
-                        priority
-                      />
-                    </div>
-                        <Typography size="h3" weight="bold" color="white" className="mb-4 md:mb-6 font-imprint drop-shadow-lg">
+                        {/* Logo */}
+                        <div className="mb-4 flex justify-center">
+                            <Image
+                                src="/logoMain.svg"      // or /logo.png
+                                alt="App logo"
+                                width={148}
+                                height={88}
+                                priority
+                            />
+                        </div>
+                        <Typography  weight="bold" color="white" className="mb-4 md:mb-6 font-imprint drop-shadow-lg sm:text-[24px] text-[17px]">
                             {l('infoTitle')}
                         </Typography>
                         <div className="space-y-4 md:space-y-6 max-h-[50vh] overflow-y-auto scrollbar-hide">
