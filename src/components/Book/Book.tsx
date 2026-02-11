@@ -206,7 +206,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
   return (
     <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
       <div
-        className={`transition-all duration-300 ease-in-out h-full relative ${isSidebarOpen ? 'w-[calc(100%-400px)]' : 'w-full'
+        className={`transition-all duration-300 ease-in-out h-full relative ${isSidebarOpen ? 'w-full md:w-[calc(100%-400px)]' : 'w-full'
           }`}
       >
         <div className="wrap h-full">
@@ -344,9 +344,8 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
       {/* Sidebar - Comments Section */}
       <div
-        className={`fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden ${isSidebarOpen ? 'translate-x-[0px]' : 'translate-x-[400px]'
+        className={`fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden w-full md:w-[400px] ${isSidebarOpen ? 'translate-x-[0px]' : 'translate-x-full'
           }`}
-        style={{ width: '400px' }}
       >
         <div className="h-full flex flex-col relative">
           <button
