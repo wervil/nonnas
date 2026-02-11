@@ -69,6 +69,55 @@ export default async function Handler(props: HandlerProps) {
     );
   }
 
+  // ✅ Handle existing account error (OAuth vs Password)
+  if ( searchParams.errorCode === "CONTACT_CHANNEL_ALREADY_USED_FOR_AUTH_BY_SOMEONE_ELSE") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
+
+          {/* Logo */}
+          <div className="mb-4 flex justify-center">
+            <Image
+              src="/logoMain.svg"
+              alt="App logo"
+              width={148}
+              height={88}
+              priority
+            />
+          </div>
+
+          <p className="mt-4 text-md text-neutral-800 font-semibold text-center">
+            Account Access Issue
+          </p>
+
+          <p className="mt-2 text-sm text-neutral-600 text-center">
+            It looks like this email is already registered using a different sign-in method (like a password).
+            <br /><br />
+            For security, please sign in using your original method.
+          </p>
+
+          <div className="mt-8 flex flex-col gap-3">
+            <Link
+              href="/handler/sign-in"
+              className="inline-flex items-center no-underline justify-center rounded-md hover:text-white visited:text-white bg-neutral-900 px-4 py-2.5 text-sm font-medium hover:bg-neutral-800 transition"
+              style={{ color: 'white' }}
+            >
+              Back to Sign In
+            </Link>
+
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center rounded-md border px-4 py-2.5 no-underline  text-sm text-neutral-700 hover:bg-neutral-100 transition"
+              style={{ color: 'lab(8 0 0)' }}
+            >
+              Back to home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ✅ Enforce our post-login guard for sign-in (only when not showing error)
   if (stack === "sign-in") {
     const desired = "/api/auth/sign-in-guard";
