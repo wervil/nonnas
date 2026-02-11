@@ -2740,35 +2740,35 @@ export default function GoogleContinentCountryMap({
       <div ref={mapDivRef} className="w-full h-full" />
 
       {/* Legend - amber theme matching markers */}
-      <div className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-200">
-        <div className="text-xs font-semibold text-gray-500 mb-2">LEGEND</div>
-        <div className="flex items-center gap-2 mb-1">
+      <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 bg-white/90 backdrop-blur-sm rounded-lg p-2 sm:p-3 shadow-lg border border-gray-200 max-w-[180px] sm:max-w-none">
+        <div className="text-[10px] sm:text-xs font-semibold text-gray-500 mb-1 sm:mb-2">LEGEND</div>
+        <div className="flex items-start sm:items-center gap-2 mb-1">
           <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+            className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold"
             style={{ backgroundColor: MARKER_COLOR }}
           >
             N
           </div>
-          <span className="text-sm text-gray-700">Click cluster to view Nonnas</span>
+          <span className="text-xs sm:text-sm text-gray-700 leading-tight">Click cluster to view Nonnas</span>
         </div>
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-start sm:items-center gap-2 mb-1">
           <div
-            className="w-6 h-6 rounded border-2 bg-transparent"
+            className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 rounded border-2 bg-transparent"
             style={{ borderColor: "#e5e7eb" }}
           />
-          <span className="text-sm text-gray-700">
+          <span className="text-xs sm:text-sm text-gray-700 leading-tight">
             {drill === "continent" ? "Click country to drill down" :
               drill === "country" ? "Click state/region to drill down" :
                 "Click to view discussions"}
           </span>
         </div>
         {drill !== "continent" && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-start sm:items-center gap-2">
             <div
-              className="w-6 h-6 rounded border-2"
+              className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 rounded border-2"
               style={{ borderColor: MARKER_COLOR, backgroundColor: `${MARKER_COLOR}20` }}
             />
-            <span className="text-sm text-gray-700">
+            <span className="text-xs sm:text-sm text-gray-700 leading-tight">
               {drill === "country" ? "State/region boundaries" : "Selected region"}
             </span>
           </div>
