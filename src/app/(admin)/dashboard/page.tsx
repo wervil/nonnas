@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dialog'
 
 import { toast } from "sonner";
-import { Home, LogOut, Menu } from 'lucide-react'
+import { Copy, Home, LogOut, Menu } from 'lucide-react'
 
 type StackUserRow = {
   id: string
@@ -297,10 +297,21 @@ function DashboardInner({
               {hasPermissions && (
                 <Button
                   onClick={copyInviteLink}
-                  className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors"
+                  className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors sm:block hidden flex flex-row whitespace-nowrap"
                   variant="empty" // overriding styles manually
                 >
                   {copied ? 'Copied ✓' : 'Copy Invite Link'}
+                </Button>
+              )}
+
+              {hasPermissions && (
+                <Button
+                  onClick={copyInviteLink}
+                  className="bg-gray-100 hover:bg-gray-200 text-[12px] hover:opacity-100 text-gray-900 transition-colors sm:hidden block"
+                  style={{padding : '6px 13px'}}
+                  variant="empty" // overriding styles manually
+                >                  
+                  {copied ? 'Copied ✓' : (<><Copy className="w-4 h-4 mr-2" /> Invite Link </>)}
                 </Button>
               )}
 
