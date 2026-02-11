@@ -2677,11 +2677,11 @@ export default function GoogleContinentCountryMap({
 
 
       {/* Top bar - amber theme matching markers */}
-      <div className="fixed top-24 sm:left-25 left-5 z-10 flex sm:items-center items-start gap-3 sm:flex-row flex-col">
+      <div className="fixed top-24 sm:left-25 left-2 z-10 flex sm:items-center items-start gap-3 sm:flex-row flex-col">
         <div className="flex items-center gap-3 flox row">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20 !font-[var(--font-bell)]"
+            className="flex items-center gap-2 rounded-lg text-white font-medium shadow-lg transition-all hover:scale-105 border border-white/20 !font-[var(--font-bell)] px-2 py-1 sm:px-4 sm:py-3 text-[12px] sm:!text-[16px] leading-none"
             style={{ backgroundColor: MARKER_COLOR, fontFamily: "'Bell', serif" }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2690,7 +2690,7 @@ export default function GoogleContinentCountryMap({
             {backButtonLabel}
           </button>
 
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg border border-gray-200">
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-2 py-1 sm:px-4 sm:py-3 text-[12px] sm:!text-[16px] leading-none">
             {/* <div className="text-xs text-gray-500 uppercase tracking-wide">Viewing</div> */}
             <div className="font-semibold text-gray-900">{viewLabel}</div>
           </div>
