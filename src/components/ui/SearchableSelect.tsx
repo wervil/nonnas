@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Typography } from './Typography'
+import { usePathname } from 'next/navigation';
 
 export interface SearchableSelectProps {
     options: { value: string; label: string; flag?: string }[]
@@ -24,6 +25,9 @@ export const SearchableSelect = ({
     const [searchTerm, setSearchTerm] = useState('')
     const wrapperRef = useRef<HTMLDivElement>(null)
 
+
+  const path = usePathname()
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -44,7 +48,7 @@ export const SearchableSelect = ({
         <div className="relative" ref={wrapperRef}>
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
-                className={`w-full px-3 py-4 border rounded-lg cursor-pointer flex items-center justify-between text-base font-[var(--font-merriweather)] 
+                className={`${path === '/dashboard' ? 'px-2 py-1 ' : 'px-3 py-4 '} w-full border rounded-lg cursor-pointer flex items-center justify-between text-base font-[var(--font-merriweather)] 
                 ${disabled
                         ? 'bg-gray-100 cursor-not-allowed text-gray-400'
                         : variant === 'light'

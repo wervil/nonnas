@@ -359,38 +359,40 @@ function DashboardInner({
         </div>
         {/* TABS */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <button
-            className={`px-6 py-3 rounded-lg font-[var(--font-bell)] text-lg transition-all duration-200 ${tab === 'new'
-              ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            onClick={() => setTab('new')}
-          >
-            {d('newRecipes')}
-          </button>
-
-          <button
-            className={`px-6 py-3 rounded-lg font-[var(--font-bell)] text-lg transition-all duration-200 ${tab === 'published'
-              ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            onClick={() => setTab('published')}
-          >
-            {d('publishedRecipes')}
-          </button>
-
-          {isSuperAdmin && (
+          <div className='flex flex-row gap-2'>
             <button
-              className={`px-6 py-3 rounded-lg font-[var(--font-bell)] text-lg transition-all duration-200 ${tab === 'users'
+              className={`px-3 py-2 sm:px-6 sm:py-3  sm:text-lg text-sm rounded-lg font-[var(--font-bell)] transition-all duration-200 ${tab === 'new'
                 ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
                 }`}
-              onClick={() => setTab('users')}
+              onClick={() => setTab('new')}
             >
-              {d('users')}
+              {d('newRecipes')}
             </button>
-          )}
 
+            <button
+              className={`px-3 py-2 sm:px-6 sm:py-3  sm:text-lg text-sm rounded-lg font-[var(--font-bell)] transition-all duration-200 ${tab === 'published'
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                }`}
+              onClick={() => setTab('published')}
+            >
+              {d('publishedRecipes')}
+            </button>
+
+            {isSuperAdmin && (
+              <button
+                className={`px-3 py-2 sm:px-6 sm:py-3  sm:text-lg text-sm rounded-lg font-[var(--font-bell)] transition-all duration-200 ${tab === 'users'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                  }`}
+                onClick={() => setTab('users')}
+              >
+                {d('users')}
+              </button>
+            )}
+
+          </div>
           {tab !== 'users' && (
             <div className="min-w-[200px]">
               <SearchableSelect
@@ -476,7 +478,7 @@ function DashboardInner({
                           updateUserRole(u.id, isAdmin ? 'client' : 'team_member')
                         }
                         disabled={roleUpdatingId === u.id}
-                        className="bg-white hover:bg-gray-100 text-gray-900 border border-gray-200 text-sm px-4 py-2"
+                        className="bg-white hover:bg-gray-100 text-gray-900 border border-gray-200 !text-sm sm:text-lg !px-2 !py-1 sm:!px-4 sm:!py-2"
                         variant="empty"
                       >
                         {roleUpdatingId === u.id
@@ -494,7 +496,7 @@ function DashboardInner({
                       <span className="text-xs text-gray-400">—</span>
                     ) : (
                       <Button
-                        className='bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-sm px-4 py-2'
+                        className='bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 !text-sm sm:text-lg !px-2 !py-1 sm:!px-4 sm:!py-2'
                         onClick={() => setDeleteUserId(u.id)}
                         disabled={roleUpdatingId === u.id}
                         variant="empty"
