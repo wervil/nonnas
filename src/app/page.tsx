@@ -160,7 +160,7 @@ export default function Recipes() {
               priority
             />
           </div>
-          <div className="items-center relative flex flex-col md:hidden p-8 w-full gap-3">
+          <div className="items-center relative flex flex-col md:hidden py-2 px-4 w-full gap-3">
             {/* {button(path || '', n as (key: string) => string, hasPermissions)} */}
             {setSearch ? (
               <div className="flex items-center gap-1 border-2 border-green-dark rounded-full px-2 w-full bg-white">

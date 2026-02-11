@@ -94,8 +94,8 @@ export const Header = ({
         */}
         <Image
           src="/logoMain.svg"
-          width={120}
-          height={90}
+          width={ window.innerWidth < 779 ? 80 : 120}
+          height={  window.innerWidth < 779 ? 60 : 90}
           alt="logo"
         />
       </Link>
