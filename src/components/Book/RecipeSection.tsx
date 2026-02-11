@@ -62,7 +62,7 @@ export const RecipeSection = ({
             {title}
           </h4>
           {images?.length ? (
-            <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 lg:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] xl:max-w-none xl:mx-0 2xl:w-[220px] 2xl:h-[200px]">
+            <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 lg:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] xl:max-w-none xl:mx-0 2xl:w-[220px] 2xl:h-[200px] ">
               <Swiper
                 modules={[Navigation, Pagination]}
                 navigation
@@ -95,10 +95,10 @@ export const RecipeSection = ({
           ) : null}
 
 
-          <div className="min-w-0 break-words">
+          <div className="min-w-0 break-words !text-[12px] xl:!text-[16px]">
             <div
               className={clsx(
-                'text-description text-description--long',
+                'text-description text-description--long !text-[12px] xl:!text-[16px]',
                 showButton ? 'opacity-30' : 'opacity-100'
               )}
               style={{ overflow: 'visible' }}
@@ -106,7 +106,7 @@ export const RecipeSection = ({
             />
             <div
               className={clsx(
-                'text-description text-description--long mt-2',
+                'text-description text-description--long mt-2 !text-[12px] xl:!text-[16px]',
                 showButton ? 'opacity-30' : 'opacity-100'
               )}
               style={{ overflow: 'visible' }}
