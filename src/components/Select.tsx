@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from 'react'
 import ReactSelect, { StylesConfig } from 'react-select'
 import { usePathname } from 'next/navigation'
 
@@ -91,6 +92,44 @@ export const ExploreSelect = ({
   placeholder,
 }: Props) => {
   const pathname = usePathname()
+  const [isMobile, setIsMobile] = React.useState(false)
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  const styles: StylesConfig = React.useMemo(() => ({
+    control: (base) => ({
+      ...base,
+      minHeight: isMobile ? '36px' : '42px',
+      height: isMobile ? '36px' : '42px',
+      backgroundColor: 'white',
+      fontSize: isMobile ? '13px' : undefined,
+    }),
+    singleValue: (base) => ({ ...base, color: 'grey', fontSize: isMobile ? '13px' : undefined }),
+    placeholder: (base) => ({ ...base, fontSize: isMobile ? '13px' : undefined }),
+    option: (provided, state) => ({
+      ...provided,
+      fontSize: isMobile ? '13px' : undefined,
+      padding: isMobile ? '6px 10px' : '8px 12px',
+      backgroundColor: state.isSelected
+        ? '#fffbeb' // amber-50
+        : state.isFocused
+          ? '#f3f4f6' // gray-100
+          : 'white',
+    }),
+    dropdownIndicator: (base) => ({
+      ...base,
+      padding: isMobile ? '2px' : '8px',
+    }),
+    indicatorSeparator: (base) => ({
+      ...base,
+      display: 'none'
+    })
+  }), [isMobile])
 
   return (
     <ReactSelect
@@ -107,7 +146,7 @@ export const ExploreSelect = ({
       isSearchable
       name="country"
       options={options}
-      styles={exploreStyles}
+      styles={styles}
       components={{
         Option: (props) => <CustomOption {...props} onOptionHover={onOptionHover} />
       }}
