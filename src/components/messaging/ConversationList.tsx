@@ -5,9 +5,10 @@ interface ConversationListProps {
     currentUserId: string;
     onSelect: (conversation: Conversation) => void;
     isLoading?: boolean;
+    activeConversationId?: number;
 }
 
-export const ConversationList = ({ conversations, currentUserId, onSelect, isLoading }: ConversationListProps) => {
+export const ConversationList = ({ conversations, currentUserId, onSelect, isLoading, activeConversationId }: ConversationListProps) => {
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-gray-500 gap-3 font-[var(--font-bell)]">
@@ -39,18 +40,25 @@ export const ConversationList = ({ conversations, currentUserId, onSelect, isLoa
 
                 const displayName = otherUserName || "--";
                 const initials = (otherUserName || "--").substring(0, 2).toUpperCase();
+                const isActive = activeConversationId === convo.id;
 
                 return (
                     <button
                         key={convo.id}
                         onClick={() => onSelect(convo)}
-                        className="p-4 hover:bg-gray-100 transition-colors text-left flex items-center gap-3"
+                        className={`p-4 text-left flex items-center gap-3 transition-colors ${isActive
+                                ? 'bg-[var(--color-yellow-bg)] border-l-4 border-amber-200'
+                                : 'hover:bg-gray-50 bg-white border-l-4 border-transparent'
+                            }`}
                     >
-                        <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0 shadow-sm border border-amber-200">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 shadow-sm border ${isActive
+                                ? 'bg-white text-[var(--color-yellow-main)] border-l border-amber-200'
+                                : 'bg-[var(--color-yellow-bg)] text-[var(--color-yellow-main)] border-amber-200'
+                            }`}>
                             {initials}
                         </div>
                         <div className="overflow-hidden">
-                            <div className="font-semibold truncate text-gray-900 font-[var(--font-bell)]">{displayName}</div>
+                            <div className={`font-semibold truncate font-[var(--font-bell)] ${isActive ? 'text-[var(--color-yellow-main)]' : 'text-gray-900'}`}>{displayName}</div>
                             <div className="text-sm text-gray-500 truncate font-[var(--font-bell)]">
                                 {new Date(convo.updated_at).toLocaleDateString()}
                             </div>

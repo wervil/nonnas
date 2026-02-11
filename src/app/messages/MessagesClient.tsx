@@ -26,7 +26,7 @@ export const MessagesClient = () => {
                 search={undefined}
                 setSearch={undefined}
             />
-            <main className="flex-1 flex flex-col max-w-7xl mx-auto w-full relative min-h-0 overflow-hidden px-4 py-4">
+            <main className="flex-1 flex flex-col max-w-7xl mx-auto w-full relative min-h-0 overflow-hidden p-0 sm:px-4 sm:py-4">
                 <MessagingInterface />
             </main>
         </div>

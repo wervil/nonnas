@@ -12,9 +12,10 @@ interface ChatWindowProps {
     onBack: () => void;
     otherUserId: string;
     otherUserName?: string;
+    isLoading?: boolean;
 }
 
-export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, otherUserId, otherUserName }: ChatWindowProps) => {
+export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, otherUserId, otherUserName, isLoading }: ChatWindowProps) => {
     const [inputText, setInputText] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [attachment, setAttachment] = useState<{ file: File; type: AttachmentType; preview: string } | null>(null);
@@ -26,7 +27,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, isLoading]); // scroll on loading change too
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -131,35 +132,41 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
     return (
         <div className="flex flex-col h-full bg-white min-h-0 overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b border-gray-200 flex items-center bg-white shrink-0">
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between bg-white shrink-0 gap-4">
                 <button
                     onClick={onBack}
-                    className="group inline-flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors"
+                    className="group inline-flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors shrink-0"
                 >
                     <span className="group-hover:-translate-x-1 transition-transform font-[var(--font-bell)]">←</span>
-                    <span className="font-[var(--font-bell)]">Back</span>
+                    <span className="font-[var(--font-bell)] text-sm sm:text-base">Back</span>
                 </button>
-                <div className="ml-6 font-[var(--font-bell)] text-xl font-bold text-gray-900">
+                <div className="font-[var(--font-bell)] text-lg sm:text-xl font-bold text-gray-900 truncate">
                     Chat with {otherUserName || "--"}...
                 </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white min-h-0" ref={scrollRef}>
-                {messages.map((msg) => {
-                    const isMe = msg.sender_id === currentUserId;
-                    return (
-                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-xl p-3 font-[var(--font-bell)] ${isMe ? 'bg-amber-600 text-white shadow-sm' : 'bg-gray-100 text-gray-900 border border-gray-200'}`}>
-                                {msg.content && <p className="break-words">{msg.content}</p>}
-                                {renderAttachment(msg)}
-                                <div className={`text-[10px] mt-1 ${isMe ? 'text-amber-100' : 'text-gray-500'}`}>
-                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4 bg-white min-h-0" ref={scrollRef}>
+                {isLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    messages.map((msg) => {
+                        const isMe = msg.sender_id === currentUserId;
+                        return (
+                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[90%] sm:max-w-[80%] rounded-xl p-3 font-[var(--font-bell)] ${isMe ? 'bg-amber-600 text-white shadow-sm' : 'bg-gray-100 text-gray-900 border border-gray-200'}`}>
+                                    {msg.content && <p className="break-words text-sm sm:text-base">{msg.content}</p>}
+                                    {renderAttachment(msg)}
+                                    <div className={`text-[10px] mt-1 ${isMe ? 'text-amber-100' : 'text-gray-500'}`}>
+                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )
-                })}
+                        )
+                    })
+                )}
             </div>
 
             <ImagesModal
@@ -169,20 +176,20 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
 
             {/* Input */}
             {attachment && (
-                <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
+                <div className="px-3 py-2 sm:px-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3 overflow-hidden">
                         {attachment.type === 'image' ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={attachment.preview} alt="Preview" className="h-12 w-12 object-cover rounded-md border border-gray-200" />
+                            <img src={attachment.preview} alt="Preview" className="h-10 w-10 sm:h-12 sm:w-12 object-cover rounded-md border border-gray-200" />
                         ) : attachment.type === 'video' ? (
-                            <video src={attachment.preview} className="h-12 w-12 object-cover rounded-md border border-gray-200" />
+                            <video src={attachment.preview} className="h-10 w-10 sm:h-12 sm:w-12 object-cover rounded-md border border-gray-200" />
                         ) : (
-                            <div className="h-12 w-12 bg-white rounded-md flex items-center justify-center text-gray-500 border border-gray-200">
+                            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-md flex items-center justify-center text-gray-500 border border-gray-200">
                                 {attachment.type === 'audio' ? <FileAudio size={20} /> : <LinkIcon size={20} />}
                             </div>
                         )}
                         <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-medium truncate max-w-[150px] text-gray-900 font-[var(--font-bell)]">{attachment.file.name}</span>
+                            <span className="text-sm font-medium truncate max-w-[120px] sm:max-w-[150px] text-gray-900 font-[var(--font-bell)]">{attachment.file.name}</span>
                             <span className="text-xs text-gray-500 uppercase font-[var(--font-bell)]">{attachment.type}</span>
                         </div>
                     </div>
@@ -196,7 +203,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     </button>
                 </div>
             )}
-            <div className="p-3 border-t border-gray-200 bg-white flex items-center gap-2 shrink-0">
+            <div className="p-2 sm:p-3 border-t border-gray-200 bg-white flex items-center gap-2 shrink-0">
                 <button
                     onClick={() => fileInputRef.current?.click()}
                     className="p-2 text-gray-500 hover:text-amber-600 transition-colors"
@@ -214,14 +221,20 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                 // accept="image/*,video/*,audio/*" // allow all
                 />
                 <textarea
-                    className="flex-1 bg-gray-50 border border-gray-200 rounded-md px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 font-[var(--font-bell)] transition-all"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 sm:px-4 text-sm sm:text-base text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 font-[var(--font-bell)] transition-all resize-none"
                     placeholder="Type a message..."
                     maxLength={5000}
-                    rows={2}
+                    rows={1}
+                    style={{ minHeight: '42px' }}
                     value={inputText}
                     disabled={isSending}
                     onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                        }
+                    }}
                 />
 
                 <button
@@ -231,7 +244,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                     aria-label="Send message"
                     title="Send message"
                 >
-                    <Send size={20} />
+                    <Send size={18} />
                 </button>
             </div>
         </div>

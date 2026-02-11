@@ -53,6 +53,8 @@ export const MessagingInterface = () => {
         }
     }
 
+    const [loadingMessages, setLoadingMessages] = useState(false);
+
     // Initializer socket
     useEffect(() => {
         // Only connect if user is logged in
@@ -130,11 +132,14 @@ export const MessagingInterface = () => {
     }
 
     const fetchMessages = async (id: number) => {
+        setLoadingMessages(true);
         try {
             const res = await fetch(`/api/conversations/${id}/messages`);
             const data = await res.json();
             if (Array.isArray(data)) setMessages(data);
-        } catch (e) { console.error(e) }
+        } catch (e) { console.error(e) } finally {
+            setLoadingMessages(false);
+        }
     }
 
     const handleSendMessage = async (content: string, url?: string, type?: AttachmentType) => {
@@ -190,6 +195,7 @@ export const MessagingInterface = () => {
                         currentUserId={user.id}
                         onSelect={setActiveConvo}
                         isLoading={loading}
+                        activeConversationId={activeConvo?.id}
                     />
                 </div>
             </div>
@@ -212,6 +218,7 @@ export const MessagingInterface = () => {
                             otherUserName={displayUserName}
                             onBack={() => setActiveConvo(null)}
                             onSendMessage={handleSendMessage}
+                            isLoading={loadingMessages}
                         />
                     );
                 })() : (
