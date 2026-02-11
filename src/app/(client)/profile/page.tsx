@@ -86,9 +86,9 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 mt-4">
           <div className="text-center md:text-left min-w-0 max-w-full">
-            <h1 className="text-4xl md:text-5xl font-bold !text-gray-900 font-[var(--font-bell)] mb-2 break-words overflow-hidden line-clamp-3 max-w-[600px] mx-auto md:mx-0" title={user.displayName || undefined}>
+            <p className=" text-2xl sm:text-5xl capitalize leading-none md:text-5xl font-bold !text-gray-900 font-[var(--font-bell)] mb-2 break-words overflow-hidden line-clamp-3 max-w-[600px] mx-auto md:mx-0" title={user.displayName || undefined}>
               {user.displayName || 'Profile'}
-            </h1>
+            </p>
             <p className="text-gray-500 font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
           </div>
           <div className="flex gap-3 shrink-0">
@@ -110,7 +110,7 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto justify-center md:justify-start">
+        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto justify-start md:justify-start scrollbar-hide">
           <button
             onClick={() => setActiveTab('my_recipes')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'my_recipes'
