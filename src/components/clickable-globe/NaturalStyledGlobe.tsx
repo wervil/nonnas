@@ -12,7 +12,7 @@ type LatLng = { lat: number; lng: number };
 
 type GeoFeature = {
   type: "Feature";
-  properties: { CONTINENT?: string; [k: string]: unknown };
+  properties: { CONTINENT?: string;[k: string]: unknown };
   geometry: {
     type: "Polygon" | "MultiPolygon";
     coordinates: number[][][] | number[][][][];
@@ -507,7 +507,7 @@ export default function NaturalStyledGlobe({
     cleanupFnsRef.current.forEach((fn) => {
       try {
         fn();
-      } catch {}
+      } catch { }
     });
     cleanupFnsRef.current = [];
 
@@ -523,12 +523,12 @@ export default function NaturalStyledGlobe({
         const gl = rendererRef.current.getContext();
         const lose = gl?.getExtension("WEBGL_lose_context");
         lose?.loseContext();
-      } catch {}
+      } catch { }
 
       try {
         rendererRef.current.dispose();
         rendererRef.current.forceContextLoss();
-      } catch {}
+      } catch { }
 
       rendererRef.current = null;
     }
@@ -599,8 +599,16 @@ export default function NaturalStyledGlobe({
         sceneRef.current = scene;
 
         // Camera
+        const width = window.innerWidth;
+        let distance = CAMERA_DISTANCE;
+        if (width < 640) {
+          distance = 420;
+        } else if (width < 1024) {
+          distance = 350;
+        }
+
         const camera = new THREE.PerspectiveCamera(54, mount.clientWidth / mount.clientHeight, 1, 2000);
-        camera.position.set(0, 0, CAMERA_DISTANCE);
+        camera.position.set(0, 0, distance);
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera;
 
@@ -751,7 +759,7 @@ export default function NaturalStyledGlobe({
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
           try {
             renderer.domElement.setPointerCapture(e.pointerId);
-          } catch {}
+          } catch { }
         };
 
         const onPointerMove = (e: PointerEvent) => {
@@ -790,7 +798,7 @@ export default function NaturalStyledGlobe({
 
           try {
             renderer.domElement.releasePointerCapture(e.pointerId);
-          } catch {}
+          } catch { }
 
           if (!hasDraggedRef.current && activeRef.current) {
             const { continent } = raycastContinent(e.clientX, e.clientY);
