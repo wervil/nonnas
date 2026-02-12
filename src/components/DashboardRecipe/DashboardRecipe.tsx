@@ -111,10 +111,10 @@ export const DashboardRecipe = ({
       <div className="flex gap-4 p-4 action-buttons">
         <Button onClick={goBack} className='sm:block hidden'>{b('goBack')}</Button>
         <Button onClick={goBack} className='block sm:hidden'><ArrowLeft className='w-4 h-4' /> </Button>
-        <div className=" flex items-center justify-center">
+        {/* <div className=" flex items-center justify-center">
           <b>{l('published')}:</b>{' '}
           {sanitizedRecipe.published ? d('yes') : d('no')}
-        </div>
+        </div> */}
         {hasAdminAccess ? (
           <>
             <button
