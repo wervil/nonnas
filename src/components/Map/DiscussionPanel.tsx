@@ -71,7 +71,7 @@ export default function DiscussionPanel({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed top-[80px] right-0 h-[calc(100vh-80px)] w-full md:w-[480px] bg-white shadow-2xl z-[99999] border-l border-gray-200 animate-in slide-in-from-right duration-300 flex flex-col">
+        <div className="fixed top-[63px] sm:top-[80px] right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-[480px] bg-white shadow-2xl z-[99999] border-l border-gray-200 animate-in slide-in-from-right duration-300 flex flex-col">
             {/* Header with beautiful gradient */}
             <div className="relative overflow-hidden">
                 {/* Background decoration */}
