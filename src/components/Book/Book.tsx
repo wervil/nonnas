@@ -339,10 +339,10 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
         {!isSidebarOpen && currentRecipeId && (
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="absolute top-8 right-8 z-[100] bg-amber-600 text-white p-3 rounded-full shadow-lg hover:bg-amber-700 transition-colors border-2 border-amber-500 flex items-center gap-2"
+            className="absolute top-8 sm:right-8 right-0  z-[100] bg-amber-600 text-white p-3 sm:rounded-full rounded-[20px_0px_0px_20px] shadow-lg hover:bg-amber-700 transition-colors border-2 border-amber-500 flex items-center gap-2"
           >
             <MessageCircle size={24} />
-            <span className="font-serif">Discussions</span>
+            <span className="font-serif sm:block hidden">Discussions</span>
           </button>
         )}
       </div>
