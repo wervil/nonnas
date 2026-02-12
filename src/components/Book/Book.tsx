@@ -209,7 +209,12 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
         className={`transition-all duration-300 ease-in-out h-full relative ${isSidebarOpen ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full'
           }`}
       >
-        <div className="wrap h-full">
+        <div className="
+  wrap
+  min-h-[calc(100vh-100px)]
+  min-[391px]:!min-h-[80%]
+">
+
           <div className="custom-container flex justify-center items-center h-full relative">
             <button
               className={`rotate-[135deg] md:rotate-[-5deg] relative md:absolute md:top-1/2 md:-translate-y-1/2 left-[10px] md:left-4 z-1000 ${isPrevDisabled
