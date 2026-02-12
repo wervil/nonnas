@@ -344,7 +344,7 @@ function DashboardInner({
                 <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
 
                   <DropdownMenuItem >
-                    <Link href="/" className={`cursor-pointer flex flex-row  ${imageFilterClass} !text-green-dark `}>
+                    <Link href="/" className={`cursor-pointer w-full flex items-center ${imageFilterClass} !text-green-dark `}>
                       <Home className={`mr-2 h-4 w-4 `} /> Home
                     </Link>
                   </DropdownMenuItem>

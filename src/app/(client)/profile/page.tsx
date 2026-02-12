@@ -95,14 +95,14 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
             <Button
               onClick={() => setEditProfileOpen(true)}
               variant="outline"
-              className="border-gray-200 !text-gray-700 hover:bg-gray-50"
+              className="border-gray-200 !text-gray-700 hover:bg-gray-50 text-[12px] sm:text-[20px]"
             >
-              <Pencil className="w-4 h-4 mr-2" />
+              <Pencil className="sm:w-4 sm:h-4 w-2 h-2  mr-2" />
               {b('edit')}
             </Button>
             <Button
               onClick={() => user?.signOut()}
-              className="bg-gray-100 hover:opacity-30! text-gray-900 "
+              className="bg-gray-100 hover:opacity-30! text-gray-900 text-[12px] sm:text-[20px] "
             >
               {b('logOut')}
             </Button>
