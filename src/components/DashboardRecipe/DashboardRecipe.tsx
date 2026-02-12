@@ -18,7 +18,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog'
-import { LoaderCircle } from 'lucide-react'
+import {  ArrowLeft, LoaderCircle, Printer, Trash2 } from 'lucide-react'
 
 async function fetchRecipe(id: string) {
   const res = await fetch(`/api/recipes?id=${id}`)
@@ -109,7 +109,8 @@ export const DashboardRecipe = ({
   return (
     <div className="w-full mx-auto">
       <div className="flex gap-4 p-4 action-buttons">
-        <Button onClick={goBack}>{b('goBack')}</Button>
+        <Button onClick={goBack} className='sm:block hidden'>{b('goBack')}</Button>
+        <Button onClick={goBack} className='block sm:hidden'><ArrowLeft className='w-4 h-4' /> </Button>
         <div className=" flex items-center justify-center">
           <b>{l('published')}:</b>{' '}
           {sanitizedRecipe.published ? d('yes') : d('no')}
@@ -126,15 +127,19 @@ export const DashboardRecipe = ({
             >
               {sanitizedRecipe.published ? b('unpublish') : b('publish')}
             </button>
-            <Button onClick={() => window.print()}>{b('browserPrint')}</Button>
+            <Button className='sm:block hidden' onClick={() => window.print()}>{b('browserPrint')}</Button>
+          <Button className='block sm:hidden !px-3' onClick={() => window.print()}><Printer className='w-4 h-4' /> </Button>
           </>
         ) : (
           <Link href={`${id}/edit`}>
             <Button>{b('edit')}</Button>
           </Link>
         )}
-        <Button onClick={() => setShowDeleteDialog(true)} disabled={deleting}>
+        <Button className='sm:block hidden' onClick={() => setShowDeleteDialog(true)} disabled={deleting}>
           {deleting ? 'Deleting...' : b('delete')}
+        </Button>
+          <Button className='block sm:hidden !px-3 bg-red-400' onClick={() => setShowDeleteDialog(true)} disabled={deleting}>
+          {deleting ? (<LoaderCircle className='animate-spin' />) : (<Trash2 className='w-4 h-4' /> )}
         </Button>
       </div>
       <div id="cookbook-content" className="w-fullpage">
