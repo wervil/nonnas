@@ -600,9 +600,11 @@ export default function NaturalStyledGlobe({
 
         // Camera
         const width = window.innerWidth;
+        const isSmall = width < 640;
         let distance = CAMERA_DISTANCE;
-        if (width < 640) {
-          distance = 420;
+
+        if (isSmall) {
+          distance = 480;
         } else if (width < 1024) {
           distance = 350;
         }
@@ -662,12 +664,28 @@ export default function NaturalStyledGlobe({
           .atmosphereColor("#4a9eff")
           .atmosphereAltitude(0.15);
 
+        // ✅ NEW: Scale down globe on mobile to fit text ring in view
+        if (isSmall) {
+          globe.scale.set(0.5, 0.5, 0.5);
+        }
+
         scene.add(globe);
         globeRef.current = globe;
 
         // Ring
         const ringGroup = new THREE.Group();
-        const ringRadius = GLOBE_RADIUS + 80;
+
+        // Responsive ring params
+        // Responsive ring params
+        // Desktop: Globe (100). Gap ~20 => Ring Radius 120.
+        // Mobile: Globe(60) (scaled 0.6). Gap ~25 => Ring Radius 85.
+        const ringRadius = isSmall ? 115 : GLOBE_RADIUS + 80;
+
+        // Scale text plane size
+        const planeWidth = isSmall ? 15 : 24;
+        const planeHeight = isSmall ? 20 : 32;
+        const fontSize = isSmall ? 50 : 80;
+
         const ringText = "NONNAS OF THE WORLD ";
         const totalChars = ringText.length;
 
@@ -676,9 +694,9 @@ export default function NaturalStyledGlobe({
           if (char === " ") continue;
 
           const angle = (i / totalChars) * Math.PI * 2;
-          const texture = createRingTextTexture(char, 80);
+          const texture = createRingTextTexture(char, fontSize);
 
-          const geometry = new THREE.PlaneGeometry(24, 32);
+          const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
           const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
