@@ -217,7 +217,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
 
           <div className="custom-container flex justify-center items-center h-full relative">
             <button
-              className={`rotate-[135deg] md:rotate-[-5deg] relative md:absolute md:top-1/2 md:-translate-y-1/2 left-[10px] md:left-4 z-2 ${isPrevDisabled
+              className={`rotate-[135deg] min-[769px]:rotate-[-5deg] relative md:absolute md:top-1/2 md:-translate-y-1/2 left-[10px] md:left-4 z-2 ${isPrevDisabled
                 ? 'opacity-30 cursor-not-allowed pointer-events-none'
                 : 'cursor-pointer hover:scale-110 transition-transform'
                 }`}
@@ -313,7 +313,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
             </div>
 
             <button
-              className={`rotate-[315deg] md:rotate-[10deg] relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-[10px] md:right-4 ${isNextDisabled
+              className={`rotate-[315deg] min-[769px]:rotate-[10deg] relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-[10px] md:right-4 ${isNextDisabled
                 ? 'opacity-30 cursor-not-allowed pointer-events-none'
                 : 'cursor-pointer hover:scale-110 transition-transform'
                 }`}
