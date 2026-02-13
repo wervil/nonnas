@@ -242,6 +242,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
               style={{
                 transition: 'transform 1000ms ease',
                 transform: !isSinglePage && currentPage === 0 ? 'translateX(-25%)' : 'translateX(0)',
+                ...(isSinglePage ? { width: isMobile ? '300px' : `${contentHeight * 0.75}px`, maxWidth: '100%' } : {}),
               }}
             >
               {contentHeight > 0 && (
@@ -297,7 +298,7 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
                   <div className="cover" key="cover">
                     <Image
                       src={
-                        window.innerWidth > 768
+                        !isSinglePage
                           ? '/cover.webp'
                           : '/cover-mobile.webp'
                       }
