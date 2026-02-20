@@ -2,6 +2,7 @@
 
 import { Header } from '@/components/Header'
 import Globe2D3DShell from '@/components/clickable-globe/Globe2D3DShell'
+import Earth3DPage from '@/components/google-earth/GogleEarth'
 import { useUser } from '@stackframe/stack'
 import { useState } from 'react'
 
@@ -45,10 +46,11 @@ export default function ExploreContent() {
 
       {/* Globe / Map - takes remaining space; needs parent with defined height for h-full to work */}
       <div className="flex-1 min-h-0 w-full relative overflow-hidden">
-        <Globe2D3DShell
+        {/* <Globe2D3DShell
           // exploreState={exploreState}
           setExploreState={setExploreState}
-        />
+        /> */}
+        <Earth3DPage />
       </div>
     </div>
   )
