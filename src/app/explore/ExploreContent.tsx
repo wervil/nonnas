@@ -3,8 +3,11 @@
 import { Header } from '@/components/Header'
 import Globe2D3DShell from '@/components/clickable-globe/Globe2D3DShell'
 import Earth3DPage from '@/components/google-earth/GogleEarth'
+import { EarthNavigationProvider } from '@/contexts/EarthNavigationContext'
 import { useUser } from '@stackframe/stack'
 import { useState } from 'react'
+
+import EarthBoundaryMap from "@/components/google-earth/NewGoogleEarth";
 
 // ✅ Match Globe2D3DShell mode naming
 type ExploreMode = 'globe' | 'map'
@@ -50,7 +53,11 @@ export default function ExploreContent() {
           // exploreState={exploreState}
           setExploreState={setExploreState}
         /> */}
-        <Earth3DPage />
+        <EarthNavigationProvider>
+          <Earth3DPage />
+        </EarthNavigationProvider>
+
+{/* <EarthBoundaryMap /> */}
       </div>
     </div>
   )
