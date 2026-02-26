@@ -137,7 +137,7 @@ export default function Earth3DPage() {
 
       const map3d = new Map3DElement({
         center: { lat: 20, lng: 0, altitude: 0 },
-        range: 20000000, // Earth-level default zoom
+        range: 30000000, // Earth-level default zoom (matches ZOOM_RANGES.EARTH)
         tilt: 0,
         heading: 0,
         mode: "HYBRID",
@@ -425,7 +425,7 @@ export default function Earth3DPage() {
       let currentOpacity = 0;
       const LERP_SPEED = 0.1;
       const EARTH_RADIUS = 6371000;
-      const FOV_FACTOR = 1.6; // Higher FOV prevents the spherical bulge from clipping
+      const FOV_FACTOR = 1.6; // Reduced so the globe renders smaller, fitting the text ring on screen
 
       const checkZoom = () => {
         if (!mounted || !overlayRef.current) return;

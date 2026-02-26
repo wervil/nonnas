@@ -13,7 +13,7 @@ export type ZoomLevel =
 
 // Optional: Define ranges for programmatic flying
 export const ZOOM_RANGES: Record<ZoomLevel, number> = {
-    EARTH: 20000000,
+    EARTH: 30000000,
     CONTINENT: 8000000,
     COUNTRY: 3000000,
     STATE: 800000,
