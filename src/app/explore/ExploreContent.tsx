@@ -47,7 +47,7 @@ export default function ExploreContent() {
         />
       </div>
 
-      {/* Globe / Map - takes remaining space; needs parent with defined height for h-full to work */}
+      {/* Globe / Map - takes remaining space; position:relative gives Earth3DPage's absolute children a proper containing block */}
       <div className="flex-1 min-h-0 w-full relative overflow-hidden">
         {/* <Globe2D3DShell
           // exploreState={exploreState}
@@ -57,7 +57,7 @@ export default function ExploreContent() {
           <Earth3DPage />
         </EarthNavigationProvider>
 
-{/* <EarthBoundaryMap /> */}
+        {/* <EarthBoundaryMap /> */}
       </div>
     </div>
   )

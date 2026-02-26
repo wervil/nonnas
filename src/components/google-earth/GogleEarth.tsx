@@ -155,6 +155,13 @@ export default function Earth3DPage() {
       containerRef.current.innerHTML = "";
       containerRef.current.appendChild(map3d);
 
+      // Ensure the custom element always fills its container — without this,
+      // gmp-map-3d defaults to `display: inline` and resizes on DOM mutations
+      // (e.g. when Polygon3DElement children are added/removed on zoom).
+      map3d.style.display = "block";
+      map3d.style.width = "100%";
+      map3d.style.height = "100%";
+
       // ---- Boundary polygons drawn with Polygon3DElement + Nominatim GeoJSON ----
       // (FeatureLayer3DElement is NOT available on Map3DElement — confirmed by importLibrary keys)
       const polygonOverlays: any[] = [];
@@ -555,8 +562,8 @@ export default function Earth3DPage() {
   const isClickedLabel = !!clickedLabel;
 
   return (
-    <div className="relative" style={{ height: "100%", width: "100%", overflow: "hidden" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
 
       {/* Boundary highlight label — shown on hover or click */}
       {displayLabel && (
