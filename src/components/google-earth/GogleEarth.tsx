@@ -46,7 +46,7 @@ function loadGoogleMaps(apiKey: string) {
     s.defer = true;
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
       apiKey
-    )}&v=alpha`;
+    )}&v=alpha&loading=async`;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
     document.head.appendChild(s);
@@ -555,7 +555,7 @@ export default function Earth3DPage() {
   const isClickedLabel = !!clickedLabel;
 
   return (
-    <div className="relative" style={{ height: "100%", width: "100%" }}>
+    <div className="relative" style={{ height: "100%", width: "100%", overflow: "hidden" }}>
       <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
 
       {/* Boundary highlight label — shown on hover or click */}
