@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { stackServerApp } from '@/stack';
 import { moderateContent } from '@/services/moderation';
 
-const db = drizzle(process.env.DATABASE_URL!);
+const db = drizzle(process.env.DATABASE_URL_DEV!);
 
 export async function POST(request: Request) {
     const user = await stackServerApp.getUser();

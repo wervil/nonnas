@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 import { payments } from '@/db/schema'
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY! || '')
 

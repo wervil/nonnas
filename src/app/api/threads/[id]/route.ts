@@ -7,7 +7,7 @@ import { stackServerApp } from '@/stack'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 // GET /api/threads/[id] - Fetch a single thread by ID with likes and posts
 export async function GET(

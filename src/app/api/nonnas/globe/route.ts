@@ -4,7 +4,7 @@ import { recipes } from "@/db/schema";
 import { eq, sql, and, isNotNull } from "drizzle-orm";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
 
-const db = drizzle(process.env.DATABASE_URL!);
+const db = drizzle(process.env.DATABASE_URL_DEV!);
 
 export type NonnaCountByCountry = {
   id: string;
@@ -15,6 +15,10 @@ export type NonnaCountByCountry = {
   countryCode: string;
   countryName: string;
   nonnaCount: number;
+  // Representative nonna for map marker avatar
+  representativeName: string;
+  representativeTitle: string;
+  representativePhoto: string | null;
 };
 
 // Countries in each sub-region (for filtering)
@@ -72,7 +76,7 @@ export async function GET(request: Request) {
 
     // Get count of nonnas (recipes) grouped by country
     const conditions = [isNotNull(recipes.country)];
-    
+
     if (published) {
       conditions.push(eq(recipes.published, true));
     }
@@ -81,6 +85,18 @@ export async function GET(request: Request) {
       .select({
         country: recipes.country,
         count: sql<number>`count(*)::int`,
+        // Pick one representative nonna per country for the map marker
+        representativeFirstName: sql<string>`min(first_name)`,
+        representativeLastName: sql<string>`min(last_name)`,
+        representativeTitle: sql<string>`min(grandmother_title)`,
+        representativePhoto: sql<string | null>`(
+          SELECT photo[1] FROM recipes r2
+          WHERE r2.country = recipes.country
+            AND r2.photo IS NOT NULL
+            AND array_length(r2.photo, 1) > 0
+            ${published ? sql.raw(`AND r2.published = true`) : sql.raw(``)}
+          LIMIT 1
+        )`,
       })
       .from(recipes)
       .where(and(...conditions))
@@ -94,7 +110,7 @@ export async function GET(request: Request) {
 
       const countryInfo = getCountryInfoWithFallback(stat.country);
       const region = getCountryRegion(countryInfo.name);
-      
+
       // Filter by region (sub-region) if specified
       if (regionFilter) {
         const regionCountries = REGION_COUNTRIES[regionFilter];
@@ -116,6 +132,9 @@ export async function GET(request: Request) {
         countryCode: countryInfo.code,
         countryName: countryInfo.name,
         nonnaCount: stat.count,
+        representativeName: `${stat.representativeFirstName ?? ''} ${stat.representativeLastName ?? ''}`.trim(),
+        representativeTitle: stat.representativeTitle ?? 'Nonna',
+        representativePhoto: stat.representativePhoto ?? null,
       });
     }
 

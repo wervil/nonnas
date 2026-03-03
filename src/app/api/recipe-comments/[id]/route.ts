@@ -5,7 +5,7 @@ import { recipe_comments } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 export async function PATCH(
     request: NextRequest,

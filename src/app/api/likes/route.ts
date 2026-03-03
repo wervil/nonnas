@@ -5,7 +5,7 @@ import { stackServerApp } from '@/stack'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 // POST /api/likes - Toggle like on content (thread, post, or comment)
 export async function POST(request: NextRequest) {

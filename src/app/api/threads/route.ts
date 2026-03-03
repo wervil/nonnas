@@ -5,7 +5,7 @@ import { stackServerApp } from '@/stack'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 import { moderateContent } from '@/services/moderation'
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 // GET /api/threads - Fetch threads with filters
 export async function GET(request: NextRequest) {

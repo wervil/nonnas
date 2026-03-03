@@ -53,11 +53,13 @@ export default function ExploreContent() {
           // exploreState={exploreState}
           setExploreState={setExploreState}
         /> */}
-        <EarthNavigationProvider>
+        {/* <EarthNavigationProvider>
           <Earth3DPage />
-        </EarthNavigationProvider>
+        </EarthNavigationProvider> */}
 
-        {/* <EarthBoundaryMap /> */}
+         <EarthNavigationProvider>
+          <EarthBoundaryMap />
+        </EarthNavigationProvider>
       </div>
     </div>
   )

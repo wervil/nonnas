@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 import { recipes } from '@/db/schema'
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 export async function GET() {
   try {

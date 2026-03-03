@@ -4,7 +4,7 @@ import { recipes } from "@/db/schema";
 import { eq, and, ilike, or } from "drizzle-orm";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
 
-const db = drizzle(process.env.DATABASE_URL!);
+const db = drizzle(process.env.DATABASE_URL_DEV!);
 
 export type NonnaNonnaDetail = {
   id: number;

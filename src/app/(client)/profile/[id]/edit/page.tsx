@@ -11,10 +11,10 @@ interface PageProps {
 }
 
 async function fetchRecipe(id: string): Promise<Recipe | undefined> {
-  if (!process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL_DEV) {
     throw new Error('DATABASE_URL is not defined');
   }
-  const db = drizzle(process.env.DATABASE_URL)
+  const db = drizzle(process.env.DATABASE_URL_DEV)
   const result = await db
     .select()
     .from(recipes)

@@ -5,7 +5,7 @@ import { conversations } from '@/db/schema';
 import { eq, or, and, desc } from 'drizzle-orm';
 import { stackServerApp } from '@/stack';
 
-const db = drizzle(process.env.DATABASE_URL!);
+const db = drizzle(process.env.DATABASE_URL_DEV!);
 
 export async function GET() {
     const user = await stackServerApp.getUser();

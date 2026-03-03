@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react'
 import { useForm, FieldValues } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
@@ -51,6 +53,7 @@ const recipeSchema = z.object({
     message: 'Recipe Photo is required',
   }),
   dish_image: z.any().optional(),
+  avatar_image: z.string().optional(),
   userId: z.string().optional(),
   release_signature: z
     .boolean()
@@ -70,6 +73,9 @@ export const AddRecipe = ({
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(recipe?.avatar_image || null)
+  const lastGeneratedSource = React.useRef<string | null>(null)
   const b = useTranslations('buttons')
   const l = useTranslations('labels')
   const d = useTranslations('descriptions')
@@ -99,6 +105,7 @@ export const AddRecipe = ({
       photo: [],
       recipe_image: [],
       dish_image: [],
+      avatar_image: '',
       release_signature: false,
       userId: userId || '',
     },
@@ -141,6 +148,83 @@ export const AddRecipe = ({
 
   const [currentStep, setCurrentStep] = useState(0)
 
+  const uploadedPhoto = watch('photo')
+
+  // useEffect(() => {
+  //   const handleAvatarGen = async () => {
+  //     if (uploadedPhoto && uploadedPhoto.length > 0) {
+  //       const sourceUrl = uploadedPhoto[0];
+  //       // Ensure sourceUrl is a string (e.g. from Vercel Blob) and not just a File object right away
+  //       // If it's a blob url or remote url
+  //       if (typeof sourceUrl === 'string' && sourceUrl !== lastGeneratedSource.current) {
+  //         try {
+  //           setIsGeneratingAvatar(true)
+  //           const response = await fetch('/api/avatar/generate', {
+  //             method: 'POST',
+  //             headers: { 'Content-Type': 'application/json' },
+  //             body: JSON.stringify({ imageUrl: sourceUrl }),
+  //           })
+  //           if (response.ok) {
+  //             const data = await response.json()
+  //             if (data.avatarUrl) {
+  //               setAvatarUrl(data.avatarUrl)
+  //               lastGeneratedSource.current = sourceUrl
+  //             }
+  //           }
+  //         } catch (e) {
+  //           console.error('Error generating avatar', e)
+  //         } finally {
+  //           setIsGeneratingAvatar(false)
+  //         }
+  //       }
+  //     }
+  //   }
+  //   handleAvatarGen()
+  // }, [uploadedPhoto])
+
+  useEffect(() => {
+    const handleAvatarGen = async () => {
+      if (!uploadedPhoto?.length) return;
+  
+      const sourceUrl = uploadedPhoto[0];
+  
+      if (typeof sourceUrl !== "string") return;
+      if (sourceUrl === lastGeneratedSource.current) return;
+  
+      try {
+        setIsGeneratingAvatar(true);
+  
+        const response = await fetch("/api/avatar/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input_image: sourceUrl, // ✅ match API key
+            prompt: "Make this a 90s cartoon avatar, clean outlines, vibrant colors",
+            output_format: "jpg",
+          }),
+        });
+  
+        const data = await response.json();
+  
+        // ✅ accept either "url" or "avatarUrl"
+        const avatarUrl = data?.avatarUrl ?? data?.url;
+  
+        if (response.ok && avatarUrl) {
+          setAvatarUrl(avatarUrl);
+          lastGeneratedSource.current = sourceUrl;
+        } else {
+          console.error("Avatar API failed:", data);
+        }
+      } catch (e) {
+        console.error("Error generating avatar", e);
+      } finally {
+        setIsGeneratingAvatar(false);
+      }
+    };
+  
+    handleAvatarGen();
+  }, [uploadedPhoto]);
+
   const nextStep = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
@@ -178,6 +262,7 @@ export const AddRecipe = ({
         photo: recipe.photo || [],
         dish_image: recipe.dish_image || [],
         recipe_image: recipe.recipe_image || [],
+        avatar_image: recipe.avatar_image || '',
         release_signature: recipe.release_signature || false,
         userId,
       })
@@ -208,6 +293,7 @@ export const AddRecipe = ({
         photo: data.photo || [],
         dish_image: data.dish_image || [],
         recipe_image: data.recipe_image || [],
+        avatar_image: avatarUrl || data.avatar_image || null,
         release_signature: data.release_signature || false,
         user_id: data.userId,
       }
@@ -401,6 +487,32 @@ export const AddRecipe = ({
                 setValue={setValue}
                 watch={watch}
               />
+
+              {/* AI Avatar Display Section */}
+              {(isGeneratingAvatar || avatarUrl) && (
+                <div className="flex flex-col gap-2 p-4 bg-white/50 rounded-xl border border-primary-border/20">
+                  <Typography size="body" className="font-semibold text-brown-dark">
+                    Generated Avatar
+                  </Typography>
+                  <Typography size="bodyXS" className="text-brown-pale/80 mb-2">
+                    {isGeneratingAvatar ? 'Generating your 3D Pixar style avatar...' : 'This beautiful 3D avatar was created automatically for the 3D map!'}
+                  </Typography>
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center bg-gray-100/50 backdrop-blur-md">
+                    {isGeneratingAvatar ? (
+                      <Loader2 className="w-8 h-8 animate-spin text-brown-pale" />
+                    ) : avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt="AI Generated Avatar"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
               <FileUpload
                 label={`${l('recipeImage')}*`}
                 description={d('recipeImage')}

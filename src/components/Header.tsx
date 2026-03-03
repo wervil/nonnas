@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import Button from './ui/Button'
 import { usePathname } from 'next/navigation'
-import { Dispatch, SetStateAction } from 'react'
+import { Dispatch, SetStateAction, useState, useEffect } from 'react'
 import { Select } from './Select'
 import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
 import { MessageCircle, Settings, User, Download, Loader2, Menu, PlusCircle, Home } from 'lucide-react'
@@ -85,6 +85,17 @@ export const Header = ({
   // Helper to render user icons (reused for desktop and mobile if needed, but structure differs)
   // For mobile dropdown, we'll render DropdownMenuItem
 
+  const [windowWidth, setWindowWidth] = useState<number>(0)
+
+  useEffect(() => {
+    // Set initial width
+    setWindowWidth(window.innerWidth)
+
+    const handleResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   return (
     <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === 'map' ? ' fixed top-0 w-full ' : ''}`}>
       <Link className="shrink-0" href="/">
@@ -94,8 +105,8 @@ export const Header = ({
         */}
         <Image
           src="/logoMain.svg"
-          width={ window.innerWidth < 779 ? 80 : 120}
-          height={  window.innerWidth < 779 ? 60 : 90}
+          width={windowWidth > 0 && windowWidth < 779 ? 80 : 120}
+          height={windowWidth > 0 && windowWidth < 779 ? 60 : 90}
           alt="logo"
         />
       </Link>

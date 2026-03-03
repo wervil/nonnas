@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
       'd0jo4e8kojckav6k.public.blob.vercel-storage.com',
       'example.com',
       'res.cloudinary.com',
+      'api.dicebear.com',
+      'v3.fal.media',
+      'fal.media'
     ],
   },
   eslint: {

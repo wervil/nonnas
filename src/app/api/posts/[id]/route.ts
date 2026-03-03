@@ -7,7 +7,7 @@ import { moderateContent } from '@/services/moderation'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 // PATCH /api/posts/[id] - Update a post
 export async function PATCH(

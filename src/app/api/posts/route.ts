@@ -7,7 +7,7 @@ import { moderateContent } from '@/services/moderation'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 
 
-const db = drizzle(process.env.DATABASE_URL!)
+const db = drizzle(process.env.DATABASE_URL_DEV!)
 
 // GET /api/posts - Fetch posts for a thread
 export async function GET(request: NextRequest) {

@@ -6,7 +6,7 @@ import { getCountryInfoWithFallback } from "@/lib/countryData";
 import { countriesData } from "@/utils/countries";
 import { getStateCentroid } from "@/lib/stateCoordinates";
 
-const db = drizzle(process.env.DATABASE_URL!);
+const db = drizzle(process.env.DATABASE_URL_DEV!);
 
 export type NonnasByState = {
   stateName: string;
