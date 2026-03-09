@@ -1,53 +1,57 @@
-import React from 'react'
-import { cva, type VariantProps } from 'class-variance-authority'
-import { clsx } from 'clsx'
+import { cva, type VariantProps } from "class-variance-authority";
+import { clsx } from "clsx";
+import React from "react";
 
 const button = cva(
   [
-    'flex items-center justify-center rounded-md',
-    'text-xl leading-6 font-medium ',
-    'transition-all duration-200 ease-in-out',
-    'cursor-pointer',
-    'disabled:cursor-not-allowed',
-    'font-[var(--font-bell)]'
+    "flex items-center justify-center rounded-md",
+    "text-xl leading-6 font-medium ",
+    "transition-all duration-200 ease-in-out",
+    "cursor-pointer",
+    "disabled:cursor-not-allowed",
+    "font-[var(--font-bell)]",
   ],
   {
     variants: {
       variant: {
-        primary: ['bg-green-dark', 'text-primary-focus'],
-        outline: ['border-1 border-primary-main', 'text-primary-main'],
-        ghost: ['bg-transparent', 'text-primary-main', 'hover:bg-primary-light'],
+        primary: ["bg-[#FFCCC8]", "text-[#6D2924]"],
+        outline: ["border-1 border-primary-main", "text-primary-main"],
+        ghost: [
+          "bg-transparent",
+          "text-primary-main",
+          "hover:bg-primary-light",
+        ],
         empty: [],
       },
       size: {
-        shrink: ['px-1 py-0', 'text-sm!'],
-        md: ['px-6 py-2'],
+        shrink: ["px-1 py-0", "text-sm!"],
+        md: ["px-6 py-2"],
       },
     },
-  }
-)
+  },
+);
 
 export interface ButtonProps
-  extends VariantProps<typeof button>,
-  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'> {
-  children: React.ReactNode
-  className?: string
-  asChild?: boolean
+  extends
+    VariantProps<typeof button>,
+    Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
+  children: React.ReactNode;
+  className?: string;
+  asChild?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
   children,
-  variant = 'primary',
-  size = 'md',
-  className = '',
+  variant = "primary",
+  size = "md",
+  className = "",
   ...props
 }) => {
-
   return (
     <button className={clsx(button({ variant, size }), className)} {...props}>
       {children}
     </button>
-  )
-}
+  );
+};
 
-export default Button
+export default Button;

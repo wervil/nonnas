@@ -1,24 +1,22 @@
-'use client'
+"use client";
 
-import { Book } from '@/components/Book/Book'
-import { useRecipes } from '@/hooks/useRecipes'
-import { useExportRecipes } from '@/hooks/useExportRecipes'
-import Image from 'next/image'
-import { button, Header } from '@/components/Header'
-import { useUser } from '@stackframe/stack'
-import { useTranslations } from 'next-intl'
+import { Book } from "@/components/Book/Book";
+import { Header } from "@/components/Header";
+import { useExportRecipes } from "@/hooks/useExportRecipes";
+import { useRecipes } from "@/hooks/useRecipes";
+import { useUser } from "@stackframe/stack";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
 // import { useCountries } from '@/hooks/useCountries'
-import { countriesData } from '@/utils/countries'
-import { Select } from '@/components/Select'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { WelcomeOverlay } from '@/components/Book/WelcomeOverlay'
-import { useEffect, useState } from 'react'
+import { WelcomeOverlay } from "@/components/Book/WelcomeOverlay";
+import { Select } from "@/components/Select";
+import { countriesData } from "@/utils/countries";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
-
-
-import { SearchResultsModal } from '@/components/SearchResultsModal'
-import { BookHandle } from '@/components/Book/Book'
-import { useRef } from 'react'
+import { BookHandle } from "@/components/Book/Book";
+import { SearchResultsModal } from "@/components/SearchResultsModal";
+import { useRef } from "react";
 
 export type ClusterPoint = {
   id: string;
@@ -28,43 +26,41 @@ export type ClusterPoint = {
 };
 
 export default function Recipes() {
-  const n = useTranslations('navigation')
+  const n = useTranslations("navigation");
   // const l = useTranslations('labels')
   // const countries = useCountries() // Removed dynamic hook
-  const path = usePathname()
-  const searchParams = useSearchParams()
-  const bookRef = useRef<BookHandle>(null)
+  const path = usePathname();
+  const searchParams = useSearchParams();
+  const bookRef = useRef<BookHandle>(null);
 
   // Get recipe ID from URL parameter (from map "View Recipe" button)
-  const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null)
+  const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null);
 
   useEffect(() => {
-    const recipeParam = searchParams?.get('recipe')
+    const recipeParam = searchParams?.get("recipe");
     if (recipeParam) {
-      const recipeId = parseInt(recipeParam, 10)
+      const recipeId = parseInt(recipeParam, 10);
       if (!isNaN(recipeId)) {
-        setInitialRecipeId(recipeId)
+        setInitialRecipeId(recipeId);
         // Clear the URL parameter after reading it (optional - keeps URL clean)
-        window.history.replaceState({}, '', '/')
+        window.history.replaceState({}, "", "/");
       }
     }
-  }, [searchParams])
+  }, [searchParams]);
 
   // Sort and Map all countries
   const allCountries = Object.keys(countriesData).sort((a, b) =>
-    countriesData[a].name.localeCompare(countriesData[b].name)
-  )
+    countriesData[a].name.localeCompare(countriesData[b].name),
+  );
 
   const countriesOptions = [
-    { value: '', label: n('all') },
+    { value: "", label: n("all") },
     ...allCountries.map((code) => ({
       value: countriesData[code].name, // Using Name as value to match existing logic
       label: `${countriesData[code].flag} ${countriesData[code].name}`,
-      code: code // Store code for link generation
+      code: code, // Store code for link generation
     })),
-  ]
-
-
+  ];
 
   const {
     loading,
@@ -75,50 +71,52 @@ export default function Recipes() {
     setSelectedCountry,
     search,
     setSearch,
-  } = useRecipes()
-  let hasPermissions = false
+  } = useRecipes();
+  let hasPermissions = false;
 
-  const user = useUser()
+  const user = useUser();
   if (user) {
-    const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
-    hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
+    const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || "");
+    hasPermissions = team ? !!user.usePermission(team, "team_member") : false;
   }
 
   // State to control SearchResultsModal visibility independent of search/filter state
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
-  const { isExporting, exportRecipesToZip } = useExportRecipes()
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const { isExporting, exportRecipesToZip } = useExportRecipes();
 
   const handleExport = () => {
-    const filterName = search || selectedCountry.value || 'All'
-    exportRecipesToZip(filteredRecipes, filterName)
-  }
+    const filterName = search || selectedCountry.value || "All";
+    exportRecipesToZip(filteredRecipes, filterName);
+  };
 
   // Open modal when search or country filter is active
   useEffect(() => {
-    if ((search.length > 0 || selectedCountry.value !== '') && !loading) {
-      setIsSearchModalOpen(true)
+    if ((search.length > 0 || selectedCountry.value !== "") && !loading) {
+      setIsSearchModalOpen(true);
     }
-  }, [search, selectedCountry, loading])
+  }, [search, selectedCountry, loading]);
 
   const handleSelectRecipe = (recipeId: number) => {
     // 1. Close modal (KEEP filters active)
-    setIsSearchModalOpen(false)
+    setIsSearchModalOpen(false);
 
     // 2. Navigate Book
     // Use timeout to allow state updates to settle and Book to re-render if needed
     setTimeout(() => {
       if (bookRef.current) {
-        console.log('Page: Calling bookRef.goToRecipe (delayed)', recipeId)
-        bookRef.current.goToRecipe(recipeId)
+        bookRef.current.goToRecipe(recipeId);
       } else {
-        console.error('Page: bookRef is null')
+        console.error("Page: bookRef is null");
       }
-    }, 300)
-  }
+    }, 300);
+  };
 
   // Determine if modal *should* be visible based on state
   // It opens automatically on search per useEffect, but can be closed manually
-  const showSearchResults = isSearchModalOpen && (search.length > 0 || selectedCountry.value !== '') && !loading
+  const showSearchResults =
+    isSearchModalOpen &&
+    (search.length > 0 || selectedCountry.value !== "") &&
+    !loading;
 
   return (
     <>
@@ -147,10 +145,13 @@ export default function Recipes() {
             isExporting={isExporting}
           />
         </div>
-        <main className="grow flex flex-col w-full object-top object-cover relative main-gradient min-h-svh overflow-x-hidden">
+        <main className="grow flex flex-col w-full object-top object-cover  min-h-svh overflow-x-hidden">
           <WelcomeOverlay />
           {/* Fixed background so it doesn't shift when book/comment section changes */}
-          <div className="fixed inset-0 z-[-1] pointer-events-none" aria-hidden>
+          <div
+            className="fixed opacity-50 inset-0 z-[-1] pointer-events-none"
+            aria-hidden
+          >
             <Image
               src="/bg.webp"
               alt=""
@@ -203,5 +204,5 @@ export default function Recipes() {
         </main>
       </div>
     </>
-  )
+  );
 }

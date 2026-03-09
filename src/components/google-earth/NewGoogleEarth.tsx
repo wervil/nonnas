@@ -1,8 +1,5 @@
 "use client";
-
-import { useEffect, useRef, useState } from "react";
-
-// Mock context since we don't have the actual import
+import { useCallback, useEffect, useRef, useState } from "react";
 const ZOOM_RANGES = {
   EARTH: 30000000,
   CONTINENT: 10000000,
@@ -11,29 +8,47 @@ const ZOOM_RANGES = {
   CITY: 150000,
   NONNA: 30000,
 };
-
 type ZoomLevel = "EARTH" | "CONTINENT" | "COUNTRY" | "STATE" | "CITY" | "NONNA";
-
+const ZOOM_LEVEL_META: Record<
+  ZoomLevel,
+  { label: string; icon: string; description: string }
+> = {
+  EARTH: { label: "World", icon: "🌍", description: "See all Nonnas globally" },
+  CONTINENT: {
+    label: "Region",
+    icon: "🗺️",
+    description: "Browse by continent",
+  },
+  COUNTRY: { label: "Country", icon: "📍", description: "Explore by country" },
+  STATE: { label: "State", icon: "🏙️", description: "Dive into regions" },
+  CITY: { label: "City", icon: "🏘️", description: "Find local Nonnas" },
+  NONNA: { label: "Nonna", icon: "👵", description: "Meet a Nonna" },
+};
+// Teal brand palette
+const TEAL = {
+  primary: "#0d9488",
+  light: "#14b8a6",
+  lighter: "#5eead4",
+  dark: "#0f766e",
+  glow: "rgba(13,148,136,0.35)",
+  fill: "rgba(13,148,136,0.18)",
+  stroke: "#0d9488",
+  badge: "rgba(13,148,136,0.85)",
+  badgeBorder: "#14b8a6",
+};
 function useEarthNavigation() {
   const [currentLevel, setCurrentLevel] = useState<ZoomLevel>("EARTH");
-  return {
-    currentLevel,
-    setLevel: setCurrentLevel,
-  };
+  return { currentLevel, setLevel: setCurrentLevel };
 }
-
 declare global {
   interface Window {
     google?: any;
   }
 }
-
 function loadGoogleMaps(apiKey: string) {
   if (window.google?.maps?.importLibrary) return Promise.resolve();
-
   return new Promise<void>((resolve, reject) => {
     const scriptId = "google-maps-js";
-
     if (document.getElementById(scriptId)) {
       const t = setInterval(() => {
         if (window.google?.maps?.importLibrary) {
@@ -43,43 +58,36 @@ function loadGoogleMaps(apiKey: string) {
       }, 50);
       setTimeout(() => {
         clearInterval(t);
-        if (!window.google?.maps?.importLibrary)
-          reject(new Error("Google Maps JS loader timed out"));
+        if (!window.google?.maps?.importLibrary) reject(new Error("timeout"));
       }, 10000);
       return;
     }
-
     const s = document.createElement("script");
     s.id = scriptId;
     s.async = true;
     s.defer = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-      apiKey
-    )}&v=alpha&loading=async`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=alpha&loading=async`;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
     document.head.appendChild(s);
   });
 }
-
 type LatLngLiteral = { lat: number; lng: number };
-
 function extractLatLng(rawPos: any): LatLngLiteral | null {
   if (!rawPos) return null;
-  const lat = typeof rawPos.lat === "function" ? rawPos.lat() : Number(rawPos.lat);
-  const lng = typeof rawPos.lng === "function" ? rawPos.lng() : Number(rawPos.lng);
+  const lat =
+    typeof rawPos.lat === "function" ? rawPos.lat() : Number(rawPos.lat);
+  const lng =
+    typeof rawPos.lng === "function" ? rawPos.lng() : Number(rawPos.lng);
   if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
   return null;
 }
-
 function parseAdminLevelsFromGeocodeResult(result: any) {
-  let country: string | null = null;
-  let state: string | null = null;
-  let countryCode: string | null = null;
-  let stateCode: string | null = null;
-
-  const components = result?.address_components ?? [];
-  for (const c of components) {
+  let country: string | null = null,
+    state: string | null = null;
+  let countryCode: string | null = null,
+    stateCode: string | null = null;
+  for (const c of result?.address_components ?? []) {
     const types: string[] = c.types || [];
     if (types.includes("country")) {
       country = c.long_name || null;
@@ -90,31 +98,25 @@ function parseAdminLevelsFromGeocodeResult(result: any) {
       stateCode = c.short_name || null;
     }
   }
-
   return { country, countryCode, state, stateCode };
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  DETERMINISTIC AI-STYLE AVATAR
-// ─────────────────────────────────────────────────────────────────────────────
-
+// Avatar generation
 function hashStr(s: string): number {
   let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  for (let i = 0; i < s.length; i++)
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-
 const PALETTES = [
-  ["#f59e0b", "#ef4444", "#ec4899"],
-  ["#d97706", "#b45309", "#92400e"],
-  ["#f97316", "#ea580c", "#dc2626"],
-  ["#a16207", "#ca8a04", "#eab308"],
-  ["#7c3aed", "#c026d3", "#e11d48"],
+  ["#0d9488", "#0891b2", "#059669"],
+  ["#14b8a6", "#06b6d4", "#10b981"],
+  ["#0f766e", "#0e7490", "#065f46"],
+  ["#5eead4", "#67e8f9", "#6ee7b7"],
+  ["#0d9488", "#7c3aed", "#0891b2"],
   ["#059669", "#0d9488", "#0891b2"],
-  ["#b45309", "#d97706", "#f59e0b"],
-  ["#9f1239", "#be123c", "#e11d48"],
+  ["#0e7490", "#0f766e", "#047857"],
+  ["#14b8a6", "#0d9488", "#0891b2"],
 ];
-
 function generateAvatarSvgUri(name: string, countryCode: string): string {
   const seed = hashStr(name + countryCode);
   const [c0, c1, c2] = PALETTES[seed % PALETTES.length];
@@ -125,7 +127,6 @@ function generateAvatarSvgUri(name: string, countryCode: string): string {
       : (parts[0]?.[0] ?? "N").toUpperCase();
   const rot = (seed % 60) - 30;
   const id = seed % 9999;
-
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
     <radialGradient id="g${id}" cx="40%" cy="35%" r="65%">
@@ -142,18 +143,15 @@ function generateAvatarSvgUri(name: string, countryCode: string): string {
 </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
-
 function countryFlag(code: string): string {
   if (!code || code.length !== 2) return "🌍";
   return String.fromCodePoint(
-    ...code.toUpperCase().split("").map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)
+    ...code
+      .toUpperCase()
+      .split("")
+      .map((c) => 0x1f1e6 + c.charCodeAt(0) - 65),
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  MARKER TEMPLATE — light, airy Pokémon Go aesthetic
-// ─────────────────────────────────────────────────────────────────────────────
-
 function buildMarkerTemplate(opts: {
   name: string;
   photoUrl: string | null;
@@ -164,87 +162,79 @@ function buildMarkerTemplate(opts: {
   expanded?: boolean;
   mode: "avatar" | "bubble-small" | "bubble-large";
 }): HTMLTemplateElement {
-  const { name, avatarUri, countryCode, countryName, nonnaCount, expanded, mode } = opts;
+  const {
+    name,
+    avatarUri,
+    countryCode,
+    countryName,
+    nonnaCount,
+    expanded,
+    mode,
+  } = opts;
   const flag = countryFlag(countryCode);
   const displayName = (name || `Nonna from ${countryName}`)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const countLabel = nonnaCount === 1 ? '1 Nonna' : `${nonnaCount} Nonnas`;
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const countLabel = nonnaCount === 1 ? "1 Nonna" : `${nonnaCount} Nonnas`;
   const badge = `${flag} ${countryName}  ·  ${countLabel}`;
-  const uid = countryCode.toLowerCase().replace(/[^a-z]/g, '') + (expanded ? 'e' : 'c') + mode;
-
+  const uid =
+    countryCode.toLowerCase().replace(/[^a-z]/g, "") +
+    (expanded ? "e" : "c") +
+    mode;
   const isLarge = mode === "bubble-large";
-  const aR = isLarge ? 100 : 34; // Scale up the avatar/bubble base radius
+  const aR = isLarge ? 100 : 34;
   const cardW = Math.max(180, displayName.length * 9 + badge.length * 6.5 + 40);
   const cardH = 56;
   const gap = 8;
-  const pad = isLarge ? 24 : 12; // Extra padding for larger drop shadows
-
+  const pad = isLarge ? 24 : 12;
   const svgW = Math.max((aR + pad) * 2, cardW + 8);
-  const svgH = (aR + pad) + aR + gap + cardH + pad;
-
+  const svgH = aR + pad + aR + gap + cardH + pad;
   const cx = svgW / 2;
   const cy = aR + pad;
-
   const imgHref = opts.photoUrl || avatarUri;
-
   let markerContent = "";
-
   if (mode === "bubble-large" || mode === "bubble-small") {
-    // Orange Bubble Style for zoomed-out clusters
     const baseR = isLarge ? 85 : 28;
-    const bubbleRadius = Math.min(baseR + (nonnaCount.toString().length * 2), aR);
+    const bubbleRadius = Math.min(baseR + nonnaCount.toString().length * 2, aR);
     const fontSize = isLarge ? 56 : 22;
     const yOffset = isLarge ? 18 : 8;
     const strokeW = isLarge ? 8 : 4;
-
     markerContent = `
-      <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="#e67e22" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
+      <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
       <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
     `;
   } else {
-    // P-GO Avatar Style for zoomed-in nonnas
     markerContent = `
       <ellipse cx="${cx}" cy="${cy + 5}" rx="${aR + 22}" ry="${aR + 16}" fill="url(#bloom${uid})"/>
-      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="2.5">
+      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(94,234,212,0.82)" stroke-width="2.5">
         <animate attributeName="r" values="${aR};${aR + 24};${aR}" dur="2.4s" repeatCount="indefinite"/>
         <animate attributeName="opacity" values="0.85;0;0.85" dur="2.4s" repeatCount="indefinite"/>
       </circle>
-      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="2">
+      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(94,234,212,0.42)" stroke-width="2">
         <animate attributeName="r" values="${aR};${aR + 42};${aR}" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
         <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
       </circle>
       <circle cx="${cx}" cy="${cy}" r="${aR + 3}" fill="white" filter="url(#ash${uid})"/>
       <image href="${imgHref}" x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}"
         clip-path="url(#av${uid})" preserveAspectRatio="xMidYMid slice"/>
-      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="white" stroke-width="3.5"/>
+      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="${TEAL.light}" stroke-width="3.5"/>
     `;
   }
-
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
   width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" overflow="visible">
   <defs>
     <style>
-      @keyframes floatBob {
-        0%, 100% { transform: translateY(0px); }
-        50%      { transform: translateY(-5px); }
-      }
-      .bob-anim {
-        animation: floatBob 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-        transform-origin: center center;
-      }
+      @keyframes floatBob { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+      .bob-anim { animation: floatBob 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite; transform-origin: center center; }
       @keyframes cardPop {
         0%   { opacity: 0; transform: translateY(-12px) scale(0.92); }
         100% { opacity: 1; transform: translateY(0px) scale(1); }
       }
-      .card-anim {
-        animation: cardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-        animation-delay: 0.02s;
-        transform-origin: ${cx}px ${cy + aR + gap}px;
-      }
+      .card-anim { animation: cardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.02s; transform-origin: ${cx}px ${cy + aR + gap}px; }
     </style>
-    <clipPath id="av${uid}">
-      <circle cx="${cx}" cy="${cy}" r="${aR}"/>
-    </clipPath>
+    <clipPath id="av${uid}"><circle cx="${cx}" cy="${cy}" r="${aR}"/></clipPath>
     <filter id="ash${uid}" x="-40%" y="-40%" width="180%" height="180%">
       <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="rgba(0,0,0,0.30)"/>
     </filter>
@@ -252,14 +242,14 @@ function buildMarkerTemplate(opts: {
       <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="rgba(0,0,0,0.10)"/>
     </filter>
     <radialGradient id="bloom${uid}" cx="50%" cy="58%" r="50%">
-      <stop offset="0%"   stop-color="rgba(255,255,255,0.6)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="0%"   stop-color="rgba(94,234,212,0.5)"/>
+      <stop offset="100%" stop-color="rgba(94,234,212,0)"/>
     </radialGradient>
   </defs>
-
   <g class="">
     ${markerContent}
-    ${expanded && mode === "avatar" ? `
+    ${expanded && mode === "avatar"
+      ? `
     <g class="card-anim">
       <g filter="url(#csh${uid})">
         <rect x="${Math.round((svgW - cardW) / 2)}" y="${cy + aR + gap}"
@@ -272,15 +262,15 @@ function buildMarkerTemplate(opts: {
         font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial,sans-serif"
         font-size="11.5" font-weight="500" fill="#9ca3af">${badge}</text>
     </g>
-    ` : ''}
+    `
+      : ""
+    }
   </g>
 </svg>`;
-
-  const tpl = document.createElement('template');
+  const tpl = document.createElement("template");
   tpl.innerHTML = svg.trim();
   return tpl;
 }
-
 type GlobeNonna = {
   id: string;
   lat: number;
@@ -292,16 +282,193 @@ type GlobeNonna = {
   representativeTitle: string;
   representativePhoto: string | null;
 };
-
+// ─────────────────────────────────────────────────────────────────────────────
+//  LEVEL INDICATOR COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+function LevelIndicator({ currentLevel }: { currentLevel: ZoomLevel }) {
+  const levels: ZoomLevel[] = [
+    "EARTH",
+    "CONTINENT",
+    "COUNTRY",
+    "STATE",
+    "CITY",
+    "NONNA",
+  ];
+  const currentIdx = levels.indexOf(currentLevel);
+  const meta = ZOOM_LEVEL_META[currentLevel];
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: "32px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "10px",
+        zIndex: 50,
+        pointerEvents: "none",
+      }}
+    >
+      {/* Current level badge */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "12px 28px",
+          borderRadius: "999px",
+          background: "rgba(13,148,136,0.85)",
+          border: "1.5px solid rgba(94,234,212,0.6)",
+          backdropFilter: "blur(12px)",
+          boxShadow: "0 4px 24px rgba(13,148,136,0.3)",
+        }}
+      >
+        <span style={{ fontSize: "22px" }}>{meta.icon}</span>
+        <span
+          style={{
+            color: "#ccfbf1",
+            fontSize: "15px",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          }}
+        >
+          {meta.label}
+        </span>
+        <span
+          style={{
+            color: "rgba(204,251,241,0.6)",
+            fontSize: "13px",
+            fontWeight: 400,
+          }}
+        >
+          — {meta.description}
+        </span>
+      </div>
+      {/* Progress dots */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        {levels.map((lvl, i) => (
+          <div
+            key={lvl}
+            style={{
+              width: i === currentIdx ? "32px" : "10px",
+              height: "10px",
+              borderRadius: "999px",
+              background:
+                i === currentIdx
+                  ? TEAL.light
+                  : i < currentIdx
+                    ? "rgba(94,234,212,0.5)"
+                    : "rgba(255,255,255,0.2)",
+              transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+              boxShadow: i === currentIdx ? `0 0 8px ${TEAL.lighter}` : "none",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+//  ZOOM CONTROL — large, friendly buttons for older users
+// ─────────────────────────────────────────────────────────────────────────────
+function ZoomControl({
+  onZoomIn,
+  onZoomOut,
+  currentLevel,
+}: {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  currentLevel: ZoomLevel;
+}) {
+  const levels: ZoomLevel[] = [
+    "EARTH",
+    "CONTINENT",
+    "COUNTRY",
+    "STATE",
+    "CITY",
+    "NONNA",
+  ];
+  const canZoomIn = levels.indexOf(currentLevel) < levels.length - 1;
+  const canZoomOut = levels.indexOf(currentLevel) > 0;
+  const btnStyle = (enabled: boolean): React.CSSProperties => ({
+    width: "64px",
+    height: "64px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: enabled ? "rgba(13,148,136,0.85)" : "rgba(30,30,30,0.4)",
+    border: `2px solid ${enabled ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.1)"}`,
+    backdropFilter: "blur(12px)",
+    boxShadow: enabled ? "0 4px 20px rgba(13,148,136,0.4)" : "none",
+    cursor: enabled ? "pointer" : "not-allowed",
+    opacity: enabled ? 1 : 0.4,
+    transition: "all 0.2s ease",
+    color: "white",
+    fontSize: "32px",
+    fontWeight: 300,
+    lineHeight: 1,
+    userSelect: "none",
+  });
+  return (
+    <div
+      style={{
+        position: "absolute",
+        right: "24px",
+        top: "50%",
+        transform: "translateY(-50%)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        zIndex: 50,
+      }}
+    >
+      {/* Zoom in = go deeper */}
+      <button
+        onClick={onZoomIn}
+        disabled={!canZoomIn}
+        title="Zoom In"
+        style={btnStyle(canZoomIn)}
+        onMouseEnter={(e) => {
+          if (canZoomIn)
+            (e.currentTarget as HTMLElement).style.transform = "scale(1.1)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+        }}
+      >
+        +
+      </button>
+      {/* Zoom out = go broader */}
+      <button
+        onClick={onZoomOut}
+        disabled={!canZoomOut}
+        title="Zoom Out"
+        style={btnStyle(canZoomOut)}
+        onMouseEnter={(e) => {
+          if (canZoomOut)
+            (e.currentTarget as HTMLElement).style.transform = "scale(1.1)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+        }}
+      >
+        −
+      </button>
+    </div>
+  );
+}
 // ─────────────────────────────────────────────────────────────────────────────
 //  MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-
 export default function Earth3DPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const map3dRef = useRef<any>(null);
-
   const [activePlaceName, setActivePlaceName] = useState<string | null>(null);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
@@ -309,40 +476,31 @@ export default function Earth3DPage() {
   const [nonnaData, setNonnaData] = useState<GlobeNonna[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
-
   const { currentLevel, setLevel } = useEarthNavigation();
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
-
   useEffect(() => {
     currentLevelRef.current = currentLevel;
   }, [currentLevel]);
-
-  // All-levels cluster data cache
   const allClustersRef = useRef<{
     continents: GlobeNonna[];
     countries: GlobeNonna[];
     states: GlobeNonna[];
   } | null>(null);
-
-  // Pick the right subset from the cache based on current zoom level
-  const applyClusterLevel = (level: ZoomLevel, data: typeof allClustersRef.current) => {
+  const applyClusterLevel = (
+    level: ZoomLevel,
+    data: typeof allClustersRef.current,
+  ) => {
     if (!data) return;
-    if (level === "EARTH" || level === "CONTINENT") {
+    if (level === "EARTH" || level === "CONTINENT")
       setNonnaData(data.continents);
-    } else if (level === "COUNTRY" || level === "STATE") {
+    else if (level === "COUNTRY" || level === "STATE")
       setNonnaData(data.states);
-    }
-    // CITY / NONNA handled separately (individual nonnas)
   };
-
-  // Fetch all clusters in one go and poll every 5 minutes
   useEffect(() => {
     if (!mapReady) return;
     let mounted = true;
-
     const fetchAll = async () => {
       try {
-        console.log("[Earth3D] Fetching ALL clusters in one go...");
         const res = await fetch("/api/nonnas/clustering?level=ALL");
         if (!res.ok) throw new Error("Failed to fetch all clusters");
         const data = await res.json();
@@ -352,43 +510,30 @@ export default function Earth3DPage() {
             countries: data.countries ?? [],
             states: data.states ?? [],
           };
-          // Apply the current level right away
           applyClusterLevel(currentLevelRef.current, allClustersRef.current);
         }
       } catch (err) {
-        console.error("[Earth3D] ALL clusters fetch error:", err);
+        console.error("[Earth3D] cluster fetch error:", err);
       }
     };
-
-    // Initial fetch
     fetchAll();
-
-    // Re-fetch every 5 minutes
-    const pollInterval = setInterval(fetchAll, 5 * 60 * 1000);
-
+    const poll = setInterval(fetchAll, 5 * 60 * 1000);
     return () => {
       mounted = false;
-      clearInterval(pollInterval);
+      clearInterval(poll);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady]);
-
-  // When zoom level changes, switch which subset is shown (no extra API call needed)
   useEffect(() => {
     if (!allClustersRef.current) return;
     applyClusterLevel(currentLevel, allClustersRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLevel]);
-
-  // Auto switch to 3D below city level
+  // 3D tilt on deep zoom
   useEffect(() => {
     if (!mapReady || !map3dRef.current) return;
     const map3d = map3dRef.current;
-
-    // "NONNA" is the zoom level below CITY (currentRange <= 60000)
     if (currentLevel === "NONNA") {
       setIs3DMode(true);
-      if (map3d.tilt < 10) { // Only animate if not already 3D
+      if (map3d.tilt < 10)
         map3d.flyCameraTo({
           endCamera: {
             center: map3d.center,
@@ -398,10 +543,9 @@ export default function Earth3DPage() {
           },
           durationMillis: 1000,
         });
-      }
     } else {
       setIs3DMode(false);
-      if (map3d.tilt > 10) { // Only animate if currently 3D
+      if (map3d.tilt > 10)
         map3d.flyCameraTo({
           endCamera: {
             center: map3d.center,
@@ -411,34 +555,34 @@ export default function Earth3DPage() {
           },
           durationMillis: 1000,
         });
-      }
     }
   }, [currentLevel, mapReady]);
-
-
-
   // Place nonna markers
   useEffect(() => {
     if (!nonnaData.length || !mapReady || !map3dRef.current) return;
-
     const map3d = map3dRef.current;
     const placedMarkers: any[] = [];
     const timers: ReturnType<typeof setTimeout>[] = [];
-
     (async () => {
       try {
-        const { Marker3DInteractiveElement } = await window.google.maps.importLibrary("maps3d");
-
+        const { Marker3DInteractiveElement } =
+          await window.google.maps.importLibrary("maps3d");
         for (const nonna of nonnaData) {
           const avatarUri = generateAvatarSvgUri(
             nonna.representativeName || nonna.countryName,
-            nonna.countryCode
+            nonna.countryCode,
           );
-
-          const showExpandedByDefault = currentLevelRef.current === "CITY" || currentLevelRef.current === "NONNA";
-          const isHighZ = currentLevelRef.current === "EARTH" || currentLevelRef.current === "CONTINENT";
-          const markerMode = showExpandedByDefault ? "avatar" : (isHighZ ? "bubble-large" : "bubble-small");
-
+          const showExpanded =
+            currentLevelRef.current === "CITY" ||
+            currentLevelRef.current === "NONNA";
+          const isHighZ =
+            currentLevelRef.current === "EARTH" ||
+            currentLevelRef.current === "CONTINENT";
+          const markerMode = showExpanded
+            ? "avatar"
+            : isHighZ
+              ? "bubble-large"
+              : "bubble-small";
           const tplCompact = buildMarkerTemplate({
             name: nonna.representativeName,
             photoUrl: nonna.representativePhoto,
@@ -446,10 +590,9 @@ export default function Earth3DPage() {
             countryCode: nonna.countryCode,
             countryName: nonna.countryName,
             nonnaCount: nonna.nonnaCount,
-            expanded: showExpandedByDefault,
-            mode: markerMode
+            expanded: showExpanded,
+            mode: markerMode,
           });
-
           const tplExpanded = buildMarkerTemplate({
             name: nonna.representativeName,
             photoUrl: nonna.representativePhoto,
@@ -458,81 +601,122 @@ export default function Earth3DPage() {
             countryName: nonna.countryName,
             nonnaCount: nonna.nonnaCount,
             expanded: true,
-            mode: markerMode
+            mode: markerMode,
           });
-
           const marker = new Marker3DInteractiveElement({
             position: { lat: nonna.lat, lng: nonna.lng, altitude: 50 },
             altitudeMode: "RELATIVE_TO_GROUND",
           } as any);
-
           marker.append(tplCompact.cloneNode(true));
           map3d.append(marker);
           placedMarkers.push(marker);
-
           let localTimer: ReturnType<typeof setTimeout> | null = null;
-          let isExpanded = false;
-
-          marker.addEventListener('gmp-click', (e: Event) => {
+          marker.addEventListener("gmp-click", (e: Event) => {
             e.stopPropagation();
-            isExpanded = true;
             marker.replaceChildren(tplExpanded.cloneNode(true));
-
             if (localTimer) clearTimeout(localTimer);
             localTimer = setTimeout(() => {
-              isExpanded = false;
               marker.replaceChildren(tplCompact.cloneNode(true));
             }, 5000);
-            timers.push(localTimer);
+            timers.push(localTimer!);
           });
         }
-
-        console.log(`[Earth3D] Placed ${placedMarkers.length} nonna markers`);
       } catch (err) {
         console.warn("[Earth3D] Marker3DInteractiveElement failed:", err);
       }
     })();
-
     return () => {
       for (const t of timers) clearTimeout(t);
       for (const m of placedMarkers) {
-        try { m.remove(); } catch { /* ignore */ }
+        try {
+          m.remove();
+        } catch {
+          /**/
+        }
       }
     };
   }, [nonnaData, mapReady]);
-
+  // Zoom button handlers
+  const handleZoomIn = useCallback(() => {
+    if (!map3dRef.current) return;
+    const map3d = map3dRef.current;
+    const levels: ZoomLevel[] = [
+      "EARTH",
+      "CONTINENT",
+      "COUNTRY",
+      "STATE",
+      "CITY",
+      "NONNA",
+    ];
+    const idx = levels.indexOf(currentLevelRef.current);
+    if (idx >= levels.length - 1) return;
+    const next = levels[idx + 1];
+    map3d.flyCameraTo({
+      endCamera: {
+        center: map3d.center,
+        range: ZOOM_RANGES[next],
+        heading: map3d.heading,
+        tilt: next === "NONNA" ? 65 : 0,
+      },
+      durationMillis: 1400,
+    });
+    // Trigger resize after zoom animation completes
+    setTimeout(() => {
+      if (window.google && window.google.maps && window.google.maps.event) {
+        window.google.maps.event.trigger(map3d, "resize");
+      }
+    }, 1500);
+  }, []);
+  const handleZoomOut = useCallback(() => {
+    if (!map3dRef.current) return;
+    const map3d = map3dRef.current;
+    const levels: ZoomLevel[] = [
+      "EARTH",
+      "CONTINENT",
+      "COUNTRY",
+      "STATE",
+      "CITY",
+      "NONNA",
+    ];
+    const idx = levels.indexOf(currentLevelRef.current);
+    if (idx <= 0) return;
+    const prev = levels[idx - 1];
+    map3d.flyCameraTo({
+      endCamera: {
+        center: map3d.center,
+        range: ZOOM_RANGES[prev],
+        heading: map3d.heading,
+        tilt: 0,
+      },
+      durationMillis: 1400,
+    });
+    // Trigger resize after zoom animation completes (especially important for zoom-out)
+    setTimeout(() => {
+      if (window.google && window.google.maps && window.google.maps.event) {
+        window.google.maps.event.trigger(map3d, "resize");
+      }
+    }, 1500);
+  }, []);
   // Main map init
   useEffect(() => {
     let mounted = true;
     let animationFrameId = 0;
-    let idleTimeout: ReturnType<typeof setTimeout> | null = null;
     const listeners: Array<() => void> = [];
     let isProgrammaticFlight = false;
-    let lastClickedLatLng: LatLngLiteral | null = null;
-
     async function init() {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE";
+      const apiKey =
+        process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE";
       if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
         console.error("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
         return;
       }
-
       await loadGoogleMaps(apiKey);
       if (!mounted || !containerRef.current) return;
-
-      console.log("[Earth3D] Loading map libraries...");
-
       const { Map3DElement, Marker3DElement, Polygon3DElement } =
         await window.google.maps.importLibrary("maps3d");
-
       const { Geocoder } = await window.google.maps.importLibrary("geocoding");
       const geocoder = new Geocoder();
-
-      console.log("[Earth3D] Creating Map3DElement...");
-
       const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
-
-      // Use the proper Map3DElement constructor
       const map3d = new Map3DElement({
         center: { lat: 20, lng: 0, altitude: 0 },
         range: 30000000,
@@ -541,107 +725,114 @@ export default function Earth3DPage() {
         mode: "HYBRID",
         ...(mapId ? { mapId } : {}),
       });
-
-      // Set default labels disabled as an attribute (required for 3D tiles)
-      map3d.setAttribute('default-labels-disabled', '');
-
+      // Suppress noisy map labels
+      map3d.setAttribute("default-labels-disabled", "");
+      map3d.setAttribute("road-labels-mode", "none");
+      map3d.setAttribute("transit-labels-mode", "none");
+      map3d.setAttribute("poi-labels-mode", "none");
+      // Suppress noisy map labels
+      map3d.setAttribute("default-labels-disabled", "");
+      map3d.setAttribute("road-labels-mode", "none");
+      map3d.setAttribute("transit-labels-mode", "none");
+      map3d.setAttribute("poi-labels-mode", "none");
+      map3d.setAttribute("highway-labels-mode", "none");
+      map3d.setAttribute("arterial-labels-mode", "none");
+      map3d.setAttribute("local-road-labels-mode", "none");
       containerRef.current.innerHTML = "";
       containerRef.current.appendChild(map3d);
-
-      // Ensure the map element has proper dimensions
       map3d.style.display = "block";
       map3d.style.width = "100%";
       map3d.style.height = "100%";
-
-      console.log("[Earth3D] Map element appended, waiting for initialization...");
-      console.log("[Earth3D] Container dimensions:", containerRef.current?.offsetWidth, containerRef.current?.offsetHeight);
-
-      // Wait for map to be ready before exposing it
+      // Force map resize after appending to ensure proper sizing
+      setTimeout(() => {
+        if (window.google && window.google.maps && window.google.maps.event) {
+          window.google.maps.event.trigger(map3d, "resize");
+        }
+      }, 100);
+      // Wait for map ready
       await new Promise<void>((resolve) => {
-        const checkReady = () => {
-          if (map3d.center) {
-            console.log("[Earth3D] Map is ready!");
-            resolve();
-          } else {
-            setTimeout(checkReady, 100);
-          }
+        const check = () => {
+          if (map3d.center) resolve();
+          else setTimeout(check, 100);
         };
-        checkReady();
+        check();
       });
-
-      // Expose map3d so the nonna marker effect can use it
       map3dRef.current = map3d;
       setMapReady(true);
-
-      // Check after 2 seconds
-      setTimeout(() => {
-        console.log('[Earth3D] Map center after 2s:', map3d.center);
-        console.log('[Earth3D] Map range after 2s:', map3d.range);
-      }, 2000);
-
-      // Boundary polygons
+      // Boundary polygon helpers (teal)
       const polygonOverlays: any[] = [];
       let activeHighlightName: string | null = null;
-
       const clearPolygonOverlays = () => {
         for (const p of polygonOverlays) {
-          try { p.remove(); } catch { /* ignore */ }
+          try {
+            p.remove();
+          } catch {
+            /**/
+          }
         }
         polygonOverlays.length = 0;
       };
-
       const fetchAndDrawBoundary = async (
         name: string,
         featureType: "country" | "state" | "city",
-        countryCode?: string | null
+        countryCode?: string | null,
       ) => {
         try {
-          const params = new URLSearchParams({ polygon_geojson: "1", format: "json", limit: "1" });
+          const params = new URLSearchParams({
+            polygon_geojson: "1",
+            format: "json",
+            limit: "1",
+          });
           if (featureType === "country") {
             params.set("featuretype", "country");
             params.set("country", name);
           } else if (featureType === "state") {
             params.set("featuretype", "state");
             params.set("state", name);
-            if (countryCode) params.set("countrycodes", countryCode.toLowerCase());
+            if (countryCode)
+              params.set("countrycodes", countryCode.toLowerCase());
           } else {
             params.set("featuretype", "city");
             params.set("city", name);
-            if (countryCode) params.set("countrycodes", countryCode.toLowerCase());
+            if (countryCode)
+              params.set("countrycodes", countryCode.toLowerCase());
           }
-
-          const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
-          const res = await fetch(url, { headers: { "User-Agent": "NonnasMaps/1.0" } });
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+            { headers: { "User-Agent": "NonnasMaps/1.0" } },
+          );
           if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
           const data = await res.json();
           const geojson = data?.[0]?.geojson;
-          if (!geojson) { console.warn("[Earth3D] No GeoJSON for", name); return; }
-
+          if (!geojson) return;
           let rings: number[][][] = [];
           if (geojson.type === "Polygon") rings = [geojson.coordinates[0]];
           else if (geojson.type === "MultiPolygon")
-            rings = (geojson.coordinates as number[][][][]).map((poly) => poly[0]);
+            rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
           else return;
-
           const MAX_RING_POINTS = 400;
           const simplifyRing = (ring: number[][]): number[][] => {
             if (ring.length <= MAX_RING_POINTS) return ring;
             const step = Math.ceil(ring.length / MAX_RING_POINTS);
             const out = ring.filter((_, i) => i % step === 0);
-            const first = out[0], last = out[out.length - 1];
+            const first = out[0],
+              last = out[out.length - 1];
             if (first[0] !== last[0] || first[1] !== last[1]) out.push(first);
             return out;
           };
           rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
           if (!rings.length) return;
-
           clearPolygonOverlays();
           for (const ring of rings) {
-            const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 0 }));
+            const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+              lat,
+              lng,
+              altitude: 0,
+            }));
             const poly = new Polygon3DElement({
               outerCoordinates,
-              fillColor: "rgba(180, 83, 9, 0.28)",
-              strokeColor: "#b45309",
+              fillColor: TEAL.fill,
+              strokeColor: TEAL.stroke,
               strokeWidth: 2.5,
               altitudeMode: "CLAMP_TO_GROUND",
             });
@@ -652,120 +843,149 @@ export default function Earth3DPage() {
           console.warn("[Earth3D] fetchAndDrawBoundary failed:", err);
         }
       };
-
-      // async function reverseGeocode(latLng: LatLngLiteral) {
-      //   try {
-      //     const response = await geocoder.geocode({ location: latLng });
-      //     const first = response?.results?.[0];
-      //     if (!first) return null;
-      //     return {
-      //       latLng,
-      //       formattedAddress: first.formatted_address ?? null,
-      //       ...parseAdminLevelsFromGeocodeResult(first),
-      //       rawResults: response.results,
-      //       raw: first,
-      //     };
-      //   } catch { return null; }
-      // }
-
-      // function flyTo(latLng: LatLngLiteral, range: number, durationMillis = 1500, tilt = 0) {
-      //   isProgrammaticFlight = true;
-      //   map3d.flyCameraTo({
-      //     endCamera: { center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 }, range, tilt, heading: 0 },
-      //     durationMillis,
-      //   });
-      //   window.setTimeout(() => { isProgrammaticFlight = false; }, durationMillis + 100);
-      // }
-
-      // const handleMapClick = async (e: any) => {
-      //   try {
-      //     e.preventDefault?.();
-      //     const latLng = extractLatLng(e.position || e.latLng);
-      //     if (!latLng) return;
-      //     lastClickedLatLng = latLng;
-      //     if (isProgrammaticFlight) return;
-
-      //     const placeInfo = await reverseGeocode(latLng);
-      //     if (!mounted || !placeInfo) return;
-
-      //     const level = currentLevelRef.current;
-      //     let targetPlaceName: string | null = null;
-
-      //     if (level === "EARTH" || level === "CONTINENT") {
-      //       const r = placeInfo.rawResults.find((r: any) => r.types.includes("country"));
-      //       if (r) targetPlaceName = r.address_components[0]?.long_name;
-      //       flyTo(latLng, ZOOM_RANGES.COUNTRY, 1500);
-      //     } else if (level === "COUNTRY") {
-      //       const r = placeInfo.rawResults.find((r: any) => r.types.includes("administrative_area_level_1"));
-      //       if (r) targetPlaceName = r.address_components[0]?.long_name;
-      //       flyTo(latLng, ZOOM_RANGES.STATE, 1500);
-      //     } else if (level === "STATE") {
-      //       const r = placeInfo.rawResults.find((r: any) => r.types.includes("locality"));
-      //       if (r) targetPlaceName = r.address_components[0]?.long_name;
-      //       flyTo(latLng, ZOOM_RANGES.CITY, 1200, 55);
-      //     } else if (level === "CITY") {
-      //       flyTo(latLng, ZOOM_RANGES.NONNA, 1000, 65);
-      //     }
-
-      //     const resolvedName = targetPlaceName || placeInfo.country || placeInfo.state || null;
-      //     if (resolvedName) {
-      //       if (resolvedName === activeHighlightName) {
-      //         clearPolygonOverlays();
-      //         activeHighlightName = null;
-      //         if (mounted) { setClickedLabel(null); setHoveredLabel(null); }
-      //       } else {
-      //         activeHighlightName = resolvedName;
-      //         if (mounted) { setClickedLabel(resolvedName); setHoveredLabel(null); }
-      //         const featureType =
-      //           level === "EARTH" || level === "CONTINENT" ? "country"
-      //             : level === "COUNTRY" ? "state" : "city";
-      //         fetchAndDrawBoundary(resolvedName, featureType, placeInfo.countryCode);
-      //       }
-      //     } else {
-      //       clearPolygonOverlays();
-      //       activeHighlightName = null;
-      //       if (mounted) { setClickedLabel(null); setHoveredLabel(null); }
-      //     }
-      //     setActivePlaceName(resolvedName);
-      //     if (mounted && placeInfo.country) {
-      //       setActiveCountry(placeInfo.country);
-      //     }
-      //   } catch (err) {
-      //     console.error("[Earth3D] gmp-click handler error:", err);
-      //   }
-      // };
-
-      // map3d.addEventListener("gmp-click", handleMapClick);
-      // listeners.push(() => map3d.removeEventListener("gmp-click", handleMapClick));
-
-      // Zoom / animation loop
-      let currentSize = 0;
-      let currentOpacity = 0;
+      // ── Hover detection via mousemove → reverse geocode (debounced) ──
+      let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+      let lastHoverName: string | null = null;
+      const handleMouseMove = async (e: any) => {
+        const latLng = extractLatLng(e.position || e.latLng);
+        if (!latLng) return;
+        if (hoverTimer) clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(async () => {
+          try {
+            const level = currentLevelRef.current;
+            // Only show hover highlights at country-level and deeper
+            if (level === "EARTH") return;
+            const response = await geocoder.geocode({ location: latLng });
+            const first = response?.results?.[0];
+            if (!first || !mounted) return;
+            const info = parseAdminLevelsFromGeocodeResult(first);
+            let hoverName: string | null = null;
+            if (level === "CONTINENT" || level === "COUNTRY")
+              hoverName = info.country;
+            else if (level === "STATE") hoverName = info.state || info.country;
+            else hoverName = info.state || info.country;
+            if (
+              hoverName &&
+              hoverName !== lastHoverName &&
+              hoverName !== activeHighlightName
+            ) {
+              lastHoverName = hoverName;
+              if (mounted) setHoveredLabel(hoverName);
+            }
+          } catch {
+            /**/
+          }
+        }, 120);
+      };
+      map3d.addEventListener("gmp-mousemove" as any, handleMouseMove);
+      listeners.push(() =>
+        map3d.removeEventListener("gmp-mousemove" as any, handleMouseMove),
+      );
+      // ── Click → center + highlight boundary ──
+      const handleMapClick = async (e: any) => {
+        try {
+          e.preventDefault?.();
+          const latLng = extractLatLng(e.position || e.latLng);
+          if (!latLng || isProgrammaticFlight) return;
+          const level = currentLevelRef.current;
+          const response = await geocoder.geocode({ location: latLng });
+          const first = response?.results?.[0];
+          if (!first || !mounted) return;
+          const info = parseAdminLevelsFromGeocodeResult(first);
+          // Determine target name and feature type
+          let targetName: string | null = null;
+          let featureType: "country" | "state" | "city" = "country";
+          let targetRange = ZOOM_RANGES.COUNTRY;
+          if (level === "EARTH" || level === "CONTINENT") {
+            targetName = info.country;
+            featureType = "country";
+            targetRange = ZOOM_RANGES.COUNTRY;
+          } else if (level === "COUNTRY") {
+            targetName = info.state || info.country;
+            featureType = info.state ? "state" : "country";
+            targetRange = ZOOM_RANGES.STATE;
+          } else if (level === "STATE") {
+            const cityResult = response.results.find((r: any) =>
+              r.types.includes("locality"),
+            );
+            targetName =
+              cityResult?.address_components[0]?.long_name ||
+              info.state ||
+              info.country;
+            featureType = "city";
+            targetRange = ZOOM_RANGES.CITY;
+          } else {
+            targetRange = ZOOM_RANGES.NONNA;
+            targetName = null;
+          }
+          // Fly to clicked location
+          isProgrammaticFlight = true;
+          map3d.flyCameraTo({
+            endCamera: {
+              center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
+              range: targetRange,
+              tilt: targetRange <= ZOOM_RANGES.CITY ? 55 : 0,
+              heading: 0,
+            },
+            durationMillis: 1500,
+          });
+          setTimeout(() => {
+            isProgrammaticFlight = false;
+          }, 1700);
+          if (targetName) {
+            if (targetName === activeHighlightName) {
+              clearPolygonOverlays();
+              activeHighlightName = null;
+              if (mounted) {
+                setClickedLabel(null);
+                setHoveredLabel(null);
+              }
+            } else {
+              activeHighlightName = targetName;
+              if (mounted) {
+                setClickedLabel(targetName);
+                setHoveredLabel(null);
+              }
+              fetchAndDrawBoundary(targetName, featureType, info.countryCode);
+            }
+          }
+          if (mounted && info.country) setActiveCountry(info.country);
+          setActivePlaceName(targetName);
+        } catch (err) {
+          console.error("[Earth3D] click error:", err);
+        }
+      };
+      map3d.addEventListener("gmp-click", handleMapClick);
+      listeners.push(() =>
+        map3d.removeEventListener("gmp-click", handleMapClick),
+      );
+      // ── Animated globe ring overlay ──
+      let currentSize = 0,
+        currentOpacity = 0;
       const LERP_SPEED = 0.1;
-      const EARTH_RADIUS = 6371000;
-      const FOV_FACTOR = 1.6;
-
+      const EARTH_RADIUS = 6371000,
+        FOV_FACTOR = 1.6;
       const checkZoom = () => {
         if (!mounted || !overlayRef.current) return;
-
         const currentRange = Number(map3d.range ?? ZOOM_RANGES.EARTH);
         const distance = EARTH_RADIUS + currentRange;
         const d = Math.max(distance, EARTH_RADIUS + 10);
         const alpha = Math.asin(EARTH_RADIUS / d);
         const rPx = Math.tan(alpha) * window.innerHeight * FOV_FACTOR;
         const targetSize = (rPx + 60) * 2.5;
-
+        // Clamp targetSize to reasonable bounds to prevent overflow
+        const clampedTargetSize = Math.min(targetSize, 2000);
         let targetOpacity = 1;
         if (currentRange < 8000000) targetOpacity = 0;
-        else if (currentRange < 12000000) targetOpacity = (currentRange - 8000000) / 4000000;
-
+        else if (currentRange < 12000000)
+          targetOpacity = (currentRange - 8000000) / 4000000;
         let newLevel: ZoomLevel = "EARTH";
         if (currentRange <= ZOOM_RANGES.NONNA * 2) newLevel = "NONNA";
         else if (currentRange <= ZOOM_RANGES.CITY * 2) newLevel = "CITY";
         else if (currentRange <= ZOOM_RANGES.STATE * 2) newLevel = "STATE";
         else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) newLevel = "COUNTRY";
-        else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5) newLevel = "CONTINENT";
-
+        else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5)
+          newLevel = "CONTINENT";
         if (newLevel !== currentLevelRef.current) {
           setLevel(newLevel);
           if (newLevel === "EARTH" || newLevel === "CONTINENT") {
@@ -775,70 +995,59 @@ export default function Earth3DPage() {
             setHoveredLabel(null);
           }
         }
-
+        // If target opacity is 0, hide the overlay but continue animation for level detection
+        if (targetOpacity === 0) {
+          const el = overlayRef.current;
+          el.style.width = "0px";
+          el.style.height = "0px";
+          el.style.opacity = "0";
+          // Continue animation for level detection, but don't set size/opacity
+          if (mounted && overlayRef.current) {
+            animationFrameId = requestAnimationFrame(checkZoom);
+          }
+          return;
+        }
         if (currentSize === 0) {
-          currentSize = targetSize;
+          currentSize = clampedTargetSize;
           currentOpacity = targetOpacity;
         } else {
-          currentSize += (targetSize - currentSize) * LERP_SPEED;
+          currentSize += (clampedTargetSize - currentSize) * LERP_SPEED;
           currentOpacity += (targetOpacity - currentOpacity) * LERP_SPEED;
         }
-
+        // Prevent floating point underflow
+        const safeOpacity = Math.max(0, Math.min(1, currentOpacity));
+        const safeSize = Math.max(0, Math.min(2000, currentSize));
         const el = overlayRef.current;
-        el.style.width = `${currentSize}px`;
-        el.style.height = `${currentSize}px`;
-        el.style.opacity = `${currentOpacity}`;
-
+        el.style.width = `${safeSize}px`;
+        el.style.height = `${safeSize}px`;
+        el.style.opacity = `${safeOpacity}`;
         animationFrameId = requestAnimationFrame(checkZoom);
       };
-
       checkZoom();
-
-      // ── Zoom snap disabled: camera no longer forced back to canonical ranges ──
-      // const handleCameraIdle = () => {
-      //   if (!mounted || isProgrammaticFlight) return;
-      //   const currentLvl = currentLevelRef.current;
-      //   const targetRange = ZOOM_RANGES[currentLvl];
-      //   const currentRange = Number(map3d.range);
-      //   const tolerance = targetRange * 0.1;
-      //   if (Math.abs(currentRange - targetRange) > tolerance) {
-      //     map3d.flyCameraTo({
-      //       endCamera: { center: map3d.center, range: targetRange, tilt: map3d.tilt, heading: map3d.heading },
-      //       durationMillis: 800,
-      //     });
-      //   }
-      // };
-
-      // const debounceIdle = () => {
-      //   if (idleTimeout) clearTimeout(idleTimeout);
-      //   idleTimeout = setTimeout(handleCameraIdle, 1000);
-      // };
-
-      // map3d.addEventListener("gmp-centerchange", debounceIdle);
-      // map3d.addEventListener("gmp-rangechange", debounceIdle);
-      // listeners.push(() => map3d.removeEventListener("gmp-centerchange", debounceIdle));
-      // listeners.push(() => map3d.removeEventListener("gmp-rangechange", debounceIdle));
     }
-
     init().catch((err) => console.error("[Earth3D] init failed:", err));
-
     return () => {
       mounted = false;
       map3dRef.current = null;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      if (idleTimeout) clearTimeout(idleTimeout);
-      for (const off of listeners) { try { off(); } catch { /* no-op */ } }
+      for (const off of listeners) {
+        try {
+          off();
+        } catch {
+          /**/
+        }
+      }
     };
   }, [setLevel]);
-
   const displayLabel = clickedLabel || hoveredLabel || null;
   const isClickedLabel = !!clickedLabel;
-
+  // Show country name labels only at COUNTRY level and deeper
+  const showNameLabel = displayLabel && currentLevel !== "EARTH";
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
-      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
-
-      {displayLabel && (
+      <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+      {/* Location label — only at deeper zoom levels */}
+      {showNameLabel && (
         <div
           className="pointer-events-none absolute left-1/2 z-20"
           style={{
@@ -847,49 +1056,22 @@ export default function Earth3DPage() {
             animation: "fadeInLabel 0.25s ease-out both",
           }}
         >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: isClickedLabel ? "8px 20px" : "5px 16px",
-              borderRadius: "999px",
-              background: isClickedLabel ? "rgba(180, 83, 9, 0.85)" : "rgba(30, 20, 5, 0.55)",
-              border: isClickedLabel ? "1.5px solid #d97706" : "1px solid rgba(217, 119, 6, 0.5)",
-              backdropFilter: "blur(8px)",
-              boxShadow: isClickedLabel ? "0 4px 24px rgba(180, 83, 9, 0.4)" : "0 2px 12px rgba(0,0,0,0.3)",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {isClickedLabel && (
-              <span
-                style={{
-                  width: "7px", height: "7px", borderRadius: "50%",
-                  background: "#fbbf24", boxShadow: "0 0 6px #fbbf24", flexShrink: 0,
-                }}
-              />
-            )}
-            <span
-              style={{
-                color: isClickedLabel ? "#fef3c7" : "#fde68a",
-                fontSize: isClickedLabel ? "15px" : "13px",
-                fontWeight: 700, letterSpacing: "0.12em",
-                fontFamily: "ui-sans-serif, system-ui, sans-serif",
-                textTransform: "uppercase",
-                textShadow: "0 1px 4px rgba(0,0,0,0.6)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {displayLabel}
-            </span>
-          </div>
+
+
+
+
         </div>
       )}
 
+      {/* Globe ring overlay */}
       <div
         ref={overlayRef}
         className="pointer-events-none absolute top-1/2 left-1/2 z-10"
-        style={{ transform: "translate(-50%, -50%)", opacity: 0, willChange: "width, height, opacity" }}
+        style={{
+          transform: "translate(-50%, -50%)",
+          opacity: 0,
+          willChange: "width, height, opacity",
+        }}
       >
         <svg
           viewBox="0 0 1000 1000"
@@ -897,72 +1079,135 @@ export default function Earth3DPage() {
           style={{ animation: "spin-reverse 150s linear infinite" }}
         >
           <style>{`
-            @keyframes spin-reverse {
-              from { transform: rotate(0deg); }
-              to   { transform: rotate(-360deg); }
-            }
-            @keyframes fadeInLabel {
-              from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
-              to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-            }
+            @keyframes spin-reverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+            @keyframes fadeInLabel { from { opacity: 0; transform: translateX(-50%) translateY(-6px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
           `}</style>
           <defs>
-            <path id="globePath" d="M 100, 500 a 400,400 0 1,1 800,0 a 400,400 0 1,1 -800,0" />
+            <path
+              id="globePath"
+              d="M 100, 500 a 400,400 0 1,1 800,0 a 400,400 0 1,1 -800,0"
+            />
           </defs>
           <text
             className="font-bold fill-[#FFF7ED]"
-            style={{ fontSize: "65px", fontFamily: "ui-sans-serif, system-ui, sans-serif", textShadow: "0px 4px 15px rgba(0,0,0,0.8)" }}
+            style={{
+              fontSize: "65px",
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              textShadow: "0px 4px 15px rgba(0,0,0,0.8)",
+            }}
           >
-            <textPath href="#globePath" startOffset="50%" textAnchor="middle" textLength="2300" lengthAdjust="spacing">
+            <textPath
+              href="#globePath"
+              startOffset="50%"
+              textAnchor="middle"
+              textLength="2300"
+              lengthAdjust="spacing"
+            >
               NONNAS OF THE WORLD
             </textPath>
           </text>
         </svg>
       </div>
-
+      {/* Zoom controls — right side, large and friendly */}
       {mapReady && (
-        <>
-          <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3">
-            {(
-              [
-                { id: "EARTH", label: "Earth", range: ZOOM_RANGES.EARTH },
-                { id: "CONTINENT", label: "Continent", range: ZOOM_RANGES.CONTINENT },
-                { id: "COUNTRY", label: "Country", range: ZOOM_RANGES.COUNTRY },
-                { id: "STATE", label: "Region", range: ZOOM_RANGES.STATE },
-                { id: "CITY", label: "City", range: ZOOM_RANGES.CITY },
-              ] as const
-            ).map((level) => {
-              const isActive = currentLevel === level.id;
+        <ZoomControl
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          currentLevel={currentLevel}
+        />
+      )}
+      {/* Left-side level navigation — simplified labels */}
+      {mapReady && (
+        <div
+          style={{
+            position: "absolute",
+            left: "24px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            zIndex: 50,
+          }}
+        >
+          {(["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY"] as const).map(
+            (lvl) => {
+              const isActive = currentLevel === lvl;
+              const meta = ZOOM_LEVEL_META[lvl];
               return (
                 <button
-                  key={level.id}
+                  key={lvl}
                   onClick={() => {
                     if (!map3dRef.current) return;
-                    const map3d = map3dRef.current;
-                    map3d.flyCameraTo({
+                    map3dRef.current.flyCameraTo({
                       endCamera: {
-                        center: map3d.center,
-                        range: level.range,
-                        heading: map3d.heading,
-                        tilt: map3d.tilt,
+                        center: map3dRef.current.center,
+                        range: ZOOM_RANGES[lvl],
+                        heading: map3dRef.current.heading,
+                        tilt: 0,
                       },
                       durationMillis: 1500,
                     });
                   }}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-full font-semibold text-sm transition-all duration-300 backdrop-blur-md border border-white/20 shadow-lg ${isActive
-                    ? "bg-amber-600/90 text-white shadow-amber-900/50 scale-105"
-                    : "bg-black/50 text-gray-200 hover:bg-black/70 hover:text-white hover:scale-105"
-                    }`}
+                  title={meta.description}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "10px 16px",
+                    borderRadius: "999px",
+                    background: isActive
+                      ? "rgba(13,148,136,0.85)"
+                      : "rgba(0,0,0,0.5)",
+                    border: `1.5px solid ${isActive ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.12)"}`,
+                    backdropFilter: "blur(10px)",
+                    boxShadow: isActive ? `0 4px 20px ${TEAL.glow}` : "none",
+                    cursor: "pointer",
+                    transform: isActive ? "scale(1.06)" : "scale(1)",
+                    transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+                    color: isActive ? "white" : "rgba(220,220,220,0.8)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                    userSelect: "none",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive)
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(13,148,136,0.4)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive)
+                      (e.currentTarget as HTMLElement).style.background =
+                        "rgba(0,0,0,0.5)";
+                  }}
                 >
-                  <div className={`w-2 h-2 rounded-full transition-colors duration-300 flex-shrink-0 ${isActive ? 'bg-white' : 'bg-gray-400'}`} />
-                  <span className="tracking-widest uppercase text-xs">{level.label}</span>
+                  <span style={{ fontSize: "16px", lineHeight: 1 }}>
+                    {meta.icon}
+                  </span>
+                  <span>{meta.label}</span>
+                  {isActive && (
+                    <span
+                      style={{
+                        width: "6px",
+                        height: "6px",
+                        borderRadius: "50%",
+                        background: TEAL.lighter,
+                        boxShadow: `0 0 6px ${TEAL.lighter}`,
+                        marginLeft: "2px",
+                      }}
+                    />
+                  )}
                 </button>
               );
-            })}
-          </div>
-
-        </>
+            },
+          )}
+        </div>
       )}
+      {/* Bottom level indicator with progress dots */}
+      {mapReady && <LevelIndicator currentLevel={currentLevel} />}
     </div>
   );
 }

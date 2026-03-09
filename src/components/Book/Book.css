@@ -27,12 +27,13 @@
 }
 
 .custom-container {
-  width: 90vw;
+  width: 95vw;
   height: 100%;
   min-height: inherit;
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 1rem;
   position: relative;
 }
 
@@ -44,7 +45,7 @@
 }
 
 .page {
-  background-image: url('/book-bg.png');
+  background-image: url("/book-bg.png");
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -116,7 +117,7 @@
 }
 
 .page-title {
-  font-family: 'Imprint', serif;
+  font-family: "Imprint", serif;
   font-size: 1.5rem;
   line-height: 2rem;
   color: #dbc9b9;
@@ -131,7 +132,7 @@
 }
 
 .text-federant {
-  font-family: 'Imprint', serif;
+  font-family: "Imprint", serif;
 }
 
 .pokemon-number {
@@ -196,7 +197,7 @@
 }
 
 .text-description {
-  font-family: 'Bell', serif;
+  font-family: "Bell", serif;
   font-size: 16px;
   color: var(--text-brown-dark);
   margin-top: 8px;
@@ -230,7 +231,7 @@
   width: 30px;
   height: 30px;
   background-size: contain;
-  background-image: url('/corner-big.png');
+  background-image: url("/corner-big.png");
 }
 
 @media (min-width: 768px) {
@@ -244,7 +245,7 @@
   width: 24px;
   height: 24px;
   background-size: contain;
-  background-image: url('/corner-small.png');
+  background-image: url("/corner-small.png");
 }
 
 .lt {
@@ -276,7 +277,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  background-image: url('/bg-5.webp');
+  background-image: url("/bg-5.webp");
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -288,7 +289,7 @@
 }
 
 .description-wrap--vertical {
-  background-image: url('/bg-5.webp');
+  background-image: url("/bg-5.webp");
 }
 
 .swiper-pagination-bullet-active {

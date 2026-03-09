@@ -1,18 +1,17 @@
-import { Suspense } from "react"
-import type { Metadata } from "next"
-import "./globals.css"
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import "./globals.css";
 
 import Script from "next/script";
 
-import { NextIntlClientProvider } from "next-intl"
-import { getLocale, getMessages } from "next-intl/server"
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
-import { StackProvider, StackTheme } from "@stackframe/stack"
-import { stackServerApp } from "../stack"
-import { Footer } from "@/components/Footer"
-import { Toaster } from 'sonner'
-import { UserNamePrompt } from '@/components/UserNamePrompt'
-
+import { Footer } from "@/components/Footer";
+import { UserNamePrompt } from "@/components/UserNamePrompt";
+import { StackProvider, StackTheme } from "@stackframe/stack";
+import { Toaster } from "sonner";
+import { stackServerApp } from "../stack";
 
 export const metadata: Metadata = {
   title: "Cook Book App",
@@ -24,15 +23,15 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png", // optional
   },
-}
+};
 
 export default async function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
-  const locale = await getLocale()
-  const messages = await getMessages()
+  const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
     <html lang={locale}>
@@ -45,8 +44,10 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <StackProvider app={stackServerApp}>
             <StackTheme>
-              <div className="min-h-svh">{children}</div>
-              <Footer />
+              <div className="flex flex-col min-h-svh">
+                <div className="flex-1">{children}</div>
+                <Footer />
+              </div>
               <Suspense fallback={null}>
                 <UserNamePrompt />
               </Suspense>
@@ -56,5 +57,5 @@ export default async function RootLayout({
         <Toaster richColors position="bottom-right" />
       </body>
     </html>
-  )
+  );
 }

@@ -1,58 +1,74 @@
-'use client'
+"use client";
 
-import Image from 'next/image'
-import Link from 'next/link'
-import { useTranslations } from 'next-intl'
-import Button from './ui/Button'
-import { usePathname } from 'next/navigation'
-import { Dispatch, SetStateAction, useState, useEffect } from 'react'
-import { Select } from './Select'
-import { CurrentInternalUser, CurrentUser } from '@stackframe/stack'
-import { MessageCircle, Settings, User, Download, Loader2, Menu, PlusCircle, Home } from 'lucide-react'
-import DotLottieGlobe from './LottieGlobe'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
+import { CurrentInternalUser, CurrentUser } from "@stackframe/stack";
+import {
+  Download,
+  Home,
+  Loader2,
+  Menu,
+  MessageCircle,
+  Plus,
+  Settings,
+  User,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Dispatch, SetStateAction } from "react";
+import DotLottieGlobe from "./LottieGlobe";
+import { Select } from "./Select";
+import Button from "./ui/Button";
 
+import { useEffect, useState } from "react";
 
-
-export const button = (path: string, n: (key: string) => string, hasAdminAccess: boolean) => {
-  if (path === '/add-recipe') {
+export const button = (
+  path: string,
+  n: (key: string) => string,
+  hasAdminAccess: boolean,
+) => {
+  if (path === "/add-recipe") {
     return (
       <Link href="/">
-        <Button>{n('home')}</Button>
+        <Button variant="primary">{n("home")}</Button>
       </Link>
-    )
+    );
   }
 
   return (
     <Link href="/add-recipe">
-      <Button>{n('addRecipe')}</Button>
+      <Button variant="primary">
+        <Plus className="mr-2 h-4 w-4" />
+        {n("addRecipe")}
+      </Button>
     </Link>
-  )
-}
+  );
+};
 
 type Props = {
-  hasAdminAccess: boolean
-  countriesOptions?: { label: string; value: string }[]
-  selectedCountry?: { label: string; value: string }
+  hasAdminAccess: boolean;
+  countriesOptions?: { label: string; value: string }[];
+  selectedCountry?: { label: string; value: string };
   setSelectedCountry?: Dispatch<
     SetStateAction<{ label: string; value: string }>
-  >
-  search?: string
-  setSearch?: Dispatch<SetStateAction<string>>
-  user?: CurrentUser | CurrentInternalUser | null
-  isExplorePage?: boolean
-  className?: string
-  exploreState?: 'globe' | 'map'
-  onExport?: () => void
-  isExporting?: boolean
+  >;
+  search?: string;
+  setSearch?: Dispatch<SetStateAction<string>>;
+  user?: CurrentUser | CurrentInternalUser | null;
+  isExplorePage?: boolean;
+  className?: string;
+  exploreState?: "globe" | "map";
+  onExport?: () => void;
+  isExporting?: boolean;
   // setExploreState?: Dispatch<SetStateAction<boolean>>
-}
+};
 
 export const Header = ({
   hasAdminAccess,
@@ -66,38 +82,40 @@ export const Header = ({
   className,
   exploreState,
   onExport,
-  isExporting
+  isExporting,
   // setExploreState
 }: Props) => {
-  const n = useTranslations('navigation')
-  const path = usePathname()
+  const n = useTranslations("navigation");
+  const path = usePathname();
 
   // Dynamic classes based on page type
-  const headerBgClass = 'bg-white'
+  const headerBgClass = "bg-white";
   // const iconColorClass = isExplorePage ? 'text-white' : 'text-gray-700'
-  const imageFilterClass = 'text-[#5f5f13]';
+  const imageFilterClass = "text-[#5f5f13]";
   // const logoSrc = isExplorePage ? "/logoMain.svg" : "/logoMain.svg" // Keep same logo, maybe invert if needed? assuming logo looks ok or needs specific invert
 
   // Always justify-between to keep logo left and content right
-  const headerJustifyClass = 'justify-between'
-  const navVisibilityClass = isExplorePage ? 'flex' : 'hidden md:flex'
+  const headerJustifyClass = "justify-between";
+  const navVisibilityClass = isExplorePage ? "flex" : "hidden md:flex";
 
   // Helper to render user icons (reused for desktop and mobile if needed, but structure differs)
   // For mobile dropdown, we'll render DropdownMenuItem
 
-  const [windowWidth, setWindowWidth] = useState<number>(0)
+  const [windowWidth, setWindowWidth] = useState<number>(0);
 
   useEffect(() => {
     // Set initial width
-    setWindowWidth(window.innerWidth)
+    setWindowWidth(window.innerWidth);
 
-    const handleResize = () => setWindowWidth(window.innerWidth)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
-    <header className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === 'map' ? ' fixed top-0 w-full ' : ''}`}>
+    <header
+      className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === "map" ? " fixed top-0 w-full " : ""}`}
+    >
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
             Using brightness/invert for now if it's SVG text-based, or keeping as is if it has its own background. 
@@ -105,8 +123,8 @@ export const Header = ({
         */}
         <Image
           src="/logoMain.svg"
-          width={windowWidth > 0 && windowWidth < 779 ? 80 : 120}
-          height={windowWidth > 0 && windowWidth < 779 ? 60 : 90}
+          width={window.innerWidth < 779 ? 80 : 120}
+          height={window.innerWidth < 779 ? 60 : 90}
           alt="logo"
         />
       </Link>
@@ -119,23 +137,36 @@ export const Header = ({
             title="Export filtered recipes to ZIP"
           >
             {isExporting ? (
-              <Loader2 className={`animate-spin ${isExplorePage ? 'text-white' : 'text-[#5f5f13]'}`} size={20} />
+              <Loader2
+                className={`animate-spin ${
+                  isExplorePage ? "text-white" : "text-[#9BC9C3]"
+                }`}
+                size={20}
+              />
             ) : (
-              <Download className={isExplorePage ? 'text-white' : 'text-[#5f5f13]'} size={20} />
+              <Download
+                className={isExplorePage ? "text-white" : "text-[#121212B2]"}
+                size={20}
+              />
             )}
           </button>
         )}
 
-
         {setSearch ? (
-          <div className="flex items-center gap-1 border-2 border-green-dark rounded-l-full pl-2">
-            <Image src="/search.svg" width={20} height={20} alt="search icon" />
+          <div className="flex items-center gap-1 border-none rounded-md bg-[#F1F1F1CC] p-2 pl-2 mr-2">
+            <Image
+              src="/search.svg"
+              width={20}
+              height={20}
+              alt="search icon"
+              className=""
+            />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="px-2 py-1 w-full max-w-md border-0 outline-0 italic text-gray-500 min-w-[100px]"
+              className="px-2 py-1 w-full max-w-md border-0 outline-0 italic text-black min-w-[100px]"
             />
           </div>
         ) : null}
@@ -153,7 +184,6 @@ export const Header = ({
 
       {/* Right Side Container: Always visible (flex), split into Desktop vs Mobile content */}
       <div className="flex items-center gap-5">
-
         {/* Desktop View (Hidden on Mobile) */}
         <div className="hidden lg:flex items-center gap-5">
           {/* Home Icon for Explore Page - placed next to Settings */}
@@ -179,7 +209,11 @@ export const Header = ({
 
           {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
           {!isExplorePage && (
-            <Link href="/explore" aria-label="Explore" className="inline-flex items-center">
+            <Link
+              href="/explore"
+              aria-label="Explore"
+              className="inline-flex items-center"
+            >
               <span className="inline-flex items-center justify-center w-[40px] h-[40px]">
                 <DotLottieGlobe
                   src="/lottie/earth-lottie.json"
@@ -195,17 +229,17 @@ export const Header = ({
               <>
                 <Link href="/dashboard">
                   <Settings
-                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                    className={`w-[30px] h-[30px] text-[#9BC9C3] ${imageFilterClass}`}
                   />
                 </Link>
                 <Link href="/profile">
                   <User
-                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                    className={`w-[30px] h-[30px] text-[#9BC9C3] ${imageFilterClass}`}
                   />
                 </Link>
                 <Link href="/messages">
                   <MessageCircle
-                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
+                    className={`w-[30px] h-[30px] text-[#9BC9C3] ${imageFilterClass}`}
                   />
                 </Link>
               </>
@@ -224,7 +258,7 @@ export const Header = ({
               </>
             )
           ) : null}
-          {button(path || '', n as (key: string) => string, hasAdminAccess)}
+          {button(path || "", n as (key: string) => string, hasAdminAccess)}
         </div>
 
         {/* Mobile View (Dropdown Menu) */}
@@ -238,14 +272,22 @@ export const Header = ({
             <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
               {isExplorePage && (
                 <DropdownMenuItem asChild>
-                  <Link href="/" className={`cursor-pointer ${imageFilterClass} !text-green-dark`}>
+                  <Link
+                    href="/"
+                    className={`cursor-pointer ${imageFilterClass} !text-[#9BC9C3]
+`}
+                  >
                     <Home className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Home
                   </Link>
                 </DropdownMenuItem>
               )}
               {!isExplorePage && (
                 <DropdownMenuItem asChild>
-                  <Link href="/explore" className={`cursor-pointer w-full flex items-center !px-0 gap-1 !text-green-dark`}>
+                  <Link
+                    href="/explore"
+                    className={`cursor-pointer w-full flex items-center !px-0 gap-1 !text-[#9BC9C3]
+`}
+                  >
                     <DotLottieGlobe
                       src="/lottie/earth-lottie.json"
                       size={30}
@@ -263,31 +305,66 @@ export const Header = ({
                   {hasAdminAccess ? (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link href="/dashboard" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
-                          <Settings className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Dashboard
+                        <Link
+                          href="/dashboard"
+                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
+ ${imageFilterClass}`}
+                        >
+                          <Settings
+                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                          />{" "}
+                          Dashboard
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/profile" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
-                          <User className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Profile
+                        <Link
+                          href="/profile"
+                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
+ ${imageFilterClass}`}
+                        >
+                          <User
+                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                          />{" "}
+                          Profile
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/messages" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
-                          <MessageCircle className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Messages
+                        <Link
+                          href="/messages"
+                          className={`cursor-pointer w-full flex items-center text-[#9BC9C3]
+ ${imageFilterClass}`}
+                        >
+                          <MessageCircle
+                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                          />{" "}
+                          Messages
                         </Link>
                       </DropdownMenuItem>
                     </>
                   ) : (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link href="/profile" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
-                          <Settings className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Settings
+                        <Link
+                          href="/profile"
+                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
+ ${imageFilterClass}`}
+                        >
+                          <Settings
+                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                          />{" "}
+                          Settings
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/messages" className={`cursor-pointer w-full flex items-center !text-green-dark ${imageFilterClass}`}>
-                          <MessageCircle className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Messages
+                        <Link
+                          href="/messages"
+                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
+ ${imageFilterClass}`}
+                        >
+                          <MessageCircle
+                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                          />{" "}
+                          Messages
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -298,21 +375,27 @@ export const Header = ({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                {path === '/add-recipe' ? (
-                  <Link href="/" className={`cursor-pointer w-full !text-green-dark ${imageFilterClass}`}>
-                    {n('home')}
+                {path === "/add-recipe" ? (
+                  <Link
+                    href="/"
+                    className={`cursor-pointer w-full !text-[#9BC9C3]
+ ${imageFilterClass}`}
+                  >
+                    {n("home")}
                   </Link>
                 ) : (
-                  <Link href="/add-recipe" className={`cursor-pointer w-full !text-white bg-green-dark ${imageFilterClass}`}>
-                    <PlusCircle className={`mr-2 h-4 w-4 `} /> {n('addRecipe')}
+                  <Link
+                    href="/add-recipe"
+                    className={`cursor-pointer w-full !text-white bg-green-dark ${imageFilterClass}`}
+                  >
+                    <Plus className={`mr-2 h-4 w-4 `} /> {n("addRecipe")}
                   </Link>
                 )}
               </DropdownMenuItem>
-
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
     </header>
-  )
-}
+  );
+};
