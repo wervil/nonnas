@@ -380,6 +380,41 @@ export default function Earth3DPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLevel]);
 
+  // Auto switch to 3D below city level
+  useEffect(() => {
+    if (!mapReady || !map3dRef.current) return;
+    const map3d = map3dRef.current;
+
+    // "NONNA" is the zoom level below CITY (currentRange <= 60000)
+    if (currentLevel === "NONNA") {
+      setIs3DMode(true);
+      if (map3d.tilt < 10) { // Only animate if not already 3D
+        map3d.flyCameraTo({
+          endCamera: {
+            center: map3d.center,
+            range: map3d.range,
+            heading: map3d.heading,
+            tilt: 65,
+          },
+          durationMillis: 1000,
+        });
+      }
+    } else {
+      setIs3DMode(false);
+      if (map3d.tilt > 10) { // Only animate if currently 3D
+        map3d.flyCameraTo({
+          endCamera: {
+            center: map3d.center,
+            range: map3d.range,
+            heading: map3d.heading,
+            tilt: 0,
+          },
+          durationMillis: 1000,
+        });
+      }
+    }
+  }, [currentLevel, mapReady]);
+
 
 
   // Place nonna markers
@@ -886,30 +921,47 @@ export default function Earth3DPage() {
       </div>
 
       {mapReady && (
-        <button
-          onClick={() => {
-            if (!map3dRef.current) return;
-            const map3d = map3dRef.current;
-            const newMode = !is3DMode;
-            setIs3DMode(newMode);
+        <>
+          <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3">
+            {(
+              [
+                { id: "EARTH", label: "Earth", range: ZOOM_RANGES.EARTH },
+                { id: "CONTINENT", label: "Continent", range: ZOOM_RANGES.CONTINENT },
+                { id: "COUNTRY", label: "Country", range: ZOOM_RANGES.COUNTRY },
+                { id: "STATE", label: "Region", range: ZOOM_RANGES.STATE },
+                { id: "CITY", label: "City", range: ZOOM_RANGES.CITY },
+              ] as const
+            ).map((level) => {
+              const isActive = currentLevel === level.id;
+              return (
+                <button
+                  key={level.id}
+                  onClick={() => {
+                    if (!map3dRef.current) return;
+                    const map3d = map3dRef.current;
+                    map3d.flyCameraTo({
+                      endCamera: {
+                        center: map3d.center,
+                        range: level.range,
+                        heading: map3d.heading,
+                        tilt: map3d.tilt,
+                      },
+                      durationMillis: 1500,
+                    });
+                  }}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-full font-semibold text-sm transition-all duration-300 backdrop-blur-md border border-white/20 shadow-lg ${isActive
+                    ? "bg-amber-600/90 text-white shadow-amber-900/50 scale-105"
+                    : "bg-black/50 text-gray-200 hover:bg-black/70 hover:text-white hover:scale-105"
+                    }`}
+                >
+                  <div className={`w-2 h-2 rounded-full transition-colors duration-300 flex-shrink-0 ${isActive ? 'bg-white' : 'bg-gray-400'}`} />
+                  <span className="tracking-widest uppercase text-xs">{level.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-            map3d.flyCameraTo({
-              endCamera: {
-                center: map3d.center,
-                range: map3d.range,
-                heading: map3d.heading,
-                tilt: newMode ? 65 : 0
-              },
-              durationMillis: 1000
-            });
-          }}
-          className={`absolute bottom-8 right-8 z-50 px-6 py-3 rounded-full font-bold shadow-lg backdrop-blur-md transition-all duration-300 border ${is3DMode
-            ? 'bg-blue-600/90 text-white border-blue-400 hover:bg-blue-500 shadow-blue-500/50'
-            : 'bg-white/90 text-gray-800 border-gray-200 hover:bg-white hover:scale-105'
-            }`}
-        >
-          {is3DMode ? "2D" : "3D"}
-        </button>
+        </>
       )}
     </div>
   );

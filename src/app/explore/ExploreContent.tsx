@@ -1,8 +1,8 @@
 'use client'
 
 import { Header } from '@/components/Header'
-import Globe2D3DShell from '@/components/clickable-globe/Globe2D3DShell'
-import Earth3DPage from '@/components/google-earth/GogleEarth'
+// import Globe2D3DShell from '@/components/clickable-globe/Globe2D3DShell'
+// import Earth3DPage from '@/components/google-earth/GogleEarth'
 import { EarthNavigationProvider } from '@/contexts/EarthNavigationContext'
 import { useUser } from '@stackframe/stack'
 import { useState } from 'react'
