@@ -162,20 +162,22 @@ function buildMarkerTemplate(opts: {
   countryName: string;
   nonnaCount: number;
   expanded?: boolean;
+  mode: "avatar" | "bubble-small" | "bubble-large";
 }): HTMLTemplateElement {
-  const { name, avatarUri, countryCode, countryName, nonnaCount, expanded } = opts;
+  const { name, avatarUri, countryCode, countryName, nonnaCount, expanded, mode } = opts;
   const flag = countryFlag(countryCode);
   const displayName = (name || `Nonna from ${countryName}`)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const countLabel = nonnaCount === 1 ? '1 Nonna' : `${nonnaCount} Nonnas`;
   const badge = `${flag} ${countryName}  ·  ${countLabel}`;
-  const uid = countryCode.toLowerCase().replace(/[^a-z]/g, '') + (expanded ? 'e' : 'c');
+  const uid = countryCode.toLowerCase().replace(/[^a-z]/g, '') + (expanded ? 'e' : 'c') + mode;
 
-  const aR = 34;
+  const isLarge = mode === "bubble-large";
+  const aR = isLarge ? 100 : 34; // Scale up the avatar/bubble base radius
   const cardW = Math.max(180, displayName.length * 9 + badge.length * 6.5 + 40);
   const cardH = 56;
   const gap = 8;
-  const pad = 12;
+  const pad = isLarge ? 24 : 12; // Extra padding for larger drop shadows
 
   const svgW = Math.max((aR + pad) * 2, cardW + 8);
   const svgH = (aR + pad) + aR + gap + cardH + pad;
@@ -184,6 +186,39 @@ function buildMarkerTemplate(opts: {
   const cy = aR + pad;
 
   const imgHref = opts.photoUrl || avatarUri;
+
+  let markerContent = "";
+
+  if (mode === "bubble-large" || mode === "bubble-small") {
+    // Orange Bubble Style for zoomed-out clusters
+    const baseR = isLarge ? 85 : 28;
+    const bubbleRadius = Math.min(baseR + (nonnaCount.toString().length * 2), aR);
+    const fontSize = isLarge ? 56 : 22;
+    const yOffset = isLarge ? 18 : 8;
+    const strokeW = isLarge ? 8 : 4;
+
+    markerContent = `
+      <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="#e67e22" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
+      <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
+    `;
+  } else {
+    // P-GO Avatar Style for zoomed-in nonnas
+    markerContent = `
+      <ellipse cx="${cx}" cy="${cy + 5}" rx="${aR + 22}" ry="${aR + 16}" fill="url(#bloom${uid})"/>
+      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="2.5">
+        <animate attributeName="r" values="${aR};${aR + 24};${aR}" dur="2.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.85;0;0.85" dur="2.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="2">
+        <animate attributeName="r" values="${aR};${aR + 42};${aR}" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="${cx}" cy="${cy}" r="${aR + 3}" fill="white" filter="url(#ash${uid})"/>
+      <image href="${imgHref}" x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}"
+        clip-path="url(#av${uid})" preserveAspectRatio="xMidYMid slice"/>
+      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="white" stroke-width="3.5"/>
+    `;
+  }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
   width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" overflow="visible">
@@ -211,7 +246,7 @@ function buildMarkerTemplate(opts: {
       <circle cx="${cx}" cy="${cy}" r="${aR}"/>
     </clipPath>
     <filter id="ash${uid}" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="5" stdDeviation="9" flood-color="rgba(0,0,0,0.20)"/>
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="rgba(0,0,0,0.30)"/>
     </filter>
     <filter id="csh${uid}" x="-8%" y="-20%" width="116%" height="160%">
       <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="rgba(0,0,0,0.10)"/>
@@ -223,20 +258,8 @@ function buildMarkerTemplate(opts: {
   </defs>
 
   <g class="">
-    <ellipse cx="${cx}" cy="${cy + 5}" rx="${aR + 22}" ry="${aR + 16}" fill="url(#bloom${uid})"/>
-    <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="2.5">
-      <animate attributeName="r" values="${aR};${aR + 24};${aR}" dur="2.4s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.85;0;0.85" dur="2.4s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="2">
-      <animate attributeName="r" values="${aR};${aR + 42};${aR}" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="${cx}" cy="${cy}" r="${aR + 3}" fill="white" filter="url(#ash${uid})"/>
-    <image href="${imgHref}" x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}"
-      clip-path="url(#av${uid})" preserveAspectRatio="xMidYMid slice"/>
-    <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="white" stroke-width="3.5"/>
-    ${expanded ? `
+    ${markerContent}
+    ${expanded && mode === "avatar" ? `
     <g class="card-anim">
       <g filter="url(#csh${uid})">
         <rect x="${Math.round((svgW - cardW) / 2)}" y="${cy + aR + gap}"
@@ -280,6 +303,7 @@ export default function Earth3DPage() {
   const map3dRef = useRef<any>(null);
 
   const [activePlaceName, setActivePlaceName] = useState<string | null>(null);
+  const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
   const [clickedLabel, setClickedLabel] = useState<string | null>(null);
   const [nonnaData, setNonnaData] = useState<GlobeNonna[]>([]);
@@ -293,45 +317,70 @@ export default function Earth3DPage() {
     currentLevelRef.current = currentLevel;
   }, [currentLevel]);
 
-  // Mock data for demo
+  // All-levels cluster data cache
+  const allClustersRef = useRef<{
+    continents: GlobeNonna[];
+    countries: GlobeNonna[];
+    states: GlobeNonna[];
+  } | null>(null);
+
+  // Pick the right subset from the cache based on current zoom level
+  const applyClusterLevel = (level: ZoomLevel, data: typeof allClustersRef.current) => {
+    if (!data) return;
+    if (level === "EARTH" || level === "CONTINENT") {
+      setNonnaData(data.continents);
+    } else if (level === "COUNTRY" || level === "STATE") {
+      setNonnaData(data.states);
+    }
+    // CITY / NONNA handled separately (individual nonnas)
+  };
+
+  // Fetch all clusters in one go and poll every 5 minutes
   useEffect(() => {
-    const mockData: GlobeNonna[] = [
-      {
-        id: "1",
-        lat: 41.9028,
-        lng: 12.4964,
-        countryCode: "IT",
-        countryName: "Italy",
-        nonnaCount: 5,
-        representativeName: "Maria Rossi",
-        representativeTitle: "Traditional Cook",
-        representativePhoto: null,
-      },
-      {
-        id: "2",
-        lat: 40.7128,
-        lng: -74.0060,
-        countryCode: "US",
-        countryName: "United States",
-        nonnaCount: 3,
-        representativeName: "Anna Smith",
-        representativeTitle: "Home Chef",
-        representativePhoto: null,
-      },
-      {
-        id: "3",
-        lat: 48.8566,
-        lng: 2.3522,
-        countryCode: "FR",
-        countryName: "France",
-        nonnaCount: 2,
-        representativeName: "Marie Dubois",
-        representativeTitle: "Baker",
-        representativePhoto: null,
-      },
-    ];
-    setNonnaData(mockData);
-  }, []);
+    if (!mapReady) return;
+    let mounted = true;
+
+    const fetchAll = async () => {
+      try {
+        console.log("[Earth3D] Fetching ALL clusters in one go...");
+        const res = await fetch("/api/nonnas/clustering?level=ALL");
+        if (!res.ok) throw new Error("Failed to fetch all clusters");
+        const data = await res.json();
+        if (mounted) {
+          allClustersRef.current = {
+            continents: data.continents ?? [],
+            countries: data.countries ?? [],
+            states: data.states ?? [],
+          };
+          // Apply the current level right away
+          applyClusterLevel(currentLevelRef.current, allClustersRef.current);
+        }
+      } catch (err) {
+        console.error("[Earth3D] ALL clusters fetch error:", err);
+      }
+    };
+
+    // Initial fetch
+    fetchAll();
+
+    // Re-fetch every 5 minutes
+    const pollInterval = setInterval(fetchAll, 5 * 60 * 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(pollInterval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady]);
+
+  // When zoom level changes, switch which subset is shown (no extra API call needed)
+  useEffect(() => {
+    if (!allClustersRef.current) return;
+    applyClusterLevel(currentLevel, allClustersRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLevel]);
+
+
 
   // Place nonna markers
   useEffect(() => {
@@ -351,6 +400,10 @@ export default function Earth3DPage() {
             nonna.countryCode
           );
 
+          const showExpandedByDefault = currentLevelRef.current === "CITY" || currentLevelRef.current === "NONNA";
+          const isHighZ = currentLevelRef.current === "EARTH" || currentLevelRef.current === "CONTINENT";
+          const markerMode = showExpandedByDefault ? "avatar" : (isHighZ ? "bubble-large" : "bubble-small");
+
           const tplCompact = buildMarkerTemplate({
             name: nonna.representativeName,
             photoUrl: nonna.representativePhoto,
@@ -358,7 +411,8 @@ export default function Earth3DPage() {
             countryCode: nonna.countryCode,
             countryName: nonna.countryName,
             nonnaCount: nonna.nonnaCount,
-            expanded: false
+            expanded: showExpandedByDefault,
+            mode: markerMode
           });
 
           const tplExpanded = buildMarkerTemplate({
@@ -368,7 +422,8 @@ export default function Earth3DPage() {
             countryCode: nonna.countryCode,
             countryName: nonna.countryName,
             nonnaCount: nonna.nonnaCount,
-            expanded: true
+            expanded: true,
+            mode: markerMode
           });
 
           const marker = new Marker3DInteractiveElement({
@@ -563,87 +618,90 @@ export default function Earth3DPage() {
         }
       };
 
-      async function reverseGeocode(latLng: LatLngLiteral) {
-        try {
-          const response = await geocoder.geocode({ location: latLng });
-          const first = response?.results?.[0];
-          if (!first) return null;
-          return {
-            latLng,
-            formattedAddress: first.formatted_address ?? null,
-            ...parseAdminLevelsFromGeocodeResult(first),
-            rawResults: response.results,
-            raw: first,
-          };
-        } catch { return null; }
-      }
+      // async function reverseGeocode(latLng: LatLngLiteral) {
+      //   try {
+      //     const response = await geocoder.geocode({ location: latLng });
+      //     const first = response?.results?.[0];
+      //     if (!first) return null;
+      //     return {
+      //       latLng,
+      //       formattedAddress: first.formatted_address ?? null,
+      //       ...parseAdminLevelsFromGeocodeResult(first),
+      //       rawResults: response.results,
+      //       raw: first,
+      //     };
+      //   } catch { return null; }
+      // }
 
-      function flyTo(latLng: LatLngLiteral, range: number, durationMillis = 1500, tilt = 0) {
-        isProgrammaticFlight = true;
-        map3d.flyCameraTo({
-          endCamera: { center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 }, range, tilt, heading: 0 },
-          durationMillis,
-        });
-        window.setTimeout(() => { isProgrammaticFlight = false; }, durationMillis + 100);
-      }
+      // function flyTo(latLng: LatLngLiteral, range: number, durationMillis = 1500, tilt = 0) {
+      //   isProgrammaticFlight = true;
+      //   map3d.flyCameraTo({
+      //     endCamera: { center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 }, range, tilt, heading: 0 },
+      //     durationMillis,
+      //   });
+      //   window.setTimeout(() => { isProgrammaticFlight = false; }, durationMillis + 100);
+      // }
 
-      const handleMapClick = async (e: any) => {
-        try {
-          e.preventDefault?.();
-          const latLng = extractLatLng(e.position || e.latLng);
-          if (!latLng) return;
-          lastClickedLatLng = latLng;
-          if (isProgrammaticFlight) return;
+      // const handleMapClick = async (e: any) => {
+      //   try {
+      //     e.preventDefault?.();
+      //     const latLng = extractLatLng(e.position || e.latLng);
+      //     if (!latLng) return;
+      //     lastClickedLatLng = latLng;
+      //     if (isProgrammaticFlight) return;
 
-          const placeInfo = await reverseGeocode(latLng);
-          if (!mounted || !placeInfo) return;
+      //     const placeInfo = await reverseGeocode(latLng);
+      //     if (!mounted || !placeInfo) return;
 
-          const level = currentLevelRef.current;
-          let targetPlaceName: string | null = null;
+      //     const level = currentLevelRef.current;
+      //     let targetPlaceName: string | null = null;
 
-          if (level === "EARTH" || level === "CONTINENT") {
-            const r = placeInfo.rawResults.find((r: any) => r.types.includes("country"));
-            if (r) targetPlaceName = r.address_components[0]?.long_name;
-            flyTo(latLng, ZOOM_RANGES.COUNTRY, 1500);
-          } else if (level === "COUNTRY") {
-            const r = placeInfo.rawResults.find((r: any) => r.types.includes("administrative_area_level_1"));
-            if (r) targetPlaceName = r.address_components[0]?.long_name;
-            flyTo(latLng, ZOOM_RANGES.STATE, 1500);
-          } else if (level === "STATE") {
-            const r = placeInfo.rawResults.find((r: any) => r.types.includes("locality"));
-            if (r) targetPlaceName = r.address_components[0]?.long_name;
-            flyTo(latLng, ZOOM_RANGES.CITY, 1200, 55);
-          } else if (level === "CITY") {
-            flyTo(latLng, ZOOM_RANGES.NONNA, 1000, 65);
-          }
+      //     if (level === "EARTH" || level === "CONTINENT") {
+      //       const r = placeInfo.rawResults.find((r: any) => r.types.includes("country"));
+      //       if (r) targetPlaceName = r.address_components[0]?.long_name;
+      //       flyTo(latLng, ZOOM_RANGES.COUNTRY, 1500);
+      //     } else if (level === "COUNTRY") {
+      //       const r = placeInfo.rawResults.find((r: any) => r.types.includes("administrative_area_level_1"));
+      //       if (r) targetPlaceName = r.address_components[0]?.long_name;
+      //       flyTo(latLng, ZOOM_RANGES.STATE, 1500);
+      //     } else if (level === "STATE") {
+      //       const r = placeInfo.rawResults.find((r: any) => r.types.includes("locality"));
+      //       if (r) targetPlaceName = r.address_components[0]?.long_name;
+      //       flyTo(latLng, ZOOM_RANGES.CITY, 1200, 55);
+      //     } else if (level === "CITY") {
+      //       flyTo(latLng, ZOOM_RANGES.NONNA, 1000, 65);
+      //     }
 
-          const resolvedName = targetPlaceName || placeInfo.country || placeInfo.state || null;
-          if (resolvedName) {
-            if (resolvedName === activeHighlightName) {
-              clearPolygonOverlays();
-              activeHighlightName = null;
-              if (mounted) { setClickedLabel(null); setHoveredLabel(null); }
-            } else {
-              activeHighlightName = resolvedName;
-              if (mounted) { setClickedLabel(resolvedName); setHoveredLabel(null); }
-              const featureType =
-                level === "EARTH" || level === "CONTINENT" ? "country"
-                  : level === "COUNTRY" ? "state" : "city";
-              fetchAndDrawBoundary(resolvedName, featureType, placeInfo.countryCode);
-            }
-          } else {
-            clearPolygonOverlays();
-            activeHighlightName = null;
-            if (mounted) { setClickedLabel(null); setHoveredLabel(null); }
-          }
-          setActivePlaceName(resolvedName);
-        } catch (err) {
-          console.error("[Earth3D] gmp-click handler error:", err);
-        }
-      };
+      //     const resolvedName = targetPlaceName || placeInfo.country || placeInfo.state || null;
+      //     if (resolvedName) {
+      //       if (resolvedName === activeHighlightName) {
+      //         clearPolygonOverlays();
+      //         activeHighlightName = null;
+      //         if (mounted) { setClickedLabel(null); setHoveredLabel(null); }
+      //       } else {
+      //         activeHighlightName = resolvedName;
+      //         if (mounted) { setClickedLabel(resolvedName); setHoveredLabel(null); }
+      //         const featureType =
+      //           level === "EARTH" || level === "CONTINENT" ? "country"
+      //             : level === "COUNTRY" ? "state" : "city";
+      //         fetchAndDrawBoundary(resolvedName, featureType, placeInfo.countryCode);
+      //       }
+      //     } else {
+      //       clearPolygonOverlays();
+      //       activeHighlightName = null;
+      //       if (mounted) { setClickedLabel(null); setHoveredLabel(null); }
+      //     }
+      //     setActivePlaceName(resolvedName);
+      //     if (mounted && placeInfo.country) {
+      //       setActiveCountry(placeInfo.country);
+      //     }
+      //   } catch (err) {
+      //     console.error("[Earth3D] gmp-click handler error:", err);
+      //   }
+      // };
 
-      map3d.addEventListener("gmp-click", handleMapClick);
-      listeners.push(() => map3d.removeEventListener("gmp-click", handleMapClick));
+      // map3d.addEventListener("gmp-click", handleMapClick);
+      // listeners.push(() => map3d.removeEventListener("gmp-click", handleMapClick));
 
       // Zoom / animation loop
       let currentSize = 0;
@@ -701,29 +759,30 @@ export default function Earth3DPage() {
 
       checkZoom();
 
-      const handleCameraIdle = () => {
-        if (!mounted || isProgrammaticFlight) return;
-        const currentLvl = currentLevelRef.current;
-        const targetRange = ZOOM_RANGES[currentLvl];
-        const currentRange = Number(map3d.range);
-        const tolerance = targetRange * 0.1;
-        if (Math.abs(currentRange - targetRange) > tolerance) {
-          map3d.flyCameraTo({
-            endCamera: { center: map3d.center, range: targetRange, tilt: map3d.tilt, heading: map3d.heading },
-            durationMillis: 800,
-          });
-        }
-      };
+      // ── Zoom snap disabled: camera no longer forced back to canonical ranges ──
+      // const handleCameraIdle = () => {
+      //   if (!mounted || isProgrammaticFlight) return;
+      //   const currentLvl = currentLevelRef.current;
+      //   const targetRange = ZOOM_RANGES[currentLvl];
+      //   const currentRange = Number(map3d.range);
+      //   const tolerance = targetRange * 0.1;
+      //   if (Math.abs(currentRange - targetRange) > tolerance) {
+      //     map3d.flyCameraTo({
+      //       endCamera: { center: map3d.center, range: targetRange, tilt: map3d.tilt, heading: map3d.heading },
+      //       durationMillis: 800,
+      //     });
+      //   }
+      // };
 
-      const debounceIdle = () => {
-        if (idleTimeout) clearTimeout(idleTimeout);
-        idleTimeout = setTimeout(handleCameraIdle, 1000);
-      };
+      // const debounceIdle = () => {
+      //   if (idleTimeout) clearTimeout(idleTimeout);
+      //   idleTimeout = setTimeout(handleCameraIdle, 1000);
+      // };
 
-      map3d.addEventListener("gmp-centerchange", debounceIdle);
-      map3d.addEventListener("gmp-rangechange", debounceIdle);
-      listeners.push(() => map3d.removeEventListener("gmp-centerchange", debounceIdle));
-      listeners.push(() => map3d.removeEventListener("gmp-rangechange", debounceIdle));
+      // map3d.addEventListener("gmp-centerchange", debounceIdle);
+      // map3d.addEventListener("gmp-rangechange", debounceIdle);
+      // listeners.push(() => map3d.removeEventListener("gmp-centerchange", debounceIdle));
+      // listeners.push(() => map3d.removeEventListener("gmp-rangechange", debounceIdle));
     }
 
     init().catch((err) => console.error("[Earth3D] init failed:", err));

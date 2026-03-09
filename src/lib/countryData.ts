@@ -227,6 +227,95 @@ const countryMap: Record<string, CountryInfo> = {
   "vanuatu": { code: "VU", name: "Vanuatu", continent: "Oceania", lat: -15.3767, lng: 166.9592 },
 };
 
+// Map of US states to coordinates
+export const usStateCoordinates: Record<string, { lat: number; lng: number }> = {
+  "usa": { lat: 37.0902, lng: -95.7129 }, // Fallback for US
+  "alabama": { lat: 32.806671, lng: -86.791130 },
+  "alaska": { lat: 61.370716, lng: -152.404419 },
+  "arizona": { lat: 33.729759, lng: -111.431221 },
+  "arkansas": { lat: 34.969704, lng: -92.373123 },
+  "california": { lat: 36.116203, lng: -119.681564 },
+  "colorado": { lat: 39.059811, lng: -105.311104 },
+  "connecticut": { lat: 41.597782, lng: -72.755371 },
+  "delaware": { lat: 39.318523, lng: -75.507141 },
+  "florida": { lat: 27.766279, lng: -81.686783 },
+  "georgia": { lat: 33.040619, lng: -83.643074 },
+  "hawaii": { lat: 21.094318, lng: -157.498337 },
+  "idaho": { lat: 44.240459, lng: -114.478828 },
+  "illinois": { lat: 40.349457, lng: -88.986137 },
+  "indiana": { lat: 39.849426, lng: -86.258278 },
+  "iowa": { lat: 42.011539, lng: -93.210526 },
+  "kansas": { lat: 38.526600, lng: -96.726486 },
+  "kentucky": { lat: 37.668140, lng: -84.670067 },
+  "louisiana": { lat: 31.169546, lng: -91.867805 },
+  "maine": { lat: 44.693947, lng: -69.381927 },
+  "maryland": { lat: 39.063946, lng: -76.802101 },
+  "massachusetts": { lat: 42.230171, lng: -71.530106 },
+  "michigan": { lat: 43.326618, lng: -84.536095 },
+  "minnesota": { lat: 45.694454, lng: -93.900192 },
+  "mississippi": { lat: 32.741646, lng: -89.678696 },
+  "missouri": { lat: 38.456085, lng: -92.288368 },
+  "montana": { lat: 46.921925, lng: -110.454353 },
+  "nebraska": { lat: 41.125370, lng: -98.268082 },
+  "nevada": { lat: 38.313515, lng: -117.055374 },
+  "new hampshire": { lat: 43.452492, lng: -71.563896 },
+  "new jersey": { lat: 40.298904, lng: -74.521011 },
+  "new mexico": { lat: 34.840515, lng: -106.248482 },
+  "new york": { lat: 42.165726, lng: -74.948051 },
+  "north carolina": { lat: 35.630066, lng: -79.806419 },
+  "north dakota": { lat: 47.528912, lng: -99.901810 },
+  "ohio": { lat: 40.388783, lng: -82.764915 },
+  "oklahoma": { lat: 35.565342, lng: -96.928917 },
+  "oregon": { lat: 44.572021, lng: -122.070938 },
+  "pennsylvania": { lat: 40.590752, lng: -77.209755 },
+  "rhode island": { lat: 41.680893, lng: -71.511780 },
+  "south carolina": { lat: 33.856892, lng: -80.945007 },
+  "south dakota": { lat: 44.299782, lng: -99.438828 },
+  "tennessee": { lat: 35.747845, lng: -86.692345 },
+  "texas": { lat: 31.054487, lng: -97.563461 },
+  "utah": { lat: 40.150032, lng: -111.862434 },
+  "vermont": { lat: 44.045876, lng: -72.710686 },
+  "virginia": { lat: 37.769337, lng: -78.169968 },
+  "washington": { lat: 47.400902, lng: -121.490494 },
+  "west virginia": { lat: 38.491226, lng: -80.954453 },
+  "wisconsin": { lat: 44.268543, lng: -89.616508 },
+  "wyoming": { lat: 42.755966, lng: -107.302490 }
+};
+
+export function getRegionCoordinates(regionName: string | undefined | null, countryCode: string, fallbackLat: number, fallbackLng: number): { lat: number; lng: number } {
+  if (!regionName) return { lat: fallbackLat, lng: fallbackLng };
+
+  const normRegion = regionName.toLowerCase().trim();
+
+  // If it's a US state
+  if (countryCode === "US") {
+    const usInfo = usStateCoordinates[normRegion];
+    if (usInfo) {
+      return usInfo;
+    }
+  }
+
+  // Fallback map for non-US regions (we can expand this later)
+  const regionCoordsMap: Record<string, { lat: number; lng: number }> = {
+    // Canada provinces
+    "ontario": { lat: 51.2538, lng: -85.3232 },
+    "quebec": { lat: 52.9399, lng: -73.5491 },
+    "british columbia": { lat: 53.7267, lng: -127.6476 },
+    // Italy regions
+    "lombardy": { lat: 45.4791, lng: 9.8452 },
+    "sicily": { lat: 37.5990, lng: 14.0154 },
+    "campania": { lat: 40.8122, lng: 14.7836 },
+  };
+
+  const genericInfo = regionCoordsMap[normRegion];
+  if (genericInfo) {
+    return genericInfo;
+  }
+
+  // Absolute fallback: Just return the country's center
+  return { lat: fallbackLat, lng: fallbackLng };
+}
+
 /**
  * Get country info from country name (case-insensitive)
  */
@@ -260,4 +349,3 @@ export function getCountriesByContinent(continent: string): CountryInfo[] {
     (c) => c.continent.toLowerCase() === continent.toLowerCase()
   );
 }
-
