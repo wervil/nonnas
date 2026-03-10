@@ -265,8 +265,8 @@ function buildMarkerTemplate(opts: {
     `
       : ""
     }
-  </g>
-</svg>`;
+  </g >
+</svg > `;
   const tpl = document.createElement("template");
   tpl.innerHTML = svg.trim();
   return tpl;
@@ -364,7 +364,7 @@ function LevelIndicator({ currentLevel }: { currentLevel: ZoomLevel }) {
                     ? "rgba(94,234,212,0.5)"
                     : "rgba(255,255,255,0.2)",
               transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-              boxShadow: i === currentIdx ? `0 0 8px ${TEAL.lighter}` : "none",
+              boxShadow: i === currentIdx ? `0 0 8px ${TEAL.lighter} ` : "none",
             }}
           />
         ))}
@@ -402,7 +402,7 @@ function ZoomControl({
     alignItems: "center",
     justifyContent: "center",
     background: enabled ? "rgba(13,148,136,0.85)" : "rgba(30,30,30,0.4)",
-    border: `2px solid ${enabled ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.1)"}`,
+    border: `2px solid ${enabled ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.1)"} `,
     backdropFilter: "blur(12px)",
     boxShadow: enabled ? "0 4px 20px rgba(13,148,136,0.4)" : "none",
     cursor: enabled ? "pointer" : "not-allowed",
@@ -486,6 +486,20 @@ export default function Earth3DPage() {
     countries: GlobeNonna[];
     states: GlobeNonna[];
   } | null>(null);
+  // Flight state for programmatic zooms (buttons/clicks) to temporarily pause scroll-based detection during animations
+  const flightStateRef = useRef<{
+    active: boolean;
+    targetRange: number | null;
+    targetLevel: ZoomLevel | null;
+    startTime: number;
+    lastRanges: number[]; // Track last few ranges to detect stabilization
+  }>({
+    active: false,
+    targetRange: null,
+    targetLevel: null,
+    startTime: 0,
+    lastRanges: [],
+  });
   const applyClusterLevel = (
     level: ZoomLevel,
     data: typeof allClustersRef.current,
@@ -495,6 +509,8 @@ export default function Earth3DPage() {
       setNonnaData(data.continents);
     else if (level === "COUNTRY" || level === "STATE")
       setNonnaData(data.states);
+    else if (level === "CITY" || level === "NONNA")
+      setNonnaData(data.countries);
   };
   useEffect(() => {
     if (!mapReady) return;
@@ -504,6 +520,7 @@ export default function Earth3DPage() {
         const res = await fetch("/api/nonnas/clustering?level=ALL");
         if (!res.ok) throw new Error("Failed to fetch all clusters");
         const data = await res.json();
+
         if (mounted) {
           allClustersRef.current = {
             continents: data.continents ?? [],
@@ -529,32 +546,31 @@ export default function Earth3DPage() {
   }, [currentLevel]);
   // 3D tilt on deep zoom
   useEffect(() => {
-    if (!mapReady || !map3dRef.current) return;
+    if (!mapReady || !map3dRef.current || flightStateRef.current.active) return;
     const map3d = map3dRef.current;
+
     if (currentLevel === "NONNA") {
       setIs3DMode(true);
-      if (map3d.tilt < 10)
-        map3d.flyCameraTo({
-          endCamera: {
-            center: map3d.center,
-            range: map3d.range,
-            heading: map3d.heading,
-            tilt: 65,
-          },
-          durationMillis: 1000,
-        });
+      if (map3d.tilt < 10) {
+
+      }
     } else {
       setIs3DMode(false);
-      if (map3d.tilt > 10)
-        map3d.flyCameraTo({
-          endCamera: {
-            center: map3d.center,
-            range: map3d.range,
-            heading: map3d.heading,
-            tilt: 0,
-          },
-          durationMillis: 1000,
-        });
+      if (map3d.tilt > 10) {
+
+      }
+    }
+  }, [currentLevel, mapReady]);
+  // Conditional labels for country names
+  useEffect(() => {
+    if (!mapReady || !map3dRef.current) return;
+    const map3d = map3dRef.current;
+    const deepLevels = ["COUNTRY", "STATE", "CITY", "NONNA"];
+    const enableLabels = deepLevels.includes(currentLevel);
+    if (enableLabels) {
+      map3d.mode = "HYBRID";
+    } else {
+      map3d.mode = "SATELLITE";
     }
   }, [currentLevel, mapReady]);
   // Place nonna markers
@@ -568,6 +584,7 @@ export default function Earth3DPage() {
         const { Marker3DInteractiveElement } =
           await window.google.maps.importLibrary("maps3d");
         for (const nonna of nonnaData) {
+
           const avatarUri = generateAvatarSvgUri(
             nonna.representativeName || nonna.countryName,
             nonna.countryCode,
@@ -651,6 +668,21 @@ export default function Earth3DPage() {
     const idx = levels.indexOf(currentLevelRef.current);
     if (idx >= levels.length - 1) return;
     const next = levels[idx + 1];
+
+
+    // Update level immediately to prevent flicker
+    setLevel(next);
+    currentLevelRef.current = next;
+
+    // Set flight state to pause scroll-based detection during animation
+    flightStateRef.current = {
+      active: true,
+      targetRange: ZOOM_RANGES[next],
+      targetLevel: next,
+      startTime: Date.now(),
+      lastRanges: [],
+    };
+
     map3d.flyCameraTo({
       endCamera: {
         center: map3d.center,
@@ -660,13 +692,7 @@ export default function Earth3DPage() {
       },
       durationMillis: 1400,
     });
-    // Trigger resize after zoom animation completes
-    setTimeout(() => {
-      if (window.google && window.google.maps && window.google.maps.event) {
-        window.google.maps.event.trigger(map3d, "resize");
-      }
-    }, 1500);
-  }, []);
+  }, [setLevel]);
   const handleZoomOut = useCallback(() => {
     if (!map3dRef.current) return;
     const map3d = map3dRef.current;
@@ -681,6 +707,21 @@ export default function Earth3DPage() {
     const idx = levels.indexOf(currentLevelRef.current);
     if (idx <= 0) return;
     const prev = levels[idx - 1];
+
+
+    // Update level immediately to prevent flicker
+    setLevel(prev);
+    currentLevelRef.current = prev;
+
+    // Set flight state to pause scroll-based detection during animation
+    flightStateRef.current = {
+      active: true,
+      targetRange: ZOOM_RANGES[prev],
+      targetLevel: prev,
+      startTime: Date.now(),
+      lastRanges: [],
+    };
+
     map3d.flyCameraTo({
       endCamera: {
         center: map3d.center,
@@ -690,13 +731,7 @@ export default function Earth3DPage() {
       },
       durationMillis: 1400,
     });
-    // Trigger resize after zoom animation completes (especially important for zoom-out)
-    setTimeout(() => {
-      if (window.google && window.google.maps && window.google.maps.event) {
-        window.google.maps.event.trigger(map3d, "resize");
-      }
-    }, 1500);
-  }, []);
+  }, [setLevel]);
   // Main map init
   useEffect(() => {
     let mounted = true;
@@ -760,8 +795,10 @@ export default function Earth3DPage() {
       map3dRef.current = map3d;
       setMapReady(true);
       // Boundary polygon helpers (teal)
-      const polygonOverlays: any[] = [];
+      const polygonOverlays: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
       let activeHighlightName: string | null = null;
+      let lastHoverName: string | null = null;
+      let hoverTimer: NodeJS.Timeout | null = null;
       const clearPolygonOverlays = () => {
         for (const p of polygonOverlays) {
           try {
@@ -771,12 +808,22 @@ export default function Earth3DPage() {
           }
         }
         polygonOverlays.length = 0;
+        // Also clear hover polygons when clearing main overlays
+        for (const p of hoverPolygonOverlays) {
+          try {
+            p.remove();
+          } catch {
+            /**/
+          }
+        }
+        hoverPolygonOverlays.length = 0;
       };
       const fetchAndDrawBoundary = async (
         name: string,
         featureType: "country" | "state" | "city",
         countryCode?: string | null,
       ) => {
+        console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
         try {
           const params = new URLSearchParams({
             polygon_geojson: "1",
@@ -784,8 +831,8 @@ export default function Earth3DPage() {
             limit: "1",
           });
           if (featureType === "country") {
+            params.set("q", name);
             params.set("featuretype", "country");
-            params.set("country", name);
           } else if (featureType === "state") {
             params.set("featuretype", "state");
             params.set("state", name);
@@ -801,15 +848,26 @@ export default function Earth3DPage() {
             `https://nominatim.openstreetmap.org/search?${params.toString()}`,
             { headers: { "User-Agent": "NonnasMaps/1.0" } },
           );
-          if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
+          if (!res.ok) {
+            console.error("[Earth3D] Nominatim fetch failed:", res.status, res.statusText);
+            throw new Error(`Nominatim HTTP ${res.status}`);
+          }
           const data = await res.json();
+          console.log("[Earth3D] Nominatim response data:", data);
           const geojson = data?.[0]?.geojson;
-          if (!geojson) return;
+          if (!geojson) {
+            console.warn("[Earth3D] No geojson found for", name, featureType);
+            return;
+          }
+          console.log("[Earth3D] Got geojson type:", geojson.type);
           let rings: number[][][] = [];
           if (geojson.type === "Polygon") rings = [geojson.coordinates[0]];
           else if (geojson.type === "MultiPolygon")
             rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
-          else return;
+          else {
+            console.warn("[Earth3D] Unsupported geojson type:", geojson.type);
+            return;
+          }
           const MAX_RING_POINTS = 400;
           const simplifyRing = (ring: number[][]): number[][] => {
             if (ring.length <= MAX_RING_POINTS) return ring;
@@ -821,7 +879,11 @@ export default function Earth3DPage() {
             return out;
           };
           rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
-          if (!rings.length) return;
+          if (!rings.length) {
+            console.warn("[Earth3D] No valid rings after simplification for", name);
+            return;
+          }
+          console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
           clearPolygonOverlays();
           for (const ring of rings) {
             const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
@@ -839,13 +901,12 @@ export default function Earth3DPage() {
             map3d.append(poly);
             polygonOverlays.push(poly);
           }
+          console.log("[Earth3D] Successfully drew boundary for", name);
         } catch (err) {
-          console.warn("[Earth3D] fetchAndDrawBoundary failed:", err);
+          console.error("[Earth3D] Boundary fetch/draw error for", name, ":", err);
         }
       };
-      // ── Hover detection via mousemove → reverse geocode (debounced) ──
-      let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-      let lastHoverName: string | null = null;
+      let hoverPolygonOverlays: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
       const handleMouseMove = async (e: any) => {
         const latLng = extractLatLng(e.position || e.latLng);
         if (!latLng) return;
@@ -853,17 +914,27 @@ export default function Earth3DPage() {
         hoverTimer = setTimeout(async () => {
           try {
             const level = currentLevelRef.current;
+            const currentRange = map3dRef.current ? Number(map3dRef.current.range ?? ZOOM_RANGES.EARTH) : ZOOM_RANGES.EARTH;
             // Only show hover highlights at country-level and deeper
-            if (level === "EARTH") return;
+            if (level === "EARTH" || currentRange > ZOOM_RANGES.COUNTRY * 2) {
+              return;
+            }
             const response = await geocoder.geocode({ location: latLng });
             const first = response?.results?.[0];
             if (!first || !mounted) return;
             const info = parseAdminLevelsFromGeocodeResult(first);
             let hoverName: string | null = null;
-            if (level === "CONTINENT" || level === "COUNTRY")
+            let featureType: "country" | "state" | "city" = "country";
+            if (level === "CONTINENT" || level === "COUNTRY") {
               hoverName = info.country;
-            else if (level === "STATE") hoverName = info.state || info.country;
-            else hoverName = info.state || info.country;
+              featureType = "country";
+            } else if (level === "STATE") {
+              hoverName = info.state || info.country;
+              featureType = info.state ? "state" : "country";
+            } else {
+              hoverName = info.state || info.country;
+              featureType = info.state ? "state" : "country";
+            }
             if (
               hoverName &&
               hoverName !== lastHoverName &&
@@ -871,6 +942,84 @@ export default function Earth3DPage() {
             ) {
               lastHoverName = hoverName;
               if (mounted) setHoveredLabel(hoverName);
+
+              // Draw hover highlight polygon
+              if (hoverName && hoverName !== activeHighlightName) {
+                // Clear previous hover polygons
+                for (const p of hoverPolygonOverlays) {
+                  try { p.remove(); } catch { /**/ }
+                }
+                hoverPolygonOverlays = [];
+
+                // Draw new hover polygon with lighter styling
+                try {
+                  const params = new URLSearchParams({
+                    polygon_geojson: "1",
+                    format: "json",
+                    limit: "1",
+                  });
+                  if (featureType === "country") {
+                    params.set("q", hoverName);
+                    params.set("featuretype", "country");
+                  } else if (featureType === "state") {
+                    params.set("featuretype", "state");
+                    params.set("state", hoverName);
+                    if (info.countryCode)
+                      params.set("countrycodes", info.countryCode.toLowerCase());
+                  }
+
+                  const res = await fetch(
+                    `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+                    { headers: { "User-Agent": "NonnasMaps/1.0" } },
+                  );
+                  if (res.ok) {
+                    const data = await res.json();
+                    const geojson = data?.[0]?.geojson;
+                    if (geojson) {
+                      let rings: number[][][] = [];
+                      if (geojson.type === "Polygon") rings = [geojson.coordinates[0]];
+                      else if (geojson.type === "MultiPolygon")
+                        rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
+
+                      const MAX_RING_POINTS = 400;
+                      const simplifyRing = (ring: number[][]): number[][] => {
+                        if (ring.length <= MAX_RING_POINTS) return ring;
+                        const step = Math.ceil(ring.length / MAX_RING_POINTS);
+                        const out = ring.filter((_, i) => i % step === 0);
+                        const first = out[0], last = out[out.length - 1];
+                        if (first[0] !== last[0] || first[1] !== last[1]) out.push(first);
+                        return out;
+                      };
+                      rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
+
+                      for (const ring of rings) {
+                        const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+                          lat,
+                          lng,
+                          altitude: 0,
+                        }));
+                        const poly = new Polygon3DElement({
+                          outerCoordinates,
+                          fillColor: "rgba(94,234,212,0.25)", // Lighter fill for hover
+                          strokeColor: "rgba(94,234,212,0.6)", // Lighter stroke for hover
+                          strokeWidth: 2,
+                          altitudeMode: "CLAMP_TO_GROUND",
+                        });
+                        map3d.append(poly);
+                        hoverPolygonOverlays.push(poly);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn("[Earth3D] hover polygon fetch failed:", err);
+                }
+              }
+            } else if (!hoverName) {
+              // Clear hover polygons when not hovering over anything
+              for (const p of hoverPolygonOverlays) {
+                try { p.remove(); } catch { /**/ }
+              }
+              hoverPolygonOverlays = [];
             }
           } catch {
             /**/
@@ -884,47 +1033,42 @@ export default function Earth3DPage() {
       // ── Click → center + highlight boundary ──
       const handleMapClick = async (e: any) => {
         try {
+          console.log("[Earth3D] Click event:", e);
           e.preventDefault?.();
-          const latLng = extractLatLng(e.position || e.latLng);
-          if (!latLng || isProgrammaticFlight) return;
+          let latLng = extractLatLng(e.position || e.latLng);
+          if (!latLng && e.placeId) {
+            console.log("[Earth3D] No latlng but have placeId:", e.placeId);
+            // Geocode using placeId
+            const response = await geocoder.geocode({ placeId: e.placeId });
+            const first = response?.results?.[0];
+            if (first && first.geometry && first.geometry.location) {
+              latLng = extractLatLng(first.geometry.location);
+              console.log("[Earth3D] Got latlng from placeId:", latLng);
+            }
+          }
+          if (!latLng || isProgrammaticFlight) {
+            console.log("[Earth3D] No latlng or programmatic flight, returning");
+            return;
+          }
+          console.log("[Earth3D] Click at latlng:", latLng);
           const level = currentLevelRef.current;
           const response = await geocoder.geocode({ location: latLng });
           const first = response?.results?.[0];
+          console.log("[Earth3D] Geocode first result:", first);
           if (!first || !mounted) return;
           const info = parseAdminLevelsFromGeocodeResult(first);
-          // Determine target name and feature type
-          let targetName: string | null = null;
-          let featureType: "country" | "state" | "city" = "country";
-          let targetRange = ZOOM_RANGES.COUNTRY;
-          if (level === "EARTH" || level === "CONTINENT") {
-            targetName = info.country;
-            featureType = "country";
-            targetRange = ZOOM_RANGES.COUNTRY;
-          } else if (level === "COUNTRY") {
-            targetName = info.state || info.country;
-            featureType = info.state ? "state" : "country";
-            targetRange = ZOOM_RANGES.STATE;
-          } else if (level === "STATE") {
-            const cityResult = response.results.find((r: any) =>
-              r.types.includes("locality"),
-            );
-            targetName =
-              cityResult?.address_components[0]?.long_name ||
-              info.state ||
-              info.country;
-            featureType = "city";
-            targetRange = ZOOM_RANGES.CITY;
-          } else {
-            targetRange = ZOOM_RANGES.NONNA;
-            targetName = null;
-          }
-          // Fly to clicked location
+          console.log("[Earth3D] Parsed info:", info);
+          // Determine target name and feature type for boundary highlighting
+          const targetName = info.state || info.country;
+          const featureType = info.state ? "state" : "country";
+          console.log("[Earth3D] Target name:", targetName, "featureType:", featureType);
+          // Fly to clicked location without changing zoom level
           isProgrammaticFlight = true;
           map3d.flyCameraTo({
             endCamera: {
               center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
-              range: targetRange,
-              tilt: targetRange <= ZOOM_RANGES.CITY ? 55 : 0,
+              range: map3d.range, // Keep current range
+              tilt: map3d.tilt,   // Keep current tilt
               heading: 0,
             },
             durationMillis: 1500,
@@ -959,6 +1103,86 @@ export default function Earth3DPage() {
       listeners.push(() =>
         map3d.removeEventListener("gmp-click", handleMapClick),
       );
+      // ── Double-click to zoom in ──
+      const handleDoubleClick = () => {
+        if (!isProgrammaticFlight) {
+          handleZoomIn();
+        }
+      };
+      map3d.addEventListener("dblclick", handleDoubleClick);
+      listeners.push(() =>
+        map3d.removeEventListener("dblclick", handleDoubleClick),
+      );
+      // ── Single unified zoom level detection ──
+      const unifiedZoomCheck = () => {
+        if (!mounted || !map3d) return;
+        const currentRange = Number(map3d.range ?? ZOOM_RANGES.EARTH);
+
+        // Track range for stabilization detection
+        flightStateRef.current.lastRanges.push(currentRange);
+        if (flightStateRef.current.lastRanges.length > 5) {
+          flightStateRef.current.lastRanges.shift();
+        }
+
+        // Check if programmatic flight has completed
+        if (flightStateRef.current.active) {
+          const flight = flightStateRef.current;
+          const timeElapsed = Date.now() - flight.startTime;
+          const isCloseToTarget = flight.targetRange && Math.abs(currentRange - flight.targetRange) < 10000;
+          const isStable = flight.lastRanges.length >= 3 &&
+            flight.lastRanges.every(r => Math.abs(r - currentRange) < 1000);
+
+          if (isCloseToTarget && isStable && timeElapsed > 1000) {
+            // Flight completed - clear state
+            flightStateRef.current = {
+              active: false,
+              targetRange: null,
+              targetLevel: null,
+              startTime: 0,
+              lastRanges: [],
+            };
+          } else if (timeElapsed > 3000) {
+            // Timeout fallback - clear flight state after 3 seconds
+            flightStateRef.current = {
+              active: false,
+              targetRange: null,
+              targetLevel: null,
+              startTime: 0,
+              lastRanges: [],
+            };
+          }
+        }
+
+        // Zoom level detection - more gradual thresholds with overlaps for smooth scroll zoom
+        let newLevel: ZoomLevel = "EARTH";
+        if (currentRange <= ZOOM_RANGES.NONNA * 3) newLevel = "NONNA"; // 90000
+        else if (currentRange <= ZOOM_RANGES.CITY * 3) newLevel = "CITY"; // 450000
+        else if (currentRange <= ZOOM_RANGES.STATE * 2) newLevel = "STATE"; // 1600000
+        else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) newLevel = "COUNTRY"; // 6000000
+        else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5)
+          newLevel = "CONTINENT";
+
+        // Only change level if it's different and not during a programmatic flight
+        if (newLevel !== currentLevelRef.current && !flightStateRef.current.active) {
+          setLevel(newLevel);
+          if (newLevel === "EARTH" || newLevel === "CONTINENT") {
+            clearPolygonOverlays();
+            activeHighlightName = null;
+            setClickedLabel(null);
+            setHoveredLabel(null);
+          }
+        } else if (newLevel !== currentLevelRef.current && flightStateRef.current.active) {
+        }
+
+        // Continue checking every 100ms
+        if (mounted) {
+          setTimeout(unifiedZoomCheck, 100);
+        }
+      };
+
+      // Start unified zoom detection
+      unifiedZoomCheck();
+
       // ── Animated globe ring overlay ──
       let currentSize = 0,
         currentOpacity = 0;
@@ -968,6 +1192,7 @@ export default function Earth3DPage() {
       const checkZoom = () => {
         if (!mounted || !overlayRef.current) return;
         const currentRange = Number(map3d.range ?? ZOOM_RANGES.EARTH);
+
         const distance = EARTH_RADIUS + currentRange;
         const d = Math.max(distance, EARTH_RADIUS + 10);
         const alpha = Math.asin(EARTH_RADIUS / d);
@@ -979,22 +1204,7 @@ export default function Earth3DPage() {
         if (currentRange < 8000000) targetOpacity = 0;
         else if (currentRange < 12000000)
           targetOpacity = (currentRange - 8000000) / 4000000;
-        let newLevel: ZoomLevel = "EARTH";
-        if (currentRange <= ZOOM_RANGES.NONNA * 2) newLevel = "NONNA";
-        else if (currentRange <= ZOOM_RANGES.CITY * 2) newLevel = "CITY";
-        else if (currentRange <= ZOOM_RANGES.STATE * 2) newLevel = "STATE";
-        else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) newLevel = "COUNTRY";
-        else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5)
-          newLevel = "CONTINENT";
-        if (newLevel !== currentLevelRef.current) {
-          setLevel(newLevel);
-          if (newLevel === "EARTH" || newLevel === "CONTINENT") {
-            clearPolygonOverlays();
-            activeHighlightName = null;
-            setClickedLabel(null);
-            setHoveredLabel(null);
-          }
-        }
+
         // If target opacity is 0, hide the overlay but continue animation for level detection
         if (targetOpacity === 0) {
           const el = overlayRef.current;
@@ -1040,9 +1250,11 @@ export default function Earth3DPage() {
     };
   }, [setLevel]);
   const displayLabel = clickedLabel || hoveredLabel || null;
-  const isClickedLabel = !!clickedLabel;
-  // Show country name labels only at COUNTRY level and deeper
-  const showNameLabel = displayLabel && currentLevel !== "EARTH";
+  // Show country name labels only at COUNTRY level and deeper (but not at EARTH or CONTINENT levels)
+  // Also check current range directly to be more reliable
+  const currentRange = map3dRef.current ? Number(map3dRef.current.range ?? ZOOM_RANGES.EARTH) : ZOOM_RANGES.EARTH;
+  const isAtEarthOrContinentLevel = currentLevel === "EARTH" || currentLevel === "CONTINENT" || currentRange > ZOOM_RANGES.COUNTRY * 2;
+  const showNameLabel = displayLabel && !isAtEarthOrContinentLevel;
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
@@ -1064,7 +1276,7 @@ export default function Earth3DPage() {
       )}
 
       {/* Globe ring overlay */}
-      <div
+      {/* <div
         ref={overlayRef}
         className="pointer-events-none absolute top-1/2 left-1/2 z-10"
         style={{
@@ -1074,9 +1286,12 @@ export default function Earth3DPage() {
         }}
       >
         <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full overflow-visible"
-          style={{ animation: "spin-reverse 150s linear infinite" }}
+          viewBox="0 0 400 400"
+          className="w-full h-full"
+          style={{
+            animation: "spin-reverse 150s linear infinite",
+            overflow: "visible"
+          }}
         >
           <style>{`
             @keyframes spin-reverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
@@ -1085,13 +1300,13 @@ export default function Earth3DPage() {
           <defs>
             <path
               id="globePath"
-              d="M 100, 500 a 400,400 0 1,1 800,0 a 400,400 0 1,1 -800,0"
+              d="M 40, 200 a 160,160 0 1,1 320,0 a 160,160 0 1,1 -320,0"
             />
           </defs>
           <text
             className="font-bold fill-[#FFF7ED]"
             style={{
-              fontSize: "65px",
+              fontSize: "26px",
               fontFamily: "ui-sans-serif, system-ui, sans-serif",
               textShadow: "0px 4px 15px rgba(0,0,0,0.8)",
             }}
@@ -1100,14 +1315,14 @@ export default function Earth3DPage() {
               href="#globePath"
               startOffset="50%"
               textAnchor="middle"
-              textLength="2300"
+              textLength="920"
               lengthAdjust="spacing"
             >
               NONNAS OF THE WORLD
             </textPath>
           </text>
         </svg>
-      </div>
+      </div> */}
       {/* Zoom controls — right side, large and friendly */}
       {mapReady && (
         <ZoomControl
@@ -1139,12 +1354,26 @@ export default function Earth3DPage() {
                   key={lvl}
                   onClick={() => {
                     if (!map3dRef.current) return;
+
+
+                    // Set flight state to pause scroll-based detection during animation
+                    flightStateRef.current = {
+                      active: true,
+                      targetRange: ZOOM_RANGES[lvl],
+                      targetLevel: lvl,
+                      startTime: Date.now(),
+                      lastRanges: [],
+                    };
+
+                    setLevel(lvl); // Explicitly set the level for active state
+                    const targetTilt = 0; // No tilt for navigation buttons (NONNA is handled separately)
+
                     map3dRef.current.flyCameraTo({
                       endCamera: {
                         center: map3dRef.current.center,
                         range: ZOOM_RANGES[lvl],
                         heading: map3dRef.current.heading,
-                        tilt: 0,
+                        tilt: targetTilt,
                       },
                       durationMillis: 1500,
                     });

@@ -1,214 +1,222 @@
+import { InferInsertModel, InferSelectModel, SQL, sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
+  integer,
+  json,
+  pgEnum,
   pgTable,
   serial,
   text,
   timestamp,
-  pgEnum,
-  integer,
   uniqueIndex,
   // type PgTableWithColumns,
   type PgColumn,
-  json,
-} from 'drizzle-orm/pg-core'
-import { InferSelectModel, InferInsertModel } from 'drizzle-orm'
-import { customType } from 'drizzle-orm/pg-core'
-import { SQL, sql } from 'drizzle-orm'
+} from "drizzle-orm/pg-core";
 
 export const tsvector = customType<{ data: string }>({
   dataType() {
-    return 'tsvector'
+    return "tsvector";
   },
-})
+});
 
-export const recipes = pgTable('recipes', {
-  id: serial('id').primaryKey(),
-  user_id: text('user_id'),
-  grandmotherTitle: text('grandmother_title').notNull(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  recipeTitle: text('recipe_title').notNull(),
-  country: text('country').notNull(),
-  region: text('region'),
-  history: text('history').notNull(),
-  geo_history: text('geo_history'),
-  recipe: text('recipe').notNull(),
-  directions: text('directions').notNull(),
-  traditions: text('traditions'),
-  influences: text('influences'),
-  photo: text('photo').array(),
-  recipe_image: text('recipe_image').array(),
-  dish_image: text('dish_image').array(),
-  avatar_image: text('avatar_image'),
-  release_signature: boolean('release_signature').default(false),
-  published: boolean('published').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-  search_vector: tsvector('search_vector').generatedAlwaysAs(
+export const recipes = pgTable("recipes", {
+  id: serial("id").primaryKey(),
+  user_id: text("user_id"),
+  grandmotherTitle: text("grandmother_title").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  recipeTitle: text("recipe_title").notNull(),
+  country: text("country").notNull(),
+  region: text("region"),
+  city: text("city"),
+  coordinates: text("coordinates"), // Format: "latitude,longitude"
+  history: text("history").notNull(),
+  geo_history: text("geo_history"),
+  recipe: text("recipe").notNull(),
+  directions: text("directions").notNull(),
+  traditions: text("traditions"),
+  influences: text("influences"),
+  photo: text("photo").array(),
+  recipe_image: text("recipe_image").array(),
+  dish_image: text("dish_image").array(),
+  avatar_image: text("avatar_image"),
+  release_signature: boolean("release_signature").default(false),
+  published: boolean("published").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  search_vector: tsvector("search_vector").generatedAlwaysAs(
     (): SQL =>
-      sql`to_tsvector('simple', coalesce(recipe_title, '') || ' ' || coalesce(region, '') || ' ' || coalesce(history, '') || ' ' || coalesce(recipe, '') || ' ' || coalesce(geo_history, ''))`
+      sql`to_tsvector('simple', coalesce(recipe_title, '') || ' ' || coalesce(region, '') || ' ' || coalesce(history, '') || ' ' || coalesce(recipe, '') || ' ' || coalesce(geo_history, ''))`,
   ),
-})
+});
 
-export type Recipe = InferSelectModel<typeof recipes>
+export type Recipe = InferSelectModel<typeof recipes>;
 
-export type NewRecipe = InferInsertModel<typeof recipes>
+export type NewRecipe = InferInsertModel<typeof recipes>;
 
-export const paymentStatus = pgEnum('payment_status', [
-  'processing',
-  'succeeded',
-  'requires_payment_method',
-  'requires_action',
-  'requires_capture',
-  'canceled',
-])
+export const paymentStatus = pgEnum("payment_status", [
+  "processing",
+  "succeeded",
+  "requires_payment_method",
+  "requires_action",
+  "requires_capture",
+  "canceled",
+]);
 
-export const payments = pgTable('payments', {
-  id: serial('id').primaryKey(),
-  user_id: text('user_id').notNull(),
-  amount: integer('amount').notNull(),
-  status: paymentStatus('status').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-})
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  user_id: text("user_id").notNull(),
+  amount: integer("amount").notNull(),
+  status: paymentStatus("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
-export type Payment = InferSelectModel<typeof payments>
+export type Payment = InferSelectModel<typeof payments>;
 
-export type NewPayment = InferInsertModel<typeof payments>
+export type NewPayment = InferInsertModel<typeof payments>;
 
 export const recipe_translations = pgTable(
-  'recipe_translations',
+  "recipe_translations",
   {
-    id: serial('id').primaryKey(),
-    recipe_id: integer('recipe_id')
+    id: serial("id").primaryKey(),
+    recipe_id: integer("recipe_id")
       .notNull()
       .references(() => recipes.id),
-    lang: text('lang').notNull(),
-    history: text('history'),
-    geo_history: text('geo_history'),
-    recipe: text('recipe'),
-    influences: text('influences'),
+    lang: text("lang").notNull(),
+    history: text("history"),
+    geo_history: text("geo_history"),
+    recipe: text("recipe"),
+    influences: text("influences"),
   },
   (table) => [
-    uniqueIndex('recipe_id_lang_unique').on(table.recipe_id, table.lang),
-  ]
-)
+    uniqueIndex("recipe_id_lang_unique").on(table.recipe_id, table.lang),
+  ],
+);
 
-export type RecipeTranslation = InferSelectModel<typeof recipe_translations>
-export type NewRecipeTranslation = InferInsertModel<typeof recipe_translations>
+export type RecipeTranslation = InferSelectModel<typeof recipe_translations>;
+export type NewRecipeTranslation = InferInsertModel<typeof recipe_translations>;
 
 // ============================================
 // PHASE C: SOCIAL FEATURES
 // ============================================
 
 // Thread scope enum - country or state level
-export const threadScope = pgEnum('thread_scope', ['country', 'state'])
+export const threadScope = pgEnum("thread_scope", ["country", "state"]);
 
 // Threads table - Regional discussions
-export const threads = pgTable('threads', {
-  id: serial('id').primaryKey(),
-  region: text('region').notNull(), // region_id (e.g., 'italy', 'sicily')
-  scope: threadScope('scope').notNull(), // 'country' or 'state'
+export const threads = pgTable("threads", {
+  id: serial("id").primaryKey(),
+  region: text("region").notNull(), // region_id (e.g., 'italy', 'sicily')
+  scope: threadScope("scope").notNull(), // 'country' or 'state'
 
-  title: text('title').notNull(),
-  content: text('content').notNull(),
-  user_id: text('user_id').notNull(),
-  author_name: text('author_name'), // Denormalized user display name
-  view_count: integer('view_count').default(0),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
-  attachments: json('attachments'),
-})
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  user_id: text("user_id").notNull(),
+  author_name: text("author_name"), // Denormalized user display name
+  view_count: integer("view_count").default(0),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+  attachments: json("attachments"),
+});
 
-export type Thread = InferSelectModel<typeof threads>
-export type NewThread = InferInsertModel<typeof threads>
+export type Thread = InferSelectModel<typeof threads>;
+export type NewThread = InferInsertModel<typeof threads>;
 
 // Posts table - Nested replies to threads
-export const posts = pgTable('posts', {
-  id: serial('id').primaryKey(),
-  thread_id: integer('thread_id')
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  thread_id: integer("thread_id")
     .notNull()
-    .references(() => threads.id, { onDelete: 'cascade' }),
-  parent_post_id: integer('parent_post_id').references(
+    .references(() => threads.id, { onDelete: "cascade" }),
+  parent_post_id: integer("parent_post_id").references(
     (): PgColumn => posts.id,
     {
-      onDelete: 'cascade',
-    }
+      onDelete: "cascade",
+    },
   ),
-  user_id: text('user_id').notNull(),
-  author_name: text('author_name'), // Denormalized user display name
-  content: text('content').notNull(),
-  depth: integer('depth').default(0),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
-  attachments: json('attachments'),
-})
+  user_id: text("user_id").notNull(),
+  author_name: text("author_name"), // Denormalized user display name
+  content: text("content").notNull(),
+  depth: integer("depth").default(0),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+  attachments: json("attachments"),
+});
 
-export type Post = InferSelectModel<typeof posts>
-export type NewPost = InferInsertModel<typeof posts>
+export type Post = InferSelectModel<typeof posts>;
+export type NewPost = InferInsertModel<typeof posts>;
 
 // Recipe comments table - Comments on individual recipes
-export const recipe_comments = pgTable('recipe_comments', {
-  id: serial('id').primaryKey(),
-  recipe_id: integer('recipe_id')
+export const recipe_comments = pgTable("recipe_comments", {
+  id: serial("id").primaryKey(),
+  recipe_id: integer("recipe_id")
     .notNull()
-    .references(() => recipes.id, { onDelete: 'cascade' }),
-  parent_comment_id: integer('parent_comment_id').references(
+    .references(() => recipes.id, { onDelete: "cascade" }),
+  parent_comment_id: integer("parent_comment_id").references(
     (): PgColumn => recipe_comments.id,
-    { onDelete: 'cascade' }
+    { onDelete: "cascade" },
   ),
-  user_id: text('user_id').notNull(),
-  author_name: text('author_name'), // Denormalized user display name
-  content: text('content').notNull(),
-  depth: integer('depth').default(0),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
-  attachments: json('attachments'),
-})
+  user_id: text("user_id").notNull(),
+  author_name: text("author_name"), // Denormalized user display name
+  content: text("content").notNull(),
+  depth: integer("depth").default(0),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+  attachments: json("attachments"),
+});
 
-export type RecipeComment = InferSelectModel<typeof recipe_comments>
-export type NewRecipeComment = InferInsertModel<typeof recipe_comments>
+export type RecipeComment = InferSelectModel<typeof recipe_comments>;
+export type NewRecipeComment = InferInsertModel<typeof recipe_comments>;
 
 // Likes table - Polymorphic likes for threads, posts, and comments
-export const likes = pgTable('likes', {
-  id: serial('id').primaryKey(),
-  user_id: text('user_id').notNull(),
-  likeable_id: integer('likeable_id').notNull(),
-  likeable_type: text('likeable_type').notNull(), // 'thread', 'post', or 'comment'
-  created_at: timestamp('created_at').defaultNow(),
-})
+export const likes = pgTable("likes", {
+  id: serial("id").primaryKey(),
+  user_id: text("user_id").notNull(),
+  likeable_id: integer("likeable_id").notNull(),
+  likeable_type: text("likeable_type").notNull(), // 'thread', 'post', or 'comment'
+  created_at: timestamp("created_at").defaultNow(),
+});
 
-export type Like = InferSelectModel<typeof likes>
-export type NewLike = InferInsertModel<typeof likes>
+export type Like = InferSelectModel<typeof likes>;
+export type NewLike = InferInsertModel<typeof likes>;
 
 // ============================================
 // MESSAGING SYSTEM
 // ============================================
 
-export const conversations = pgTable('conversations', {
-  id: serial('id').primaryKey(),
-  user1_id: text('user1_id').notNull(),
-  user1_name: text('user1_name'), // Copied from Stack for display
-  user2_id: text('user2_id').notNull(),
-  user2_name: text('user2_name'), // Copied from Stack for display
-  updated_at: timestamp('updated_at').defaultNow(),
-}, (table) => [
-  // Ensure unique pair of users (we'll handle ordering in code or use constraint)
-  // Simple approach: user1_id < user2_id convention often used, or composite unique
-  uniqueIndex('unique_conversation_pair').on(table.user1_id, table.user2_id)
-])
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: serial("id").primaryKey(),
+    user1_id: text("user1_id").notNull(),
+    user1_name: text("user1_name"), // Copied from Stack for display
+    user2_id: text("user2_id").notNull(),
+    user2_name: text("user2_name"), // Copied from Stack for display
+    updated_at: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    // Ensure unique pair of users (we'll handle ordering in code or use constraint)
+    // Simple approach: user1_id < user2_id convention often used, or composite unique
+    uniqueIndex("unique_conversation_pair").on(table.user1_id, table.user2_id),
+  ],
+);
 
-export type Conversation = InferSelectModel<typeof conversations>
-export type NewConversation = InferInsertModel<typeof conversations>
+export type Conversation = InferSelectModel<typeof conversations>;
+export type NewConversation = InferInsertModel<typeof conversations>;
 
-export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
-  conversation_id: integer('conversation_id').references(() => conversations.id, { onDelete: 'cascade' }),
-  sender_id: text('sender_id').notNull(),
-  content: text('content'), // Can be empty if attachment only
-  attachment_url: text('attachment_url'),
-  attachment_type: text('attachment_type'), // 'image', 'video', 'audio', 'link'
-  is_read: boolean('is_read').default(false),
-  created_at: timestamp('created_at').defaultNow(),
-})
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  conversation_id: integer("conversation_id").references(
+    () => conversations.id,
+    { onDelete: "cascade" },
+  ),
+  sender_id: text("sender_id").notNull(),
+  content: text("content"), // Can be empty if attachment only
+  attachment_url: text("attachment_url"),
+  attachment_type: text("attachment_type"), // 'image', 'video', 'audio', 'link'
+  is_read: boolean("is_read").default(false),
+  created_at: timestamp("created_at").defaultNow(),
+});
 
-export type Message = InferSelectModel<typeof messages>
-export type NewMessage = InferInsertModel<typeof messages>
+export type Message = InferSelectModel<typeof messages>;
+export type NewMessage = InferInsertModel<typeof messages>;

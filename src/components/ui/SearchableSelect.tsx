@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Typography } from './Typography'
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { Typography } from './Typography';
 
 export interface SearchableSelectProps {
     options: { value: string; label: string; flag?: string }[]
@@ -26,7 +26,7 @@ export const SearchableSelect = ({
     const wrapperRef = useRef<HTMLDivElement>(null)
 
 
-  const path = usePathname()
+    const path = usePathname()
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -48,9 +48,9 @@ export const SearchableSelect = ({
         <div className="relative" ref={wrapperRef}>
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
-                className={`${path === '/dashboard' ? 'px-2 py-1 sm:px-3 sm:py-4 ' : 'px-3 py-4 '} w-full border rounded-lg cursor-pointer flex items-center justify-between text-base font-[var(--font-merriweather)] 
+                className={`${path === '/dashboard' ? 'px-2 py-1 sm:px-3 sm:py-4 ' : 'px-3 py-4 '} w-full border rounded-lg cursor-pointer flex items-center justify-between text-base font-(--font-merriweather) 
                 ${disabled
-                        ? 'bg-gray-100 cursor-not-allowed text-gray-400'
+                        ? 'bg-primary-hover text-text-pale/50 border-primary-main cursor-not-allowed'
                         : variant === 'light'
                             ? 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
                             : 'bg-primary-hover text-text-pale border-primary-main'
@@ -95,7 +95,7 @@ export const SearchableSelect = ({
                             onClick={(e) => e.stopPropagation()}
                         />
                     </div>
-                    <ul className="max-h-[150px] overflow-y-auto custom-scrollbar">
+                    <ul className="max-h-37.5 overflow-y-auto custom-scrollbar">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option) => (
                                 <li

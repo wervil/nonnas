@@ -1,25 +1,25 @@
 'use client'
-import React, { useEffect, useState } from 'react'
-import { useForm, FieldValues } from 'react-hook-form'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-import { Loader2 } from 'lucide-react'
-import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { FieldValues, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { z } from 'zod'
 
-import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Checkbox from '@/components/ui/Checkbox'
-import CountryRegionSelector from '@/components/ui/CountryRegionSelector'
-import { TextEditor } from '@/components/ui/TextEditor'
 import FileUpload from '@/components/ui/FileUpload'
+import Input from '@/components/ui/Input'
+import { TextEditor } from '@/components/ui/TextEditor'
+import { Recipe } from '@/db/schema'
 import { sanitizeHtml } from '@/utils/utils'
 import { allCountries } from 'country-region-data'
-import { Typography } from './ui/Typography'
+import CountryStateCitySelector from './ui/CountryStateCitySelector'
 import Textarea from './ui/Textarea'
-import { Recipe } from '@/db/schema'
+import { Typography } from './ui/Typography'
 
 // Helper function to strip HTML tags and get text content
 const getTextContent = (html: string): string => {
@@ -34,6 +34,9 @@ const recipeSchema = z.object({
   firstName: z.string().min(1, 'First Name is required').max(60, 'First Name must be 60 characters or less').regex(/^[^0-9]*$/, 'First Name cannot contain numbers'),
   lastName: z.string().min(1, 'Last Name is required').max(60, 'Last Name must be 60 characters or less').regex(/^[^0-9]*$/, 'Last Name cannot contain numbers'),
   country: z.string().min(1, 'Country is required'),
+  state: z.string().min(1, 'State is required'),
+  city: z.string().min(1, 'City is required'),
+  coordinates: z.string().optional(),
   history: z.string().min(1, 'Biography is required').max(700, 'Biography must be 700 characters or less'),
   recipeTitle: z.string().min(1, 'Recipe Title is required').max(80, 'Recipe Title must be 80 characters or less').regex(/^[^0-9]*$/, 'Recipe Title cannot contain numbers'),
   recipe: z.string().min(1, 'Ingredients are required').refine((val) => getTextContent(val).length <= 1000, {
@@ -42,7 +45,6 @@ const recipeSchema = z.object({
   directions: z.string().min(1, 'Directions are required').refine((val) => getTextContent(val).length <= 500, {
     message: 'Directions must be 500 characters or less',
   }),
-  region: z.string().min(1, 'Region is required'),
   traditions: z.string().min(1, 'Traditions is required').max(500, 'Traditions must be 500 characters or less'),
   geo_history: z.string().min(1, 'Regional History is required').max(600, 'Regional History must be 600 characters or less'),
   influences: z.string().min(1, 'Influences is required').max(400, 'Influences must be 400 characters or less'),
@@ -95,7 +97,9 @@ export const AddRecipe = ({
       traditions: '',
       lastName: '',
       country: '',
-      region: '',
+      state: '',
+      city: '',
+      coordinates: '',
       history: '',
       geo_history: '',
       recipeTitle: '',
@@ -117,7 +121,7 @@ export const AddRecipe = ({
     {
       id: 'identity',
       title: l('grandmotherTitle'), // Using existing label as title roughly fitting
-      fields: ['grandmotherTitle', 'firstName', 'lastName', 'country', 'region'],
+      fields: ['grandmotherTitle', 'firstName', 'lastName', 'country', 'state', 'city', 'coordinates'],
       description: 'Tell us about your grandmother.'
     },
     {
@@ -185,15 +189,15 @@ export const AddRecipe = ({
   useEffect(() => {
     const handleAvatarGen = async () => {
       if (!uploadedPhoto?.length) return;
-  
+
       const sourceUrl = uploadedPhoto[0];
-  
+
       if (typeof sourceUrl !== "string") return;
       if (sourceUrl === lastGeneratedSource.current) return;
-  
+
       try {
         setIsGeneratingAvatar(true);
-  
+
         const response = await fetch("/api/avatar/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -203,12 +207,12 @@ export const AddRecipe = ({
             output_format: "jpg",
           }),
         });
-  
+
         const data = await response.json();
-  
+
         // ✅ accept either "url" or "avatarUrl"
         const avatarUrl = data?.avatarUrl ?? data?.url;
-  
+
         if (response.ok && avatarUrl) {
           setAvatarUrl(avatarUrl);
           lastGeneratedSource.current = sourceUrl;
@@ -221,7 +225,7 @@ export const AddRecipe = ({
         setIsGeneratingAvatar(false);
       }
     };
-  
+
     handleAvatarGen();
   }, [uploadedPhoto]);
 
@@ -252,7 +256,9 @@ export const AddRecipe = ({
         country:
           allCountries.find((country) => country[0] === recipe.country || country[1] === recipe.country)?.[1] ||
           recipe.country,
-        region: recipe.region || '',
+        state: recipe.region || '',
+        city: recipe.city || '',
+        coordinates: recipe.coordinates || '',
         history: sanitizeHtml(recipe.history),
         geo_history: sanitizeHtml(recipe.geo_history || ''),
         recipe: sanitizeHtml(recipe.recipe),
@@ -283,7 +289,9 @@ export const AddRecipe = ({
         country:
           allCountries.find((country) => country[1] === data.country)?.[0] ||
           data.country,
-        region: data.region || null,
+        state: data.state || null,
+        city: data.city || null,
+        coordinates: data.coordinates || null,
         history: sanitizeHtml(data.history),
         geo_history: sanitizeHtml(data.geo_history),
         recipe: sanitizeHtml(data.recipe),
@@ -395,14 +403,15 @@ export const AddRecipe = ({
                   maxLength={60}
                 />
               </div>
-              <div>
-                <CountryRegionSelector
-                  countryName="country"
-                  regionName="region"
-                  control={control}
-                  label={l('location')}
-                />
-              </div>
+
+              <CountryStateCitySelector
+                countryName="country"
+                stateName="state"
+                cityName="city"
+                coordinatesName="coordinates"
+                control={control}
+                setValue={setValue}
+              />
             </div>
           )}
 
@@ -568,7 +577,7 @@ export const AddRecipe = ({
             </Button>
           )}
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   )
 }

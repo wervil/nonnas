@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { drizzle } from 'drizzle-orm/neon-serverless'
-import { recipes, likes } from '@/db/schema'
-import { eq, sql, and, ilike, inArray } from 'drizzle-orm'
-import { stackServerApp } from '@/stack'
-import { checkAdminPermission } from '@/utils/checkAdminPermission'
+import { likes, recipes } from "@/db/schema";
+import { stackServerApp } from "@/stack";
+import { checkAdminPermission } from "@/utils/checkAdminPermission";
+import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { NextRequest, NextResponse } from "next/server";
 // import * as deepl from 'deepl-node'
 // import { availableLanguages } from '@/utils/availableLanguages'
 // import { translateText } from '../services/libretranslate'
@@ -17,16 +17,16 @@ import { checkAdminPermission } from '@/utils/checkAdminPermission'
 //   }, {})
 // }
 
-import { moderateContent } from '@/services/moderation'
+import { moderateContent } from "@/services/moderation";
 
 // Database connection using Neon
-const db = drizzle(process.env.DATABASE_URL_DEV!)
+const db = drizzle(process.env.DATABASE_URL_DEV!);
 
 // const translator = new deepl.Translator(process.env.DEEPL_API_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const body = await request.json();
 
     // Validate required fields
     if (
@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
       !body.user_id
     ) {
       return NextResponse.json(
-        { message: 'Fill all required fields' },
-        { status: 400 }
-      )
+        { message: "Fill all required fields" },
+        { status: 400 },
+      );
     }
 
     // Content Moderation
@@ -57,32 +57,36 @@ export async function POST(request: NextRequest) {
       body.recipe,
       body.directions,
       body.influences,
-      body.traditions
-    ].filter(Boolean).join('\n');
+      body.traditions,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const isFlagged = await moderateContent(contentToCheck);
     if (isFlagged) {
       return NextResponse.json(
-        { message: 'Content flagged as inappropriate.' },
-        { status: 400 }
-      )
+        { message: "Content flagged as inappropriate." },
+        { status: 400 },
+      );
     }
 
     // Check for admin permissions to auto-publish
-    const user = await stackServerApp.getUser()
-    const isAdmin = user ? await checkAdminPermission(user) : false
+    const user = await stackServerApp.getUser();
+    const isAdmin = user ? await checkAdminPermission(user) : false;
 
     // Insert the recipe into the database
     const newRecipe = await db
       .insert(recipes)
       .values({
-        user_id: body.user_id || '12',
+        user_id: body.user_id || "12",
         grandmotherTitle: body.grandmotherTitle,
         firstName: body.firstName,
         lastName: body.lastName,
         recipeTitle: body.recipeTitle,
         country: body.country || null,
         region: body.region || null,
+        city: body.city || null,
+        coordinates: body.coordinates || null,
         history: body.history || null,
         geo_history: body.geo_history || null,
         recipe: body.recipe,
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
         release_signature: body.release_signature || false,
         published: isAdmin, // Auto-publish if admin
       })
-      .returning()
+      .returning();
 
     // const recipeId = newRecipe[0].id
     // const fields = ['history', 'geo_history', 'recipe', 'influences']
@@ -134,29 +138,29 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: 'Recipe created successfully',
+        message: "Recipe created successfully",
         recipe: newRecipe[0],
       },
-      { status: 201 }
-    )
+      { status: 201 },
+    );
   } catch (error) {
-    console.error('Error creating recipe:', error)
+    console.error("Error creating recipe:", error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    )
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const idParam = searchParams.get('id')
-    const publishedParam = searchParams.get('published')
+    const { searchParams } = new URL(request.url);
+    const idParam = searchParams.get("id");
+    const publishedParam = searchParams.get("published");
     // const langParam = searchParams.get('lang') || 'en-US'
-    const search = searchParams.get('search')
-    const country = searchParams.get('country')
-    const userId = searchParams.get('userId')
+    const search = searchParams.get("search");
+    const country = searchParams.get("country");
+    const userId = searchParams.get("userId");
 
     // Common select fields
     const selectFields = {
@@ -167,6 +171,8 @@ export async function GET(request: NextRequest) {
       lastName: recipes.lastName,
       country: recipes.country,
       region: recipes.region,
+      city: recipes.city,
+      coordinates: recipes.coordinates,
       photo: recipes.photo,
       recipe_image: recipes.recipe_image,
       dish_image: recipes.dish_image,
@@ -180,9 +186,9 @@ export async function GET(request: NextRequest) {
       recipe: recipes.recipe,
       directions: recipes.directions,
       influences: recipes.influences,
-    }
+    };
 
-    let result
+    let result;
 
     if (idParam) {
       // Get specific recipe by ID
@@ -190,37 +196,37 @@ export async function GET(request: NextRequest) {
         .select(selectFields)
         .from(recipes)
         .where(eq(recipes.id, Number(idParam)))
-        .orderBy(recipes.recipeTitle)
+        .orderBy(recipes.recipeTitle);
     } else {
       // Build where conditions based on search and country parameters
-      const whereConditions = []
+      const whereConditions = [];
 
       // Handle published filter
-      let published: boolean | undefined = undefined
-      if (publishedParam === 'true') published = true
-      if (publishedParam === 'false') published = false
+      let published: boolean | undefined = undefined;
+      if (publishedParam === "true") published = true;
+      if (publishedParam === "false") published = false;
       if (published !== undefined) {
-        whereConditions.push(eq(recipes.published, published))
+        whereConditions.push(eq(recipes.published, published));
       }
 
       // Handle search filter
       if (search) {
         whereConditions.push(
-          sql`${recipes.search_vector} @@ plainto_tsquery('simple', ${search})`
-        )
+          sql`${recipes.search_vector} @@ plainto_tsquery('simple', ${search})`,
+        );
       }
 
       // Handle country filter
       if (country) {
-        whereConditions.push(ilike(recipes.country, `%${country}%`))
+        whereConditions.push(ilike(recipes.country, `%${country}%`));
       }
 
       // Handle userId filter
       if (userId) {
-        whereConditions.push(eq(recipes.user_id, userId))
+        whereConditions.push(eq(recipes.user_id, userId));
       }
 
-      const savedByUserId = searchParams.get('savedByUserId')
+      const savedByUserId = searchParams.get("savedByUserId");
 
       // Handle savedByUserId filter (My Saved Recipes)
       if (savedByUserId) {
@@ -228,19 +234,21 @@ export async function GET(request: NextRequest) {
         const likedRecipeIds = await db
           .select({ recipeId: likes.likeable_id })
           .from(likes)
-          .where(and(
-            eq(likes.user_id, savedByUserId),
-            eq(likes.likeable_type, 'recipe')
-          ))
+          .where(
+            and(
+              eq(likes.user_id, savedByUserId),
+              eq(likes.likeable_type, "recipe"),
+            ),
+          );
 
-        const ids = likedRecipeIds.map(l => l.recipeId)
+        const ids = likedRecipeIds.map((l) => l.recipeId);
 
         if (ids.length > 0) {
-          whereConditions.push(inArray(recipes.id, ids))
+          whereConditions.push(inArray(recipes.id, ids));
         } else {
           // User has no saved recipes, return empty result
           // We push a condition that is always false to return empty
-          whereConditions.push(eq(recipes.id, -1))
+          whereConditions.push(eq(recipes.id, -1));
         }
       }
 
@@ -250,41 +258,41 @@ export async function GET(request: NextRequest) {
         result = await db
           .select(selectFields)
           .from(recipes)
-          .orderBy(recipes.recipeTitle)
+          .orderBy(recipes.recipeTitle);
       } else {
         // Apply all conditions
         const orderBy =
           published !== undefined && !search && !country && !savedByUserId
             ? sql`RANDOM()`
-            : recipes.recipeTitle
+            : recipes.recipeTitle;
 
         result = await db
           .select(selectFields)
           .from(recipes)
           .where(and(...whereConditions))
-          .orderBy(orderBy)
+          .orderBy(orderBy);
       }
     }
 
-    return NextResponse.json({ recipes: result })
+    return NextResponse.json({ recipes: result });
   } catch (error) {
-    console.error('Error fetching recipes:', error)
+    console.error("Error fetching recipes:", error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    )
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { id, published } = body
-    if (typeof id !== 'number' || typeof published !== 'boolean') {
+    const body = await request.json();
+    const { id, published } = body;
+    if (typeof id !== "number" || typeof published !== "boolean") {
       return NextResponse.json(
-        { message: 'Invalid id or published value' },
-        { status: 400 }
-      )
+        { message: "Invalid id or published value" },
+        { status: 400 },
+      );
     }
 
     // Content Moderation for Updates
@@ -298,16 +306,18 @@ export async function PATCH(request: NextRequest) {
       body.recipe,
       body.directions,
       body.influences,
-      body.traditions
-    ].filter(Boolean).join('\n');
+      body.traditions,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     if (contentToCheck) {
       const isFlagged = await moderateContent(contentToCheck);
       if (isFlagged) {
         return NextResponse.json(
-          { message: 'Content flagged as inappropriate.' },
-          { status: 400 }
-        )
+          { message: "Content flagged as inappropriate." },
+          { status: 400 },
+        );
       }
     }
 
@@ -319,6 +329,8 @@ export async function PATCH(request: NextRequest) {
       ...(body.recipeTitle && { recipeTitle: body.recipeTitle }),
       ...(body.country && { country: body.country }),
       ...(body.region && { region: body.region }),
+      ...(body.city && { city: body.city }),
+      ...(body.coordinates && { coordinates: body.coordinates }),
       ...(body.history && { history: body.history }),
       ...(body.geo_history && { geo_history: body.geo_history }),
       ...(body.recipe && { recipe: body.recipe }),
@@ -331,73 +343,76 @@ export async function PATCH(request: NextRequest) {
       ...(body.release_signature && {
         release_signature: body.release_signature,
       }),
-    }
+    };
     const updated = await db
       .update(recipes)
       .set(updatedRecipe)
       .where(eq(recipes.id, id))
-      .returning()
+      .returning();
     if (!updated.length) {
-      return NextResponse.json({ message: 'Recipe not found' }, { status: 404 })
+      return NextResponse.json(
+        { message: "Recipe not found" },
+        { status: 404 },
+      );
     }
-    return NextResponse.json({ recipe: updated[0] })
+    return NextResponse.json({ recipe: updated[0] });
   } catch (error) {
-    console.error('Error updating recipe:', error)
+    console.error("Error updating recipe:", error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    )
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const idParam = searchParams.get('id')
+    const { searchParams } = new URL(request.url);
+    const idParam = searchParams.get("id");
 
     if (!idParam) {
       return NextResponse.json(
-        { message: 'Recipe ID is required' },
-        { status: 400 }
-      )
+        { message: "Recipe ID is required" },
+        { status: 400 },
+      );
     }
 
-    const id = Number(idParam)
+    const id = Number(idParam);
     if (isNaN(id)) {
       return NextResponse.json(
-        { message: 'Invalid recipe ID' },
-        { status: 400 }
-      )
+        { message: "Invalid recipe ID" },
+        { status: 400 },
+      );
     }
 
     // Check if recipe exists before deleting
     const existingRecipe = await db
       .select({ id: recipes.id })
       .from(recipes)
-      .where(eq(recipes.id, id))
+      .where(eq(recipes.id, id));
 
     if (!existingRecipe.length) {
       return NextResponse.json(
-        { message: 'Recipe not found' },
-        { status: 404 }
-      )
+        { message: "Recipe not found" },
+        { status: 404 },
+      );
     }
 
     // Delete the recipe
     const deletedRecipe = await db
       .delete(recipes)
       .where(eq(recipes.id, id))
-      .returning()
+      .returning();
 
     return NextResponse.json({
-      message: 'Recipe deleted successfully',
+      message: "Recipe deleted successfully",
       recipe: deletedRecipe[0],
-    })
+    });
   } catch (error) {
-    console.error('Error deleting recipe:', error)
+    console.error("Error deleting recipe:", error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    )
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

@@ -5986,6 +5986,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"city-timezones@npm:^1.3.3":
+  version: 1.3.3
+  resolution: "city-timezones@npm:1.3.3"
+  checksum: 10c0/7b4936c267b547fd92009cf128016bf46ace74799d674e9eb6fc7f97a8abb5739120783172b5df88c63d160a2b75982a33561733a59c55381d1a08751864bc4c
+  languageName: node
+  linkType: hard
+
 "class-variance-authority@npm:^0.7.0, class-variance-authority@npm:^0.7.1":
   version: 0.7.1
   resolution: "class-variance-authority@npm:0.7.1"
@@ -6159,11 +6166,14 @@ __metadata:
     "@use-gesture/react": "npm:^10.3.1"
     "@vercel/blob": "npm:^1.1.1"
     accept-language: "npm:^3.0.20"
+    city-timezones: "npm:^1.3.3"
     class-variance-authority: "npm:^0.7.1"
     cloudinary: "npm:^2.9.0"
     clsx: "npm:^2.1.1"
     cobe: "npm:^0.6.5"
+    countries-cities: "npm:^0.0.11"
     country-region-data: "npm:^3.1.0"
+    country-state-city: "npm:^3.2.1"
     dat.gui: "npm:^0.7.9"
     deepl-node: "npm:^1.19.0"
     dompurify: "npm:^3.3.1"
@@ -6260,10 +6270,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"countries-cities@npm:^0.0.11":
+  version: 0.0.11
+  resolution: "countries-cities@npm:0.0.11"
+  checksum: 10c0/3a7d5b9cc1ff2b88603ca1aead4e99ff9bb872f79c78a3f0cbae5cd3c8e6cc94fdcebe2eb54ba264a309f43105971b2349e947b7d05fa62460c341941fa0634c
+  languageName: node
+  linkType: hard
+
 "country-region-data@npm:^3.1.0":
   version: 3.2.0
   resolution: "country-region-data@npm:3.2.0"
   checksum: 10c0/7c7a2ea48852ce9ac6a2522ea46bb344ddcc5f5431c4c8d06a784369060dac6b007379ab97b2c4cb5e80ed60f3fd5d3a1d6c15fcefae23e18700b84b52c2202c
+  languageName: node
+  linkType: hard
+
+"country-state-city@npm:^3.2.1":
+  version: 3.2.1
+  resolution: "country-state-city@npm:3.2.1"
+  checksum: 10c0/2545a000c207345514de31c20ed8a331bba9796f36ab1e6e4019ebb319bca37894180e4ade40eef9d7f2443aa60045ec3f317bfdb3f4c7b99b9c711e4688d8cb
   languageName: node
   linkType: hard
 

@@ -23,11 +23,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dispatch, SetStateAction } from "react";
-import DotLottieGlobe from "./LottieGlobe";
-import { Select } from "./Select";
-import Button from "./ui/Button";
 
+import { Select } from '@/components/Select';
+import Button from '@/components/ui/Button';
 import { useEffect, useState } from "react";
+import DotLottieGlobe from "./LottieGlobe";
 
 export const button = (
   path: string,
@@ -123,8 +123,8 @@ export const Header = ({
         */}
         <Image
           src="/logoMain.svg"
-          width={window.innerWidth < 779 ? 80 : 120}
-          height={window.innerWidth < 779 ? 60 : 90}
+          width={windowWidth < 779 ? 80 : 120}
+          height={windowWidth < 779 ? 60 : 90}
           alt="logo"
         />
       </Link>
@@ -138,9 +138,8 @@ export const Header = ({
           >
             {isExporting ? (
               <Loader2
-                className={`animate-spin ${
-                  isExplorePage ? "text-white" : "text-[#9BC9C3]"
-                }`}
+                className={`animate-spin ${isExplorePage ? "text-white" : "text-[#9BC9C3]"
+                  }`}
                 size={20}
               />
             ) : (
@@ -199,7 +198,7 @@ export const Header = ({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className={`cursor-pointer hover:opacity-80 transition-opacity ${imageFilterClass}`}
+                className={`cursor-pointer text-[#9BC9C3] hover:opacity-80 transition-opacity ${imageFilterClass}`}
               >
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />

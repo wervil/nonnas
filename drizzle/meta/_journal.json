@@ -50,6 +50,13 @@
       "when": 1759179864714,
       "tag": "0006_bright_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773158302732,
+      "tag": "0007_add-city-and-coordinates-columns",
+      "breakpoints": true
     }
   ]
 }
