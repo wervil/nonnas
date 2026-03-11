@@ -150,7 +150,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
             <div className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-8 space-y-3 md:space-y-4 lg:space-y-6 bg-white min-h-0" ref={scrollRef}>
                 {isLoading ? (
                     <div className="flex h-full items-center justify-center">
-                        <div className="w-8 h-8 md:w-10 md:h-10 border-4 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-8 h-8 md:w-10 md:h-10 border-4 border-[#6D2924] border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 ) : (
                     messages.map((msg) => {

@@ -12,7 +12,7 @@ export const ConversationList = ({ conversations, currentUserId, onSelect, isLoa
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-gray-500 gap-3 font-(--font-bell)">
-                <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-[#6D2924] border-t-transparent rounded-full animate-spin"></div>
                 <div>Loading chats...</div>
             </div>
         );
@@ -47,12 +47,12 @@ export const ConversationList = ({ conversations, currentUserId, onSelect, isLoa
                         key={convo.id}
                         onClick={() => onSelect(convo)}
                         className={`relative flex items-center gap-3 md:gap-4 p-3 md:p-6 rounded-lg cursor-pointer transition-colors
-                            ${isActive ? 'bg-white shadow-sm border-l-4 border-[#ffccc8]' : 'bg-[#f9fafb] hover:bg-gray-100'}
+                            ${isActive ? 'bg-white shadow-sm border-l-4 border-[#6D2924]' : 'bg-[#f9fafb] hover:bg-gray-100'}
                         `}
                     >
                         <div className={`w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold shrink-0 shadow-sm border text-sm md:text-xl ${isActive
-                            ? 'bg-white text-(--color-yellow-main) border-l border-[#ffccc8]'
-                            : 'bg-(--color-yellow-bg) text-(--color-yellow-main) border-amber-200'
+                            ? 'bg-white text-(--color-yellow-main) border-l border-[#6D2924]'
+                            : 'bg-(--color-yellow-bg) text-(--color-yellow-main) border-[#6D2924]'
                             }`}>
                             {initials}
                         </div>

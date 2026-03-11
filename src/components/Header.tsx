@@ -195,28 +195,26 @@ export const Header = ({
       <div className="flex items-center gap-5">
         {/* Desktop View (Hidden on Mobile) */}
         <div className="hidden lg:flex items-center gap-5">
-          {/* Home Icon for Explore Page - placed next to Settings */}
-          {isExplorePage && (
-            <Link href="/">
-              <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="30"
-                  height="30"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={`cursor-pointer transition-opacity ${isActive("/") ? "text-white" : `text-[#9BC9C3] ${imageFilterClass}`}`}
-                >
-                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
-            </Link>
-          )}
+          {/* Home Icon - placed next to Globe */}
+          <Link href="/">
+            <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`cursor-pointer transition-opacity ${isActive("/") ? "text-white" : `text-[#9BC9C3] ${imageFilterClass}`}`}
+              >
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </div>
+          </Link>
 
           {/* Only show Globe icon here if NOT explore page. If explore page, Home icon moves to right. */}
           {!isExplorePage && (
@@ -306,16 +304,14 @@ export const Header = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-white z-100">
-              {isExplorePage && (
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/"
-                    className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
-                  >
-                    <Home className={`mr-2 h-4 w-4 ${isActive("/") ? "text-white" : imageFilterClass}`} /> Home
-                  </Link>
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/"
+                  className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
+                >
+                  <Home className={`mr-2 h-4 w-4 ${isActive("/") ? "text-white" : imageFilterClass}`} /> Home
+                </Link>
+              </DropdownMenuItem>
               {!isExplorePage && (
                 <DropdownMenuItem asChild>
                   <Link

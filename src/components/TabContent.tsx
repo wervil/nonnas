@@ -220,7 +220,7 @@ export function TabContent({
           {isSuperAdmin && copyInviteLink && (
             <Button
               onClick={copyInviteLink}
-              className="bg-[#9BC9C3] hover:bg-[#7FB066] text-[#26786E] transition-colors flex items-center gap-2 px-6 py-3 h-12 rounded-xl text-base font-medium whitespace-nowrap"
+              className="bg-[#9BC9C3] hover:bg-[#26786E] text-[#26786E] transition-colors flex items-center gap-2 px-6 py-3 h-12 rounded-xl text-base font-medium whitespace-nowrap"
               variant="empty"
             >
               <Copy className="w-5 h-5" />
