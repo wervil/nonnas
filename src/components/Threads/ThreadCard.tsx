@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
-import { Thread } from '@/db/schema'
-import { MessageSquare, Eye, Clock, ChevronRight } from 'lucide-react'
+import { Thread } from '@/db/schema';
+import { Calendar, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname } from "next/navigation";
 
 interface ThreadCardProps {
@@ -11,31 +11,13 @@ interface ThreadCardProps {
 }
 
 export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
-    const getScopeBadgeStyle = (scope: string) => {
-        return scope === 'country'
-            ? 'bg-blue-50 text-blue-700 border-blue-200'
-            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    }
-
 
     const pathname = usePathname();
     const isProfilePage = pathname === "/profile";
 
-
-
     const formatDate = (date: Date | null) => {
         if (!date) return ''
-        const now = new Date()
         const threadDate = new Date(date)
-        const diffMs = now.getTime() - threadDate.getTime()
-        const diffMins = Math.floor(diffMs / 60000)
-        const diffHours = Math.floor(diffMs / 3600000)
-        const diffDays = Math.floor(diffMs / 86400000)
-
-        if (diffMins < 1) return 'Just now'
-        if (diffMins < 60) return `${diffMins}m ago`
-        if (diffHours < 24) return `${diffHours}h ago`
-        if (diffDays < 7) return `${diffDays}d ago`
 
         return threadDate.toLocaleDateString('en-US', {
             month: 'short',
@@ -44,55 +26,57 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
     }
 
     const content = (
-        <div className="group bg-white border border-gray-200 rounded-lg p-3 hover:border-amber-500/40 hover:shadow-md transition-all duration-200 cursor-pointer">
-            <div className="flex items-start gap-2.5">
+        <div className="group bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-all duration-200 cursor-pointer">
+            <div className="flex items-start gap-3">
                 {/* Category icon */}
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">
                     💬
                 </div>
 
                 <div className="flex-1 min-w-0">
                     {/* Title */}
-                    <h3 className="text-sm font-semibold text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-1 mb-1">
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">
                         {thread.title}
                     </h3>
 
-                    {/* Badges */}
-                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                        <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getScopeBadgeStyle(thread.scope)}`}
-                        >
-                            {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
-                        </span>
-
-                    </div>
-
                     {/* Content preview */}
-                    <p className="text-gray-500 text-xs line-clamp-1 mb-2">
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-1">
                         {thread.content}
                     </p>
 
                     {/* Footer stats */}
-                    <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                        <div className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            <span>{thread.view_count || 0}</span>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-4 h-4 flex items-center justify-center">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </div>
+                            <span>View</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-4 h-4" />
                             <span>Reply</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4" />
                             <span>{formatDate(thread.created_at)}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Arrow indicator */}
-                <div className="flex-shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ChevronRight className="w-4 h-4 text-amber-500" />
+                {/* Scope Badge */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    <span
+                        className={`px-1.5 py-0.5 rounded text-[12px] font-medium border bg-[#FFCCC866] text-black border-[#FFCCC866]`}
+                    >
+                        {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
+                    </span>
+
                 </div>
+
+
             </div>
         </div>
     )
@@ -109,7 +93,6 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
         <Link
             href={`/community/thread/${thread.id}`}
             target={isProfilePage ? "_blank" : undefined}
-        // rel={isProfilePage ? "noopener noreferrer" : undefined}
         >
             {content}
         </Link>

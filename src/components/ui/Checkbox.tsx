@@ -1,7 +1,7 @@
-import React, { InputHTMLAttributes, ReactNode } from 'react'
+import { clsx } from 'clsx'
+import { InputHTMLAttributes, ReactNode } from 'react'
 import { Control, Controller, FieldValues, Path } from 'react-hook-form'
 import { Typography } from './Typography'
-import { clsx } from 'clsx'
 
 interface CheckboxProps<T extends FieldValues>
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
@@ -34,7 +34,7 @@ const Checkbox = <T extends FieldValues>({
                 <div
                   className={clsx(
                     'w-4 h-4 border rounded-sm text-text-pale focus:outline-none border-primary-focus flex items-center justify-center',
-                    theme === 'dark' ? 'bg-primary-hover!' : 'bg-brown-pale!',
+                    theme === 'dark' ? 'bg-primary-hover!' : 'bg-white!',
                     fieldState.error
                       ? 'border-danger-main'
                       : 'border-primary-focus'

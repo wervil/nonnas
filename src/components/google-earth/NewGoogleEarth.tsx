@@ -1,5 +1,13 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+// Search result type
+type SearchResult = {
+  place_id: string;
+  description: string;
+  main_text?: string;
+  secondary_text?: string;
+};
 const ZOOM_RANGES = {
   EARTH: 30000000,
   CONTINENT: 10000000,
@@ -476,6 +484,14 @@ export default function Earth3DPage() {
   const [nonnaData, setNonnaData] = useState<GlobeNonna[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const geocoderRef = useRef<any>(null);
   const { currentLevel, setLevel } = useEarthNavigation();
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
   useEffect(() => {
@@ -751,6 +767,7 @@ export default function Earth3DPage() {
         await window.google.maps.importLibrary("maps3d");
       const { Geocoder } = await window.google.maps.importLibrary("geocoding");
       const geocoder = new Geocoder();
+      geocoderRef.current = geocoder;
       const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
       const map3d = new Map3DElement({
         center: { lat: 20, lng: 0, altitude: 0 },
@@ -1249,6 +1266,216 @@ export default function Earth3DPage() {
       }
     };
   }, [setLevel]);
+
+  // Search functionality
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim() || !geocoderRef.current) return;
+
+    setIsSearching(true);
+    try {
+      // Use Google Places API for autocomplete suggestions
+      const service = new (window.google as any).maps.places.AutocompleteService();
+      const predictions = await new Promise<any[]>((resolve, reject) => {
+        service.getPlacePredictions(
+          {
+            input: query,
+            // Remove types to get all results, or use single type if needed
+            // types: ['geocode'], // This would give all geographical places
+          },
+          (predictions: any[], status: string) => {
+            if (status === 'OK' && predictions) {
+              resolve(predictions);
+            } else {
+              reject(new Error(`Places API status: ${status}`));
+            }
+          }
+        );
+      });
+
+      const results: SearchResult[] = predictions.map(pred => ({
+        place_id: pred.place_id,
+        description: pred.description,
+        main_text: pred.structured_formatting?.main_text,
+        secondary_text: pred.structured_formatting?.secondary_text,
+      }));
+
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('[Earth3D] Search error:', error);
+      // Fallback to geocoder if Places API fails
+      try {
+        const response = await geocoderRef.current.geocode({ address: query });
+        const results: SearchResult[] = response.results.map((result: any) => ({
+          place_id: result.place_id,
+          description: result.formatted_address,
+          main_text: result.address_components?.[0]?.long_name,
+          secondary_text: result.address_components?.slice(1).map((c: any) => c.long_name).join(', '),
+        }));
+        setSearchResults(results);
+        setShowSearchResults(true);
+      } catch (fallbackError) {
+        console.error('[Earth3D] Fallback search error:', fallbackError);
+        setSearchResults([]);
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (query.trim()) {
+      // Debounce search
+      searchTimeoutRef.current = setTimeout(() => {
+        performSearch(query);
+      }, 300);
+    } else {
+      setSearchResults([]);
+      setShowSearchResults(false);
+    }
+  }, [performSearch]);
+
+  const handleSearchResultClick = useCallback(async (result: SearchResult) => {
+    if (!map3dRef.current || !geocoderRef.current) return;
+
+    setShowSearchResults(false);
+    setSearchQuery(result.description);
+
+    try {
+      // Get place details
+      const service = new (window.google as any).maps.places.PlacesService(map3dRef.current);
+      const place = await new Promise<any>((resolve, reject) => {
+        service.getDetails(
+          { placeId: result.place_id },
+          (place: any, status: string) => {
+            if (status === 'OK' && place) {
+              resolve(place);
+            } else {
+              reject(new Error(`Places details status: ${status}`));
+            }
+          }
+        );
+      });
+
+      if (place.geometry?.location) {
+        const latLng = extractLatLng(place.geometry.location);
+        if (latLng) {
+          console.log('[Earth3D] Flying to coordinates:', latLng);
+          console.log('[Earth3D] Place types:', place.types);
+          console.log('[Earth3D] Place name:', result.main_text || result.description);
+
+          // Calculate appropriate range based on place type and viewport
+          let targetRange = ZOOM_RANGES.CITY; // Default fallback
+
+          // Use viewport if available for more accurate zoom
+          if (place.geometry.viewport) {
+            const viewport = place.geometry.viewport;
+            const ne = viewport.getNorthEast();
+            const sw = viewport.getSouthWest();
+            const latDiff = ne.lat() - sw.lat();
+            const lngDiff = ne.lng() - sw.lng();
+
+            // Calculate range based on viewport size
+            const approxSize = Math.max(latDiff, lngDiff) * 111000; // Convert to meters
+            console.log('[Earth3D] Calculated viewport size:', approxSize, 'meters');
+
+            if (approxSize < 10000) targetRange = ZOOM_RANGES.NONNA; // Very small area (< 10km)
+            else if (approxSize < 50000) targetRange = ZOOM_RANGES.CITY; // City size (< 50km)
+            else if (approxSize < 500000) targetRange = ZOOM_RANGES.STATE; // Region size (< 500km)
+            else targetRange = ZOOM_RANGES.COUNTRY; // Large area (> 500km)
+          } else if (place.types?.includes('airport')) {
+            targetRange = ZOOM_RANGES.NONNA; // Very close zoom for airports
+          } else if (place.types?.includes('establishment')) {
+            targetRange = ZOOM_RANGES.NONNA; // Close zoom for specific places
+          }
+
+          console.log('[Earth3D] Using target range:', targetRange, 'meters');
+
+          // Fly to the location
+          map3dRef.current.flyCameraTo({
+            endCamera: {
+              center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
+              range: targetRange,
+              heading: 0,
+              tilt: 0,
+            },
+            durationMillis: 2000,
+          });
+
+          // Update active place info
+          setActivePlaceName(result.main_text || result.description);
+          if (place.address_components) {
+            const info = parseAdminLevelsFromGeocodeResult(place);
+            if (info.country) setActiveCountry(info.country);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Earth3D] Place details error:', error);
+      // Fallback to geocoding
+      try {
+        const response = await geocoderRef.current.geocode({ placeId: result.place_id });
+        const place = response.results[0];
+        if (place.geometry?.location) {
+          const latLng = extractLatLng(place.geometry.location);
+          if (latLng) {
+            // Calculate appropriate range based on place type and viewport
+            let targetRange = ZOOM_RANGES.CITY; // Default fallback
+
+            // For geocoding fallback, use place types if available
+            if (place.types?.includes('airport')) {
+              targetRange = ZOOM_RANGES.NONNA; // Very close zoom for airports
+            } else if (place.types?.includes('establishment')) {
+              targetRange = ZOOM_RANGES.NONNA; // Close zoom for specific places
+            } else if (place.types?.includes('locality')) {
+              targetRange = ZOOM_RANGES.CITY; // City level
+            } else if (place.types?.includes('administrative_area_level_1')) {
+              targetRange = ZOOM_RANGES.STATE; // State/region level
+            } else if (place.types?.includes('country')) {
+              targetRange = ZOOM_RANGES.COUNTRY; // Country level
+            }
+
+            map3dRef.current.flyCameraTo({
+              endCamera: {
+                center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
+                range: targetRange,
+                heading: 0,
+                tilt: 0,
+              },
+              durationMillis: 2000,
+            });
+
+            setActivePlaceName(result.main_text || result.description);
+            const info = parseAdminLevelsFromGeocodeResult(place);
+            if (info.country) setActiveCountry(info.country);
+          }
+        }
+      } catch (fallbackError) {
+        console.error('[Earth3D] Fallback geocoding error:', fallbackError);
+      }
+    }
+  }, []);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const displayLabel = clickedLabel || hoveredLabel || null;
   // Show country name labels only at COUNTRY level and deeper (but not at EARTH or CONTINENT levels)
   // Also check current range directly to be more reliable
@@ -1258,6 +1485,127 @@ export default function Earth3DPage() {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+
+      {/* Search Bar - Centered at top */}
+      <div
+        style={{
+          position: "absolute",
+          top: "24px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 100,
+          width: "100%",
+          maxWidth: "480px",
+          padding: "0 20px",
+        }}
+      >
+        <div
+          ref={searchInputRef}
+          style={{
+            position: "relative",
+            background: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(12px)",
+            borderRadius: "16px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
+            border: "1px solid rgba(13, 148, 136, 0.2)",
+          }}
+        >
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleSearchInputChange}
+            placeholder="Search for a city, country, or region..."
+            style={{
+              width: "100%",
+              padding: "16px 52px 16px 20px",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: "15px",
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              color: "#1f2937",
+              borderRadius: "16px",
+            }}
+          />
+          {/* Search icon */}
+          <div
+            style={{
+              position: "absolute",
+              right: "16px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: isSearching ? TEAL.primary : "#9ca3af",
+              fontSize: "18px",
+              pointerEvents: "none",
+            }}
+          >
+            {isSearching ? "⌛" : "🔍"}
+          </div>
+
+          {/* Search results dropdown */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                background: "rgba(255, 255, 255, 0.98)",
+                backdropFilter: "blur(16px)",
+                borderRadius: "12px",
+                boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
+                border: "1px solid rgba(13, 148, 136, 0.15)",
+                marginTop: "8px",
+                maxHeight: "320px",
+                overflowY: "auto",
+              }}
+            >
+              {searchResults.map((result, index) => (
+                <div
+                  key={result.place_id}
+                  onClick={() => handleSearchResultClick(result)}
+                  style={{
+                    padding: "14px 20px",
+                    borderBottom: index < searchResults.length - 1 ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
+                    cursor: "pointer",
+                    transition: "background-color 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(13, 148, 136, 0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#1f2937",
+                      marginBottom: "2px",
+                      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                    }}
+                  >
+                    {result.main_text || result.description.split(',')[0]}
+                  </div>
+                  {result.secondary_text && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                      }}
+                    >
+                      {result.secondary_text}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Location label — only at deeper zoom levels */}
       {showNameLabel && (
         <div

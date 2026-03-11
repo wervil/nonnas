@@ -33,8 +33,8 @@ const button = cva(
 
 export interface ButtonProps
   extends
-    VariantProps<typeof button>,
-    Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
+  VariantProps<typeof button>,
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
   children: React.ReactNode;
   className?: string;
   asChild?: boolean;

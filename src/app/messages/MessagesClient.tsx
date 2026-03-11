@@ -1,8 +1,8 @@
 'use client';
 
-import { useUser } from '@stackframe/stack';
 import { Header } from '@/components/Header';
 import { MessagingInterface } from '@/components/messaging/MessagingInterface';
+import { useUser } from '@stackframe/stack';
 
 export const MessagesClient = () => {
     const user = useUser();
@@ -18,7 +18,7 @@ export const MessagesClient = () => {
             <Header
                 hasAdminAccess={hasPermissions}
                 user={user}
-                className="!bg-white/80 border-b border-gray-200 backdrop-blur-md shrink-0"
+                className="bg-white/80! border-b border-gray-200 backdrop-blur-md shrink-0"
                 // Pass undefined explicitly to hide search and country selector
                 countriesOptions={undefined}
                 selectedCountry={undefined}
@@ -26,7 +26,7 @@ export const MessagesClient = () => {
                 search={undefined}
                 setSearch={undefined}
             />
-            <main className="flex-1 flex flex-col max-w-7xl mx-auto w-full relative min-h-0 overflow-hidden p-0 sm:px-4 sm:py-4">
+            <main className="flex-1 flex flex-col w-full relative min-h-0 overflow-hidden">
                 <MessagingInterface />
             </main>
         </div>

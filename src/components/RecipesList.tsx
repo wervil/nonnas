@@ -17,19 +17,19 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
 
   return (
     <ul className="space-y-4">
-      {recipes && recipes.length === 0 && <li className='text-gray-500 font-light font-[var(--font-bell)]'>{d('noRecipesFound')}</li>}
+      {recipes && recipes.length === 0 && <li className='text-gray-500 font-(--font-bell)'>{d('noRecipesFound')}</li>}
       {recipes.map((recipe) => (
         <li
           key={recipe.id}
-          className="group relative bg-white rounded-2xl p-5 border border-gray-200 transition-all duration-300 hover:shadow-lg hover:border-amber-500/30"
+          className="group relative bg-white rounded-2xl p-5 border border-gray-200 transition-all duration-300 hover:shadow-lg hover:border-[#FF7D73]/30"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold text-white shadow-md shadow-amber-900/20">
+                <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#FF7D73] to-[#FF7D73] flex items-center justify-center text-xs font-bold text-white shadow-md shadow-amber-900/20">
                   {recipe.firstName?.[0]}{recipe.lastName?.[0]}
                 </div>
-                <div className="font-[var(--font-imprint)] text-xl truncate break-words overflow-wrap-anywhere text-gray-900 group-hover:text-amber-600 transition-colors">
+                <div className="font-[--font-imprint] text-xl truncate wrap-break-word overflow-wrap-anywhere text-gray-900 group-hover:text-[#FF7D73] transition-colors">
                   {recipe.firstName} {recipe.lastName}
                 </div>
               </div>
@@ -48,16 +48,16 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
             <div className="flex items-center gap-4 ml-11 sm:ml-0">
               <Link
                 href={`${pathname}/${recipe.id}`}
-                className="px-4 py-2 rounded-xl bg-gray-50 hover:bg-amber-50 border whitespace-nowrap border-gray-200 hover:border-amber-200 !text-gray-700 hover:text-amber-700 text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                className="px-8 py-4 rounded-lg bg-[#FFCCC81A] hover:bg-[#FFCCC8] border border-[#FFCCC8] text-[#FF7D73]! hover:text-[#FF7D73]! text-sm font-medium transition-all hover:scale-105 active:scale-95"
               >
                 {b('viewDetails')}
               </Link>
 
               {togglePublished && (
                 <button
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-lg ${recipe.published
-                    ? 'bg-blue-300 !text-white'
-                    : 'bg-green-300 !text-white'
+                  className={`px-8 py-4 rounded-lg text-sm font-medium transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-lg border ${recipe.published
+                    ? 'bg-[#FFCCC8] text-[#85312B] border-[#FFCCC8] hover:bg-[#FFCCC8]'
+                    : 'bg-[#9BC9C3] text-[#26786E] border-[#9BC9C3] hover:bg-[#8AB8B1]'
                     }`}
                   onClick={() => togglePublished(recipe.id, !recipe.published)}
                 >

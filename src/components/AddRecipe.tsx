@@ -5,11 +5,10 @@ import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
-import { FieldValues, useForm } from 'react-hook-form'
+import { FieldPath, FieldValues, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-import Button from '@/components/ui/Button'
 import Checkbox from '@/components/ui/Checkbox'
 import FileUpload from '@/components/ui/FileUpload'
 import Input from '@/components/ui/Input'
@@ -64,6 +63,8 @@ const recipeSchema = z.object({
       message: 'You must agree to release your signature',
     }),
 })
+
+type FormData = z.infer<typeof recipeSchema>;
 
 export const AddRecipe = ({
   userId,
@@ -154,38 +155,6 @@ export const AddRecipe = ({
 
   const uploadedPhoto = watch('photo')
 
-  // useEffect(() => {
-  //   const handleAvatarGen = async () => {
-  //     if (uploadedPhoto && uploadedPhoto.length > 0) {
-  //       const sourceUrl = uploadedPhoto[0];
-  //       // Ensure sourceUrl is a string (e.g. from Vercel Blob) and not just a File object right away
-  //       // If it's a blob url or remote url
-  //       if (typeof sourceUrl === 'string' && sourceUrl !== lastGeneratedSource.current) {
-  //         try {
-  //           setIsGeneratingAvatar(true)
-  //           const response = await fetch('/api/avatar/generate', {
-  //             method: 'POST',
-  //             headers: { 'Content-Type': 'application/json' },
-  //             body: JSON.stringify({ imageUrl: sourceUrl }),
-  //           })
-  //           if (response.ok) {
-  //             const data = await response.json()
-  //             if (data.avatarUrl) {
-  //               setAvatarUrl(data.avatarUrl)
-  //               lastGeneratedSource.current = sourceUrl
-  //             }
-  //           }
-  //         } catch (e) {
-  //           console.error('Error generating avatar', e)
-  //         } finally {
-  //           setIsGeneratingAvatar(false)
-  //         }
-  //       }
-  //     }
-  //   }
-  //   handleAvatarGen()
-  // }, [uploadedPhoto])
-
   useEffect(() => {
     const handleAvatarGen = async () => {
       if (!uploadedPhoto?.length) return;
@@ -202,7 +171,7 @@ export const AddRecipe = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            input_image: sourceUrl, // ✅ match API key
+            input_image: sourceUrl, // 
             prompt: "Make this a 90s cartoon avatar, clean outlines, vibrant colors",
             output_format: "jpg",
           }),
@@ -210,7 +179,7 @@ export const AddRecipe = ({
 
         const data = await response.json();
 
-        // ✅ accept either "url" or "avatarUrl"
+        // 
         const avatarUrl = data?.avatarUrl ?? data?.url;
 
         if (response.ok && avatarUrl) {
@@ -234,7 +203,7 @@ export const AddRecipe = ({
       e.preventDefault()
     }
     const fields = steps[currentStep].fields
-    const isValid = await trigger(fields as any)
+    const isValid = await trigger(fields as unknown as FieldPath<FormData>[])
     if (isValid) {
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
       window.scrollTo(0, 0)
@@ -353,231 +322,330 @@ export const AddRecipe = ({
   }
 
   return (
-    <div className="p-5 sm:w-full md:w-[500px] lg:w-[700px] mx-auto z-10 min-h-[600px]">
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <Typography size="h3" as="h3" className="text-brown-pale/70 drop-shadow-md">{steps[currentStep].title}</Typography>
-          <Typography size="body" className="text-brown-pale/70 drop-shadow-md">Step {currentStep + 1} of {steps.length}</Typography>
-        </div>
-        <div className="h-2 w-full bg-white/30 rounded-full backdrop-blur-sm">
-          <div
-            className="h-full bg-brown-pale/30 rounded-full transition-all duration-300"
-            style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-          ></div>
-        </div>
-        <Typography className="mt-2 text-brown-pale/70 drop-shadow-sm">{steps[currentStep].description}</Typography>
+    <div className="relative min-h-screen w-full flex items-center justify-center py-20 sm:py-25 lg:py-30 px-4">
+      {/* Background Image with Overlay */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+        <div className="absolute bg-[rgba(255,255,255,0.8)] inset-0" />
+        <Image
+          alt=""
+          className="absolute max-w-none opacity-20 object-cover size-full"
+          src="/bg.webp"
+          fill
+          unoptimized
+        />
       </div>
 
-      {error ? <Typography color="dangerMain" className="mb-4 bg-white/90 p-2 rounded-md">{error}</Typography> : null}
+      {/* Form Container */}
+      <div className="relative z-10 w-full max-w-[90%] sm:max-w-[80%] lg:max-w-300 px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-6">
+          {/* Header with Title and Step Counter */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between w-full gap-4">
+            <h1 className="capitalize font-normal leading-tight text-4xl! lg:text-5xl! text-black text-center sm:text-left">
+              {steps[currentStep].title}
+            </h1>
+            <div className="flex items-center justify-center sm:justify-end">
+              <p className="font-bold leading-5 text-[14px] sm:text-[16px] text-[rgba(0,0,0,0.6)] tracking-[1.5px] sm:tracking-[2.1172px] uppercase">
+                STEP {currentStep + 1} OF {steps.length}
+              </p>
+            </div>
+          </div>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col gap-6"
-      >
-        <div className="bg-brown-pale p-6 md:p-8 rounded-3xl shadow-xl border border-primary-border/20">
-
-          {/* Step 1: Identity */}
-          {currentStep === 0 && (
-            <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300">
-              <Input
-                label={`${l('grandmotherTitle')}*`}
-                name="grandmotherTitle"
-                control={control}
-                description={d('grandmotherDesc')}
-                error={errors.grandmotherTitle?.message}
-                maxLength={80}
-              />
-              <div className="flex flex-row gap-5">
-                <Input
-                  label={`${l('firstName')}*`}
-                  name="firstName"
-                  control={control}
-                  error={errors.firstName?.message}
-                  maxLength={60}
-                />
-                <Input
-                  label={`${l('lastName')}*`}
-                  name="lastName"
-                  control={control}
-                  error={errors.lastName?.message}
-                  maxLength={60}
-                />
+          {/* Progress Bar Hidden On Mobile */}
+          <div className="flex flex-col gap-3 w-full items-center hidden sm:block">
+            <div className="flex items-center w-full max-w-70 sm:max-w-full">
+              <div className="flex-1 h-3 relative">
+                <div className="flex gap-2 sm:gap-4 items-start size-full">
+                  {steps.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`${index === 0 ? 'w-50 sm:w-70 shrink-0' : 'flex-1 min-h-px min-w-px'} h-2 sm:h-3 rounded-[16777200px] ${index <= currentStep ? 'bg-[#ffccc8]' : 'bg-white'
+                        }`}
+                    />
+                  ))}
+                </div>
               </div>
+            </div>
+            <div className="flex items-center mt-2">
+              <p className="font-bold leading-5 text-[14px] sm:text-[16px] text-[rgba(0,0,0,0.6)] tracking-[1.5px] sm:tracking-[2.1172px] uppercase text-center">
+                {steps[currentStep].description}
+              </p>
+            </div>
+          </div>
 
-              <CountryStateCitySelector
-                countryName="country"
-                stateName="state"
-                cityName="city"
-                coordinatesName="coordinates"
-                control={control}
-                setValue={setValue}
-              />
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className=" text-red-600 text-[14px]">{error}</p>
             </div>
           )}
 
-          {/* Step 2: Story */}
-          {currentStep === 1 && (
-            <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300">
-              <Textarea
-                label={`${l('bio')}*`}
-                description={d('bio')}
-                name="history"
-                control={control}
-                error={errors.history?.message}
-                maxLength={700}
-              />
-              <Textarea
-                label={`${l('geoHistory')}*`}
-                description={d('geoHistory')}
-                name="geo_history"
-                control={control}
-                error={errors.geo_history?.message}
-                maxLength={600}
-              />
-            </div>
-          )}
-
-          {/* Step 3: Recipe */}
-          {currentStep === 2 && (
-            <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300">
-              <Input
-                label={`${l('recipeTitle')}*`}
-                name="recipeTitle"
-                control={control}
-                error={errors.recipeTitle?.message}
-                maxLength={80}
-              />
-              <TextEditor
-                title={`${l('ingredients')}*`}
-                description={d('ingredientsDesc')}
-                name="recipe"
-                control={control}
-                maxLength={1000}
-              />
-              <TextEditor
-                title={`${l('directions')}*`}
-                description={d('directionsDesc')}
-                name="directions"
-                control={control}
-                maxLength={500}
-              />
-            </div>
-          )}
-
-          {/* Step 4: Culture */}
-          {currentStep === 3 && (
-            <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300">
-              <Textarea
-                label={`${l('traditions')}*`}
-                description={d('traditions')}
-                name="traditions"
-                control={control}
-                maxLength={500}
-              />
-              <Textarea
-                label={`${l('influences')}*`}
-                description={d('influences')}
-                name="influences"
-                control={control}
-                maxLength={400}
-              />
-            </div>
-          )}
-
-          {/* Step 5: Media */}
-          {currentStep === 4 && (
-            <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300">
-              <FileUpload
-                label={`${l('photo')}*`}
-                description={d('photoDesc')}
-                name="photo"
-                control={control}
-                maxFiles={5}
-                setValue={setValue}
-                watch={watch}
-              />
-
-              {/* AI Avatar Display Section */}
-              {(isGeneratingAvatar || avatarUrl) && (
-                <div className="flex flex-col gap-2 p-4 bg-white/50 rounded-xl border border-primary-border/20">
-                  <Typography size="body" className="font-semibold text-brown-dark">
-                    Generated Avatar
-                  </Typography>
-                  <Typography size="bodyXS" className="text-brown-pale/80 mb-2">
-                    {isGeneratingAvatar ? 'Generating your 3D Pixar style avatar...' : 'This beautiful 3D avatar was created automatically for the 3D map!'}
-                  </Typography>
-                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center bg-gray-100/50 backdrop-blur-md">
-                    {isGeneratingAvatar ? (
-                      <Loader2 className="w-8 h-8 animate-spin text-brown-pale" />
-                    ) : avatarUrl ? (
-                      <Image
-                        src={avatarUrl}
-                        alt="AI Generated Avatar"
-                        fill
-                        className="object-cover"
-                        unoptimized
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 w-full  mx-auto">
+            {/* Step 1: Identity */}
+            {currentStep === 0 && (
+              <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
+                {/* Grandmother Title Field */}
+                <div className="flex flex-col gap-3 w-full">
+                  <div className="flex items-center w-full">
+                    <p className="font-semibold leading-normal text-[#2c2c2c] text-[16px] sm:text-[18px] tracking-[-0.4395px]">
+                      {l('grandmotherTitle')}*
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <div className="bg-white h-11.25 sm:h-12.25 w-full rounded-[inherit]">
+                      <Input
+                        label={l('grandmotherTitle')}
+                        hideLabel={true}
+                        hideCharacterCount={true}
+                        name="grandmotherTitle"
+                        control={control}
+                        error={errors.grandmotherTitle?.message}
+                        maxLength={80}
+                        className="w-full h-full  font-normal leading-normal text-[13px] sm:text-[14px] text-[#2D2D2D80]! tracking-[-0.1504px] bg-transparent border-none outline-none"
                       />
-                    ) : null}
+                    </div>
+
+                    <div className="flex flex-col items-start mt-4">
+                      <p className=" font-semibold leading-6 text-[#2c2c2c] text-[15px] tracking-[-0.3125px]">
+                        {d('grandmotherDesc')}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <FileUpload
-                label={`${l('recipeImage')}*`}
-                description={d('recipeImage')}
-                name="recipe_image"
-                control={control}
-                maxFiles={1}
-                setValue={setValue}
-                watch={watch}
-              />
-              <Checkbox
-                label={
-                  <Typography
-                    as="label"
-                    htmlFor="release_signature"
-                    size="bodyXS"
-                    color="primaryFocus"
-                    className="mt-2 cursor-pointer"
-                  >
-                    {l('releaseSignature')}
-                    <a
-                      href="/terms-of-use"
-                      target="_blank"
+                {/* Name Fields Row */}
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  {/* First Name */}
+                  <div className="flex-1 flex flex-col gap-1">
+                    <p className="font-semibold leading-normal text-[#2c2c2c] text-[16px] sm:text-[18px] tracking-[-0.4395px]">
+                      {l('firstName')}*
+                    </p>
+                    <Input
+                      label={l('firstName')}
+                      hideLabel={true}
+                      name="firstName"
+                      control={control}
+                      error={errors.firstName?.message}
+                      maxLength={60}
+                      className="w-full h-full px-3 sm:px-4 py-2 sm:py-3 items-center  font-normal leading-normal text-[13px] sm:text-[14px] text-[#2D2D2D80]! tracking-[-0.1504px] bg-transparent border-none outline-none"
+                    />
+
+                  </div>
+
+                  {/* Last Name */}
+                  <div className="flex-1 flex flex-col gap-1">
+                    <p className="font-semibold leading-normal text-[#2c2c2c] text-[16px] sm:text-[18px] tracking-[-0.4395px]">
+                      {l('lastName')}*
+                    </p>
+                    <Input
+                      label={l('lastName')}
+                      hideLabel={true}
+                      name="lastName"
+                      control={control}
+                      error={errors.lastName?.message}
+                      maxLength={60}
+                      className="w-full h-full px-3 sm:px-4 py-2 sm:py-3  font-normal leading-normal text-[13px] sm:text-[14px] text-[#2D2D2D80]! tracking-[-0.1504px] bg-transparent border-none outline-none"
+                    />
+
+                  </div>
+                </div>
+
+                {/* Country and City/Region using CountryStateCitySelector */}
+                <CountryStateCitySelector
+                  countryName="country"
+                  stateName="state"
+                  cityName="city"
+                  coordinatesName="coordinates"
+                  control={control}
+                  setValue={setValue}
+                />
+              </div>
+            )}
+
+            {/* Step 2: Story */}
+            {currentStep === 1 && (
+              <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
+                <Textarea
+                  label={`${l('bio')}*`}
+                  description={d('bio')}
+                  name="history"
+                  control={control}
+                  error={errors.history?.message}
+                  maxLength={700}
+                  theme="light"
+                />
+                <Textarea
+                  label={`${l('geoHistory')}*`}
+                  description={d('geoHistory')}
+                  name="geo_history"
+                  control={control}
+                  error={errors.geo_history?.message}
+                  maxLength={700}
+                  theme="light"
+                />
+              </div>
+            )}
+
+            {/* Step 3: Recipe */}
+            {currentStep === 2 && (
+              <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
+                <Input
+                  label={`${l('recipeTitle')}*`}
+                  name="recipeTitle"
+                  control={control}
+                  error={errors.recipeTitle?.message}
+                  maxLength={80}
+
+                />
+                <TextEditor
+                  title={`${l('ingredients')}*`}
+                  description={d('ingredientsDesc')}
+                  name="recipe"
+                  control={control}
+                  maxLength={1000}
+                  theme="light"
+                />
+                <TextEditor
+                  title={`${l('directions')}*`}
+                  description={d('directionsDesc')}
+                  name="directions"
+                  control={control}
+                  maxLength={500}
+                  theme="light"
+                />
+              </div>
+            )}
+
+            {/* Step 4: Culture */}
+            {currentStep === 3 && (
+              <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
+                <Textarea
+                  label={`${l('traditions')}*`}
+                  description={d('traditions')}
+                  name="traditions"
+                  control={control}
+                  maxLength={500}
+                  theme="light"
+                />
+                <Textarea
+                  label={`${l('influences')}*`}
+                  description={d('influences')}
+                  name="influences"
+                  control={control}
+                  maxLength={400}
+                  theme="light"
+                />
+              </div>
+            )}
+
+            {/* Step 5: Media */}
+            {currentStep === 4 && (
+              <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
+                <FileUpload
+                  label={`${l('photo')}*`}
+                  description={d('photoDesc')}
+                  name="photo"
+                  control={control}
+                  maxFiles={5}
+                  setValue={setValue}
+                  watch={watch}
+                  theme="light"
+                />
+
+                {/* AI Avatar Display Section */}
+                {(isGeneratingAvatar || avatarUrl) && (
+                  <div className="flex flex-col gap-2 p-4 bg-white/50 rounded-xl border border-primary-border/20">
+                    <Typography size="body" className="font-semibold text-brown-dark">
+                      Generated Avatar
+                    </Typography>
+                    <Typography size="bodyXS" className="text-brown-pale/80 mb-2">
+                      {isGeneratingAvatar ? 'Generating your 3D Pixar style avatar...' : 'This beautiful 3D avatar was created automatically for the 3D map!'}
+                    </Typography>
+                    <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center bg-gray-100/50 backdrop-blur-md">
+                      {isGeneratingAvatar ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-brown-pale" />
+                      ) : avatarUrl ? (
+                        <Image
+                          src={avatarUrl}
+                          alt="AI Generated Avatar"
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+
+                <FileUpload
+                  label={`${l('recipeImage')}*`}
+                  description={d('recipeImage')}
+                  name="recipe_image"
+                  control={control}
+                  maxFiles={1}
+                  setValue={setValue}
+                  watch={watch}
+                  theme="light"
+                />
+                <Checkbox
+                  label={
+                    <Typography
+                      as="label"
+                      htmlFor="release_signature"
+                      size="bodyXS"
+                      color="black"
+                      className="mt-2 cursor-pointer"
                     >
-                      {l('termsAndConditions')}
-                    </a>
-                  </Typography>
-                }
-                name="release_signature"
-                control={control}
-                description={d('releaseSignature')}
-              />
+                      {l('releaseSignature')}
+                      <a
+                        href="/terms-of-use"
+                        target="_blank"
+                      >
+                        {l('termsAndConditions')}
+                      </a>
+                    </Typography>
+                  }
+                  name="release_signature"
+                  control={control}
+                  description={d('releaseSignature')}
+                  theme="light"
+                />
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex flex-col sm:flex-row justify-between items-center w-full mt-4 gap-4">
+              {currentStep > 0 && (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
+                >
+                  {b('prevPage')}
+                </button>
+              )}
+              <div className={`${currentStep === 0 ? 'sm:ml-auto' : ''} w-full sm:w-auto`}>
+                {currentStep < steps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
+                  >
+                    {b('nextPage')}
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? b('submitting') : b('submit')}
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+          </form>
         </div>
-
-        <div className="flex justify-between mt-4 px-2">
-          <Button
-            type="button"
-            onClick={prevStep}
-            disabled={currentStep === 0 || isSubmitting}
-            className={`transition-opacity ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            {b('prevPage')}
-          </Button>
-
-          {currentStep < steps.length - 1 ? (
-            <Button type="button" variant="primary" onClick={nextStep}>
-              {b('nextPage')}
-            </Button>
-          ) : (
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? b('submitting') : b('submit')}
-            </Button>
-          )}
-        </div>
-      </form >
-    </div >
+      </div>
+    </div>
   )
 }

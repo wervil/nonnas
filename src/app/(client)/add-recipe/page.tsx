@@ -1,7 +1,7 @@
 import { AddRecipe } from '@/components/AddRecipe'
+import { Header } from '@/components/Header'
 import { stackServerApp } from '@/stack'
 import { checkAdminPermission } from '@/utils/checkAdminPermission'
-import { Header } from '@/components/Header'
 import Image from 'next/image'
 
 const AddRecipePage = async () => {

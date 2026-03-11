@@ -50,7 +50,9 @@ export const SearchableSelect = ({
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`${path === '/dashboard' ? 'px-2 py-1 sm:px-3 sm:py-4 ' : 'px-3 py-4 '} w-full border rounded-lg cursor-pointer flex items-center justify-between text-base font-(--font-merriweather) 
                 ${disabled
-                        ? 'bg-primary-hover text-text-pale/50 border-primary-main cursor-not-allowed'
+                        ? variant === 'light'
+                            ? 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
+                            : 'bg-primary-hover text-text-pale/50 border-primary-main cursor-not-allowed'
                         : variant === 'light'
                             ? 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
                             : 'bg-primary-hover text-text-pale border-primary-main'

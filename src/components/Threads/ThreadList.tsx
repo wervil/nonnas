@@ -1,9 +1,9 @@
 'use client'
 
+import { Thread } from '@/db/schema'
+import { Loader2, MessageCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import ThreadCard from './ThreadCard'
-import { Thread } from '@/db/schema'
-import { MessageCircle, Loader2 } from 'lucide-react'
 
 interface ThreadListProps {
     region?: string
@@ -61,8 +61,8 @@ export default function ThreadList({
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
-                    <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+                <div className="w-12 h-12 rounded-full bg-[#FFCCC866] flex items-center justify-center mb-4">
+                    <Loader2 className="w-6 h-6 text-[#FF7D73] animate-spin" />
                 </div>
                 <p className="text-gray-500 text-sm">Loading discussions...</p>
             </div>

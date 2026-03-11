@@ -1,26 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { ReactElement } from 'react'
-import { Control, Controller, FieldValues, Path } from 'react-hook-form'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary as OriginalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { clsx } from 'clsx'
+import React, { ReactElement } from 'react'
+import { Control, Controller, FieldValues, Path } from 'react-hook-form'
 
 // Additional imports for toolbar and formatting
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
-import { ListPlugin } from '@lexical/react/LexicalListPlugin'
-import { ListItemNode, ListNode } from '@lexical/list'
-import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html'
-import { LexicalEditor, ParagraphNode, TextNode, $getRoot, $insertNodes } from 'lexical'
+import { ListItemNode, ListNode } from '@lexical/list'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
+import { ListPlugin } from '@lexical/react/LexicalListPlugin'
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
+import { HeadingNode, QuoteNode } from '@lexical/rich-text'
+import { $getRoot, $insertNodes, LexicalEditor, ParagraphNode, TextNode } from 'lexical'
 import { useEffect } from 'react'
 
-import ToolbarPlugin from './ToolbarPlugin'
-import { ListCommandPlugin } from './ListCommandPlugin'
 import ExampleTheme from './ExampleTheme'
+import { ListCommandPlugin } from './ListCommandPlugin'
+import ToolbarPlugin from './ToolbarPlugin'
 import { Typography } from './Typography'
 
 function onChange(
@@ -118,7 +118,7 @@ export const TextEditor = <T extends FieldValues>({
       <Typography
         as="label"
         htmlFor={name}
-        color="primaryFocus"
+        color={theme === 'dark' ? "primaryFocus" : "black"}
         className="mb-2"
       >
         {title}
@@ -138,7 +138,7 @@ export const TextEditor = <T extends FieldValues>({
                   <ToolbarPlugin />
                   <RichTextPlugin
                     contentEditable={
-                      <ContentEditable className={clsx("w-full px-3 py-4 focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] min-h-[100px] ", theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale')} />
+                      <ContentEditable className={clsx("w-full px-3 py-4 focus:outline-none text-base text-text-pale font-[var(--font-merriweather)] min-h-[100px] ", theme === 'dark' ? 'bg-primary-hover text-text-pale' : 'bg-white text-[#2c2c2c]')} />
                     }
                     ErrorBoundary={LexicalErrorBoundary}
                   />
@@ -154,11 +154,11 @@ export const TextEditor = <T extends FieldValues>({
                 </LexicalComposer>
               </div>
               {maxLength && (
-                <Typography size="bodyXS" color={currentCharCount > maxLength ? "dangerMain" : "primaryFocus"} className="mt-1">
+                <Typography size="bodyXS" color={currentCharCount > maxLength ? "dangerMain" : (theme === 'dark' ? "primaryFocus" : "black")} className="mt-1">
                   {currentCharCount}/{maxLength} characters
                 </Typography>
               )}
-              {description ? <Typography size="bodyXS" color="primaryFocus" className='mt-2'>{description}</Typography> : null}
+              {description ? <Typography size="bodyXS" color={theme === 'dark' ? "primaryFocus" : "black"} className='mt-2'>{description}</Typography> : null}
               {fieldState.error && (
                 <Typography size="bodyXS" color="dangerMain" className="mt-2">
                   {fieldState.error.message}

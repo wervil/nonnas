@@ -441,11 +441,13 @@ pre::-webkit-scrollbar-thumb {
 .toolbar {
   display: flex;
   margin-bottom: 1px;
-  background: var(--color-primary-focus);
+  background: #fff;
   padding: 4px;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   vertical-align: middle;
+  border: 1px solid #e5e5e5;
+  border-bottom: none;
 }
 
 .toolbar button.toolbar-item {
@@ -456,7 +458,7 @@ pre::-webkit-scrollbar-thumb {
   padding: 8px;
   cursor: pointer;
   vertical-align: middle;
-  color: var(--color-primary-hover);
+  color: #2c2c2c;
 }
 
 .toolbar button.toolbar-item:disabled {
@@ -474,12 +476,13 @@ pre::-webkit-scrollbar-thumb {
   margin-top: 2px;
   vertical-align: -0.25em;
   display: flex;
-  opacity: 0.6;
+  opacity: 1;
+  filter: brightness(0);
 }
 
 .toolbar button.toolbar-item:hover {
   /* opacity: 0.8; */
-  background: rgba(182, 181, 181, 0.3) !important;
+  background: rgba(0, 0, 0, 0.1) !important;
 }
 
 .toolbar button.toolbar-item:disabled i.format {
@@ -487,7 +490,7 @@ pre::-webkit-scrollbar-thumb {
 }
 
 .toolbar button.toolbar-item.active {
-  background-color: rgba(223, 232, 250, 0.3);
+  background-color: rgba(0, 0, 0, 0.15);
 }
 
 .toolbar button.toolbar-item.active i {
@@ -495,12 +498,12 @@ pre::-webkit-scrollbar-thumb {
 }
 
 .toolbar .toolbar-item:hover:not([disabled]) {
-  background-color: var(--color-primary-hover);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .toolbar .divider {
   width: 1px;
-  background-color: var(--color-primary-hover);
+  background-color: #e5e5e5;
   margin: 0 4px;
 }
 
@@ -509,7 +512,7 @@ pre::-webkit-scrollbar-thumb {
   line-height: 20px;
   vertical-align: middle;
   font-size: 14px;
-  color: var(--color-primary-hover);
+  color: #2c2c2c;
   text-overflow: ellipsis;
   width: 70px;
   overflow: hidden;
@@ -525,7 +528,7 @@ pre::-webkit-scrollbar-thumb {
   margin-right: 8px;
   line-height: 16px;
   background-size: contain;
-  color: var(--color-primary-hover);
+  color: #2c2c2c;
 }
 
 i.undo {

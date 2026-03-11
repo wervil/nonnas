@@ -1,53 +1,47 @@
 'use client'
 
+import { Header } from '@/components/Header'
+import { ProfileForm } from '@/components/ProfileForm'
+import { ProfileTabSwitcher } from '@/components/ProfileTabSwitcher'
 import { RecipesList } from '@/components/RecipesList'
+import { SavedRecipesModal } from '@/components/SavedRecipesModal'
 import ThreadList from '@/components/Threads/ThreadList'
-import Button from '@/components/ui/Button'
 import { Recipe } from '@/db/schema'
 import { CurrentInternalUser, CurrentUser, useUser } from '@stackframe/stack'
-import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState } from 'react'
-import { Loader2, BookOpen, Heart, MessageCircle, Pencil } from 'lucide-react'
-import { Header } from '@/components/Header'
-import { EditProfileModal } from '@/components/EditProfileModal'
+import { Heart, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export default function Profile() {
   const user = useUser()
   const router = useRouter()
 
-  // ✅ Redirect when logged out (do it in an effect)
+  // Redirect when logged out (do it in an effect)
   useEffect(() => {
     if (!user) router.replace('/handler/sign-in')
   }, [user, router])
 
   if (!user) return null
 
-  // ✅ Only render this when user exists
+  // Only render this when user exists
   return <ProfileAuthed user={user} />
 }
 
 function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
-  const [activeTab, setActiveTab] = useState<'my_recipes' | 'saved' | 'activity'>('my_recipes')
   const [myRecipes, setMyRecipes] = useState<Recipe[]>([])
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
-  const [editProfileOpen, setEditProfileOpen] = useState(false)
-  const hasInitializedTab = useRef(false)
+  const [isSavedRecipesModalOpen, setIsSavedRecipesModalOpen] = useState(false)
 
-  const b = useTranslations('buttons')
-
-  // ✅ SAFE: this component only mounts when user exists,
-  // so these hooks are never “skipped”
+  // SAFE: this component only mounts when user exists,
+  // so these hooks are never "skipped"
   const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
   const hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
 
-
-
   useEffect(() => {
-    if (activeTab === 'my_recipes') loadMyRecipes(user.id)
-    else if (activeTab === 'saved') loadSavedRecipes(user.id)
-  }, [activeTab, user.id])
+    loadMyRecipes(user.id)
+    loadSavedRecipes(user.id)
+  }, [user.id])
 
   const loadMyRecipes = async (userId: string) => {
     setLoading(true)
@@ -78,124 +72,59 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         <Header
           hasAdminAccess={hasPermissions}
           user={user}
-          className="!bg-white/80 border-b border-gray-200 backdrop-blur-md"
+          className="bg-white/80 border-b border-gray-200 backdrop-blur-md"
         />
       </div>
 
-      <div className="flex-grow w-full max-w-5xl mx-auto p-4 md:p-8 pt-4 relative z-10">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 mt-4">
-          <div className="text-center md:text-left min-w-0 max-w-full">
-            <p className=" text-2xl sm:text-5xl capitalize leading-none md:text-5xl font-bold !text-gray-900 font-[var(--font-bell)] mb-2 break-words overflow-hidden line-clamp-3 max-w-[600px] mx-auto md:mx-0" title={user.displayName || undefined}>
-              {user.displayName || 'Profile'}
-            </p>
-            <p className="text-gray-500 font-light tracking-wide font-[var(--font-bell)]">Manage your recipes and activity</p>
-          </div>
-          <div className="flex gap-3 shrink-0">
-            <Button
-              onClick={() => setEditProfileOpen(true)}
-              variant="outline"
-              className="border-gray-200 !text-gray-700 hover:bg-gray-50 text-[12px] sm:text-[20px]"
-            >
-              <Pencil className="sm:w-4 sm:h-4 w-2 h-2  mr-2" />
-              {b('edit')}
-            </Button>
-            <Button
-              onClick={() => user?.signOut()}
-              className="bg-gray-100 hover:opacity-30! text-gray-900 text-[12px] sm:text-[20px] "
-            >
-              {b('logOut')}
-            </Button>
-          </div>
-        </div>
+      <div className="grow w-full max-w-5xl mx-auto p-4 md:p-8 pt-4 relative z-10">
+        {/* Tab Switcher */}
+        <ProfileTabSwitcher>
+          {(activeTab) => {
+            if (activeTab === 'profile') {
+              return <ProfileForm user={user} />
+            }
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto justify-start md:justify-start scrollbar-hide">
-          <button
-            onClick={() => setActiveTab('my_recipes')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'my_recipes'
-              ? 'text-amber-600 bg-amber-50/50'
-              : 'text-gray-500 hover:text-amber-600 bg-transparent'
-              }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            My Recipes
-            {activeTab === 'my_recipes' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('saved')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'saved'
-              ? 'text-amber-600 bg-amber-50/50'
-              : 'text-gray-500 hover:text-amber-600 bg-transparent'
-              }`}
-          >
-            <Heart className="w-4 h-4" />
-            Saved Recipes
-            {activeTab === 'saved' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('activity')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-[var(--font-bell)] transition-all duration-200 relative whitespace-nowrap ${activeTab === 'activity'
-              ? 'text-amber-600 bg-amber-50/50'
-              : 'text-gray-500 hover:text-amber-600 bg-transparent'
-              }`}
-          >
-            <MessageCircle className="w-4 h-4" />
-            My Activity
-            {activeTab === 'activity' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
-            )}
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="min-h-[400px]">
-          {activeTab === 'my_recipes' && (
-            loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-[var(--color-yellow-light)] w-8 h-8" />
-              </div>
-            ) : (
-              <RecipesList recipes={myRecipes} />
-            )
-          )}
-
-
-          {activeTab === 'saved' && (
-            loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-[var(--color-yellow-light)] w-8 h-8" />
-              </div>
-            ) : (
-              <>
-                {savedRecipes.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 font-light font-[var(--font-bell)]">
-                    You haven&apos;t saved any recipes yet.
+            if (activeTab === 'recipes') {
+              return (
+                <>
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-(--font-bell) text-gray-900">My Recipes</h3>
+                    <button
+                      onClick={() => setIsSavedRecipesModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-[#F5F5F5]  text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Heart className="w-4 h-4" />
+                      Saved
+                    </button>
                   </div>
-                ) : (
-                  <RecipesList recipes={savedRecipes} />
-                )}
-              </>
-            )
-          )}
+                  {loading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="animate-spin text-(--color-yellow-light) w-8 h-8" />
+                    </div>
+                  ) : (
+                    <RecipesList recipes={myRecipes} />
+                  )}
+                </>
+              )
+            }
 
-          {activeTab === 'activity' && (
-            <div className="mx-auto md:mx-0">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 font-[var(--font-bell)]">Values & Discussions</h3>
-              <ThreadList userId={user.id} />
-            </div>
-          )}
-        </div>
+            if (activeTab === 'activity') {
+              return (
+                <div className="mx-auto md:mx-0">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6 font-[var(--font-bell)">Values & Discussions</h3>
+                  <ThreadList userId={user.id} />
+                </div>
+              )
+            }
+          }}
+        </ProfileTabSwitcher>
       </div>
 
-      <EditProfileModal
-        open={editProfileOpen}
-        onOpenChange={setEditProfileOpen}
-        user={user}
+      {/* Saved Recipes Modal */}
+      <SavedRecipesModal
+        isOpen={isSavedRecipesModalOpen}
+        onClose={() => setIsSavedRecipesModalOpen(false)}
+        savedRecipes={savedRecipes}
       />
     </div>
   )

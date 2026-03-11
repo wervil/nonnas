@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useUser } from '@stackframe/stack';
-import { io, Socket } from 'socket.io-client';
-import { Conversation, Message, AttachmentType } from './types';
-import { ConversationList } from './ConversationList';
-import { ChatWindow } from './ChatWindow';
 import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
+import { ChatWindow } from './ChatWindow';
+import { ConversationList } from './ConversationList';
+import { AttachmentType, Conversation, Message } from './types';
 
 export const MessagingInterface = () => {
     const user = useUser();
@@ -177,17 +177,17 @@ export const MessagingInterface = () => {
         }
     }
 
-    if (!user) return <div className="p-8 text-center text-[var(--color-text-pale)] font-[var(--font-bell)]">Please sign in to view messages.</div>;
+    if (!user) return <div className="p-8 text-center text-(--color-text-pale) font-(--font-bell)">Please sign in to view messages.</div>;
 
     return (
         <div className="flex h-full w-full bg-white min-h-0 overflow-hidden">
-            {/* Sidebar List - Hidden on mobile if activeConvo is selected */}
+            {/* Sidebar List - Hidden on mobile when activeConvo is selected */}
             <div className={`
-                w-full md:w-80 lg:w-96 border-r border-gray-200 bg-gray-50 flex flex-col shadow-lg min-w-0 shrink-0
+                w-full md:w-80 lg:w-96 border-r border-gray-200 bg-[#f9fafb] flex flex-col shadow-lg min-w-0 shrink-0
                 ${activeConvo ? 'hidden md:flex' : 'flex'}
             `}>
-                <div className="p-4 border-b border-gray-200 shrink-0">
-                    <h2 className="font-bold text-xl text-gray-900 font-[var(--font-bell)]">Messages</h2>
+                <div className="p-4 md:p-6 border-b border-gray-200 shrink-0">
+                    <h2 className="font-(--font-bell) text-2xl md:text-3xl lg:text-[48px] text-gray-900">Messages</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto min-h-0">
                     <ConversationList
@@ -223,9 +223,9 @@ export const MessagingInterface = () => {
                     );
                 })() : (
                     <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
-                        <div className="text-center">
-                            <p className="text-lg font-medium text-gray-900 font-[var(--font-bell)]">Select a conversation</p>
-                            <p className="text-sm font-[var(--font-bell)]">Choose a chat from the list to start messaging</p>
+                        <div className="text-center px-4">
+                            <p className="text-lg font-(--font-bell) text-gray-900">Select a conversation</p>
+                            <p className="text-sm font-(--font-bell)">Choose a chat from the list to start messaging</p>
                         </div>
                     </div>
                 )}

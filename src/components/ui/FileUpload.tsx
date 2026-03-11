@@ -1,4 +1,8 @@
-import React, { useCallback, useState, useRef } from 'react'
+import { upload } from '@vercel/blob/client'
+import { useTranslations } from 'next-intl'
+import Image from 'next/image'
+import { useCallback, useRef, useState } from 'react'
+import { useDropzone } from 'react-dropzone'
 import {
   Control,
   Controller,
@@ -8,13 +12,9 @@ import {
   UseFormSetValue,
   UseFormWatch,
 } from 'react-hook-form'
-import { useDropzone } from 'react-dropzone'
-import Image from 'next/image'
-import { Typography } from './Typography'
-import { useTranslations } from 'next-intl'
-import { createUniqueFiles } from '../../utils/fileUtils'
 import { toast } from 'sonner'
-import { upload } from '@vercel/blob/client'
+import { createUniqueFiles } from '../../utils/fileUtils'
+import { Typography } from './Typography'
 
 interface FileUploadProps<T extends FieldValues> {
   label: string
@@ -139,7 +139,7 @@ const FileUpload = <T extends FieldValues>({
       <Typography
         as="label"
         htmlFor={name}
-        color="primaryFocus"
+        color={theme === 'dark' ? "primaryFocus" : "black"}
         className="mb-2"
       >
         {label}
@@ -156,7 +156,7 @@ const FileUpload = <T extends FieldValues>({
             <>
               <div
                 {...getRootProps()}
-                className={`w-full px-3 py-4 border rounded-lg focus:outline-none hover:opacity-60 text-base text-text-pale font-[var(--font-merriweather)] ${theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale'
+                className={`w-full px-3 py-4 border rounded-lg focus:outline-none  text-base text-text-pale font-[var(--font-merriweather)] ${theme === 'dark' ? 'bg-primary-hover text-text-pale' : 'bg-white text-[#2c2c2c]'
                   } ${isDragActive
                     ? 'border-primary-main bg-brown-pale'
                     : 'border-primary-main'
@@ -167,7 +167,7 @@ const FileUpload = <T extends FieldValues>({
               >
                 <input {...getInputProps()} />
 
-                <div className="w-full h-full flex flex-col items-center justify-center text-center gap-2 hover:opacity-60 cursor-pointer">
+                <div className="w-full h-full flex flex-col items-center justify-center text-center gap-2  cursor-pointer">
                   <svg
                     width="44"
                     height="44"
@@ -196,19 +196,19 @@ const FileUpload = <T extends FieldValues>({
 
                   <div className="text-gray-600">
                     {uploading ? (
-                      <Typography size="bodyS" color="primaryFocus">
+                      <Typography size="bodyS" color={theme === 'dark' ? "primaryFocus" : "black"}>
                         {i('uploading')}
                       </Typography>
                     ) : isDragActive ? (
-                      <Typography size="bodyXS" color="primaryFocus">
+                      <Typography size="bodyXS" color={theme === 'dark' ? "primaryFocus" : "black"}>
                         {i('dropFiles')}
                       </Typography>
                     ) : (
                       <div>
-                        <Typography size="bodyS" color="primaryFocus">
+                        <Typography size="bodyS" color={theme === 'dark' ? "primaryFocus" : "black"}>
                           {i('uploadFile')}
                         </Typography>
-                        <Typography size="bodyXS" color="primaryFocus">
+                        <Typography size="bodyXS" color={theme === 'dark' ? "primaryFocus" : "black"}>
                           {i('maxFileSize')}
                         </Typography>
                       </div>
@@ -217,7 +217,7 @@ const FileUpload = <T extends FieldValues>({
                 </div>
               </div>
               {description ? (
-                <Typography size="bodyXS" color="primaryFocus" className="mt-2">
+                <Typography size="bodyXS" color={theme === 'dark' ? "primaryFocus" : "black"} className="mt-2">
                   {description}
                 </Typography>
               ) : null}
@@ -227,7 +227,7 @@ const FileUpload = <T extends FieldValues>({
                 <div className="mt-4 space-y-2">
                   <Typography
                     size="bodyXS"
-                    color="primaryFocus"
+                    color={theme === 'dark' ? "primaryFocus" : "black"}
                     className="mb-2"
                   >
                     {i('selectedFiles')}
@@ -255,7 +255,7 @@ const FileUpload = <T extends FieldValues>({
                         </button>
                         <Typography
                           size="bodyXS"
-                          color="primaryFocus"
+                          color={theme === 'dark' ? "primaryFocus" : "black"}
                           className="mt-2 truncate"
                         >
                           {file.name}
@@ -269,7 +269,7 @@ const FileUpload = <T extends FieldValues>({
                 <div className="mt-4 space-y-2">
                   <Typography
                     size="bodyXS"
-                    color="primaryFocus"
+                    color={theme === 'dark' ? "primaryFocus" : "black"}
                     className="mb-2"
                   >
                     {i('uploadedFiles')}
@@ -295,7 +295,7 @@ const FileUpload = <T extends FieldValues>({
                         </button>
                         <Typography
                           size="bodyXS"
-                          color="primaryFocus"
+                          color={theme === 'dark' ? "primaryFocus" : "black"}
                           className="mt-2 truncate"
                         >
                           {file}
@@ -307,7 +307,7 @@ const FileUpload = <T extends FieldValues>({
               )}
 
               {(fieldState.error || error) && (
-                <Typography size="bodyXS" color="dangerMain" className="mt-2">
+                <Typography size="bodyXS" color={theme === 'dark' ? "primaryFocus" : "dangerMain"} className="mt-2">
                   {error || fieldState.error?.message}
                 </Typography>
               )}

@@ -7,16 +7,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CurrentInternalUser, CurrentUser } from "@stackframe/stack";
+import { CurrentInternalUser, CurrentUser, useUser } from "@stackframe/stack";
 import {
   Download,
   Home,
   Loader2,
+  LogOut,
   Menu,
   MessageCircle,
   Plus,
   Settings,
   User,
+  UserPlus
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
@@ -32,7 +34,6 @@ import DotLottieGlobe from "./LottieGlobe";
 export const button = (
   path: string,
   n: (key: string) => string,
-  hasAdminAccess: boolean,
 ) => {
   if (path === "/add-recipe") {
     return (
@@ -87,11 +88,20 @@ export const Header = ({
 }: Props) => {
   const n = useTranslations("navigation");
   const path = usePathname();
+  const currentUser = useUser();
+
+  // Helper function to check if a path is active
+  const isActive = (href: string) => {
+    const currentPath = path || "";
+    if (href === "/" && currentPath === "/") return true;
+    if (href !== "/" && currentPath.startsWith(href)) return true;
+    return false;
+  };
 
   // Dynamic classes based on page type
   const headerBgClass = "bg-white";
   // const iconColorClass = isExplorePage ? 'text-white' : 'text-gray-700'
-  const imageFilterClass = "text-[#5f5f13]";
+  const imageFilterClass = "text-[#9BC9C3]";
   // const logoSrc = isExplorePage ? "/logoMain.svg" : "/logoMain.svg" // Keep same logo, maybe invert if needed? assuming logo looks ok or needs specific invert
 
   // Always justify-between to keep logo left and content right
@@ -165,7 +175,7 @@ export const Header = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="px-2 py-1 w-full max-w-md border-0 outline-0 italic text-black min-w-[100px]"
+              className="px-2 py-1 w-full max-w-md border-0 outline-0 italic text-black min-w-25"
             />
           </div>
         ) : null}
@@ -188,21 +198,23 @@ export const Header = ({
           {/* Home Icon for Explore Page - placed next to Settings */}
           {isExplorePage && (
             <Link href="/">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={`cursor-pointer text-[#9BC9C3] hover:opacity-80 transition-opacity ${imageFilterClass}`}
-              >
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
+              <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="30"
+                  height="30"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`cursor-pointer transition-opacity ${isActive("/") ? "text-white" : `text-[#9BC9C3] ${imageFilterClass}`}`}
+                >
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </div>
             </Link>
           )}
 
@@ -213,11 +225,11 @@ export const Header = ({
               aria-label="Explore"
               className="inline-flex items-center"
             >
-              <span className="inline-flex items-center justify-center w-[40px] h-[40px]">
+              <span className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/explore") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
                 <DotLottieGlobe
                   src="/lottie/earth-lottie.json"
                   size={40}
-                  className="w-[40px] h-[40px] cursor-pointer hover:opacity-80 transition-opacity"
+                  className={`w-10 h-10 cursor-pointer transition-opacity ${isActive("/explore") ? "opacity-80" : "hover:opacity-80"}`}
                 />
               </span>
             </Link>
@@ -227,37 +239,62 @@ export const Header = ({
             hasAdminAccess ? (
               <>
                 <Link href="/dashboard">
-                  <Settings
-                    className={`w-[30px] h-[30px] text-[#9BC9C3] ${imageFilterClass}`}
-                  />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/dashboard") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+                    <Settings
+                      className={`w-7 h-7 transition-opacity ${isActive("/dashboard") ? "text-white" : imageFilterClass}`}
+                    />
+                  </div>
                 </Link>
                 <Link href="/profile">
-                  <User
-                    className={`w-[30px] h-[30px] text-[#9BC9C3] ${imageFilterClass}`}
-                  />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/profile") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+                    <User
+                      className={`w-7 h-7 transition-opacity ${isActive("/profile") ? "text-white" : imageFilterClass}`}
+                    />
+                  </div>
                 </Link>
                 <Link href="/messages">
-                  <MessageCircle
-                    className={`w-[30px] h-[30px] text-[#9BC9C3] ${imageFilterClass}`}
-                  />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/messages") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+                    <MessageCircle
+                      className={`w-7 h-7 transition-opacity ${isActive("/messages") ? "text-white" : imageFilterClass}`}
+                    />
+                  </div>
                 </Link>
               </>
             ) : (
               <>
                 <Link href="/profile">
-                  <Settings
-                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                  />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/profile") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+                    <Settings
+                      className={`w-7 h-7 transition-opacity ${isActive("/profile") ? "text-white" : imageFilterClass}`}
+                    />
+                  </div>
                 </Link>
                 <Link href="/messages">
-                  <MessageCircle
-                    className={`w-[30px] h-[30px] ${imageFilterClass}`}
-                  />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/messages") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
+                    <MessageCircle
+                      className={`w-7 h-7 transition-opacity ${isActive("/messages") ? "text-white" : imageFilterClass}`}
+                    />
+                  </div>
                 </Link>
               </>
             )
           ) : null}
-          {button(path || "", n as (key: string) => string, hasAdminAccess)}
+          {currentUser ? (
+            <button
+              onClick={() => currentUser?.signOut()}
+              className={`inline-flex items-center justify-center w-10 h-10 transition-colors hover:bg-gray-100`}
+              title="Log out"
+            >
+              <LogOut className={`w-7.5 h-7.5 transition-opacity ${imageFilterClass}`} />
+            </button>
+          ) : (
+            <Link href="/handler/sign-in">
+              <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors hover:bg-gray-100`} title="Log in">
+                <UserPlus className={`w-7.5 h-7.5 transition-opacity ${imageFilterClass}`} />
+              </div>
+            </Link>
+          )}
+          {button(path || "", n as (key: string) => string)}
         </div>
 
         {/* Mobile View (Dropdown Menu) */}
@@ -265,18 +302,17 @@ export const Header = ({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="shrink" className="p-2">
-                <Menu className={`w-[30px] h-[30px] ${imageFilterClass}`} />
+                <Menu className={`w-7.5 h-7.5 ${imageFilterClass}`} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
+            <DropdownMenuContent align="end" className="w-56 bg-white z-100">
               {isExplorePage && (
                 <DropdownMenuItem asChild>
                   <Link
                     href="/"
-                    className={`cursor-pointer ${imageFilterClass} !text-[#9BC9C3]
-`}
+                    className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
                   >
-                    <Home className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Home
+                    <Home className={`mr-2 h-4 w-4 ${isActive("/") ? "text-white" : imageFilterClass}`} /> Home
                   </Link>
                 </DropdownMenuItem>
               )}
@@ -284,15 +320,37 @@ export const Header = ({
                 <DropdownMenuItem asChild>
                   <Link
                     href="/explore"
-                    className={`cursor-pointer w-full flex items-center !px-0 gap-1 !text-[#9BC9C3]
-`}
+                    className={`cursor-pointer w-full flex items-center px-0! gap-1 rounded-md transition-colors ${isActive("/explore") ? "bg-[#9BC9C3] text-white" : "text-[#9BC9C3]!"}`}
                   >
                     <DotLottieGlobe
                       src="/lottie/earth-lottie.json"
                       size={30}
-                      className="w-[30px] h-[30px] cursor-pointer hover:opacity-80 transition-opacity"
+                      className="w-7.5 h-7.5 cursor-pointer hover:opacity-80 transition-opacity"
                     />
                     Explore
+                  </Link>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              {/* Login/Logout Button */}
+              {currentUser ? (
+                <DropdownMenuItem asChild>
+                  <button
+                    onClick={() => currentUser?.signOut()}
+                    className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${imageFilterClass} text-[#9BC9C3]!`}
+                  >
+                    <LogOut className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Log out
+                  </button>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/handler/sign-in"
+                    className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${imageFilterClass} text-[#9BC9C3]!`}
+                  >
+                    <UserPlus className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Log in
                   </Link>
                 </DropdownMenuItem>
               )}
@@ -306,11 +364,10 @@ export const Header = ({
                       <DropdownMenuItem asChild>
                         <Link
                           href="/dashboard"
-                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
- ${imageFilterClass}`}
+                          className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/dashboard") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
                         >
                           <Settings
-                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                            className={`mr-2 h-4 w-4 ${isActive("/dashboard") ? "text-white" : imageFilterClass}`}
                           />{" "}
                           Dashboard
                         </Link>
@@ -318,11 +375,10 @@ export const Header = ({
                       <DropdownMenuItem asChild>
                         <Link
                           href="/profile"
-                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
- ${imageFilterClass}`}
+                          className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/profile") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
                         >
                           <User
-                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                            className={`mr-2 h-4 w-4 ${isActive("/profile") ? "text-white" : imageFilterClass}`}
                           />{" "}
                           Profile
                         </Link>
@@ -330,11 +386,10 @@ export const Header = ({
                       <DropdownMenuItem asChild>
                         <Link
                           href="/messages"
-                          className={`cursor-pointer w-full flex items-center text-[#9BC9C3]
- ${imageFilterClass}`}
+                          className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/messages") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
                         >
                           <MessageCircle
-                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                            className={`mr-2 h-4 w-4 ${isActive("/messages") ? "text-white" : imageFilterClass}`}
                           />{" "}
                           Messages
                         </Link>
@@ -345,11 +400,10 @@ export const Header = ({
                       <DropdownMenuItem asChild>
                         <Link
                           href="/profile"
-                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
- ${imageFilterClass}`}
+                          className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/profile") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
                         >
                           <Settings
-                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                            className={`mr-2 h-4 w-4 ${isActive("/profile") ? "text-white" : imageFilterClass}`}
                           />{" "}
                           Settings
                         </Link>
@@ -357,11 +411,10 @@ export const Header = ({
                       <DropdownMenuItem asChild>
                         <Link
                           href="/messages"
-                          className={`cursor-pointer w-full flex items-center !text-[#9BC9C3]
- ${imageFilterClass}`}
+                          className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${isActive("/messages") ? "bg-[#9BC9C3] text-white" : `${imageFilterClass} text-[#9BC9C3]!`}`}
                         >
                           <MessageCircle
-                            className={`mr-2 h-4 w-4 ${imageFilterClass}`}
+                            className={`mr-2 h-4 w-4 ${isActive("/messages") ? "text-white" : imageFilterClass}`}
                           />{" "}
                           Messages
                         </Link>
@@ -377,7 +430,7 @@ export const Header = ({
                 {path === "/add-recipe" ? (
                   <Link
                     href="/"
-                    className={`cursor-pointer w-full !text-[#9BC9C3]
+                    className={`cursor-pointer w-full text-[#9BC9C3]!
  ${imageFilterClass}`}
                   >
                     {n("home")}
@@ -385,7 +438,7 @@ export const Header = ({
                 ) : (
                   <Link
                     href="/add-recipe"
-                    className={`cursor-pointer w-full !text-white bg-green-dark ${imageFilterClass}`}
+                    className={`cursor-pointer w-full text-white! bg-[#9BC9C3] ${imageFilterClass}`}
                   >
                     <Plus className={`mr-2 h-4 w-4 `} /> {n("addRecipe")}
                   </Link>

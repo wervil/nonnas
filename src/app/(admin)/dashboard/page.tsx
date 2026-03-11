@@ -1,35 +1,25 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Recipe } from '@/db/schema'
-import { useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
-import { RecipesList } from '@/components/RecipesList'
-import { countriesData } from '@/utils/countries'
-import { useRouter } from 'next/navigation'
-import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { Recipe } from '@/db/schema'
 import { useUser } from '@stackframe/stack'
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog'
 
-import { toast } from "sonner";
-import { Copy, Home, LogOut, Menu } from 'lucide-react'
+import { AdminTabSwitcher } from '@/components/AdminTabSwitcher'
+import { Header } from '@/components/Header'
+import { TabContent } from '@/components/TabContent'
+import { toast } from "sonner"
 
 type StackUserRow = {
   id: string
@@ -39,24 +29,34 @@ type StackUserRow = {
   role: string // expected: "team_member" for admins; otherwise treat as client
 }
 
-const imageFilterClass = 'text-[#5f5f13]';
-
-const fetchStackUsers = async () => {
-  const res = await fetch('/api/admin/users', { cache: 'no-store' })
-  if (!res.ok) throw new Error(await res.text())
-  const data = await res.json()
-  return data.users as StackUserRow[]
+type UsersResponse = {
+  users: StackUserRow[]
+  pagination: {
+    page: number
+    limit: number
+    totalCount: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
 }
 
-const fetchRecipes = async (published: boolean, country: string) => {
+
+const fetchStackUsers = async (page: number = 1, limit: number = 5) => {
+  const res = await fetch(`/api/admin/users?page=${page}&limit=${limit}`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  return data as UsersResponse
+}
+
+const fetchRecipes = async (country: string) => {
   const res = await fetch(
-    `/api/recipes?published=${published}${country ? `&country=${country}` : ''}`
+    `/api/recipes${country ? `?country=${country}` : ''}`
   )
   const data = await res.json()
   return data.recipes ?? []
 }
 
-const countries = Object.keys(countriesData)
 
 export default function Dashboard() {
   const user = useUser()
@@ -111,9 +111,10 @@ function DashboardInner({
   SUPER_ADMIN_EMAIL: string
   SUPER_ADMIN_SEC_EMAIL: string
 }) {
-  const [tab, setTab] = useState<'new' | 'published' | 'users'>('new')
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [users, setUsers] = useState<StackUserRow[]>([])
+  const [usersPagination, setUsersPagination] = useState<UsersResponse['pagination'] | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [selectedCountry, setSelectedCountry] = useState('')
   const [copied, setCopied] = useState(false)
@@ -135,11 +136,7 @@ function DashboardInner({
   }, [user, hasPermissions, router])
 
   /* ================= USERS TAB GUARD ================= */
-  useEffect(() => {
-    if (tab === 'users' && !isSuperAdmin) {
-      setTab('new')
-    }
-  }, [tab, isSuperAdmin])
+  // No longer needed since AdminTabSwitcher handles this
 
   /* ================= INVITE LINK ================= */
   const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/register?invite=${process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN}`
@@ -170,8 +167,9 @@ function DashboardInner({
       }
 
       // Refresh list
-      const u = await fetchStackUsers()
-      setUsers(u)
+      const response = await fetchStackUsers(currentPage)
+      setUsers(response.users)
+      setUsersPagination(response.pagination)
     } catch (e) {
       console.error(e)
       alert('Failed to update role. Check console.')
@@ -208,29 +206,33 @@ function DashboardInner({
   }
 
   /* ================= LOAD DATA ================= */
-  const loadTabData = async () => {
+  const loadTabData = useCallback(async (activeTab: 'recipes' | 'users', page: number = 1) => {
     setLoading(true)
     try {
-      if (tab === 'users') {
+      if (activeTab === 'users') {
         // ✅ ALWAYS reset recipes (prevents undefined issues)
         setRecipes([])
 
         if (!isSuperAdmin) {
           setUsers([])
+          setUsersPagination(null)
           return
         }
 
-        const u = await fetchStackUsers()
-        setUsers(u)
+        const response = await fetchStackUsers(page)
+        setUsers(response.users)
+        setUsersPagination(response.pagination)
+        setCurrentPage(page)
       } else {
-        const data = await fetchRecipes(tab === 'published', selectedCountry)
+        const data = await fetchRecipes(selectedCountry)
         setRecipes(data)
         setUsers([])
+        setUsersPagination(null)
       }
     } finally {
       setLoading(false)
     }
-  }
+  }, [isSuperAdmin, selectedCountry, setLoading])
 
   const deleteUser = async () => {
     if (!deleteUserId) return
@@ -251,8 +253,9 @@ function DashboardInner({
 
       toast.success('User deleted successfully')
 
-      const u = await fetchStackUsers()
-      setUsers(u)
+      const response = await fetchStackUsers(currentPage)
+      setUsers(response.users)
+      setUsersPagination(response.pagination)
     } catch (e) {
       console.error(e)
       toast.error('Something went wrong while deleting the user')
@@ -263,9 +266,17 @@ function DashboardInner({
   }
 
   useEffect(() => {
-    loadTabData()
-    // eslint-disable-next-line
-  }, [tab, selectedCountry, isSuperAdmin])
+    // Load initial data for recipes tab
+    loadTabData('recipes')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // Reload recipes when country changes
+    if (selectedCountry !== undefined) {
+      loadTabData('recipes')
+    }
+  }, [selectedCountry, isSuperAdmin, loadTabData])
 
   /* ================= SUPER ADMIN FIRST ================= */
   const sortedUsers = useMemo(() => {
@@ -283,274 +294,82 @@ function DashboardInner({
   /* ================= RENDER ================= */
   return (
     <div className="min-h-screen bg-white">
+      {/* HEADER */}
+      <Header
+        hasAdminAccess={hasPermissions}
+        user={user}
+      />
+
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* HEADER */}
-        <div className="flex flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <span className="sm:text-4xl text-2xl font-bold text-gray-900">
-            {l('dashboard')}
-
-          </span>
-
-          <div className='flex flex-row gap-2'>
-
-            <div className="flex flex-wrap gap-3">
-              {hasPermissions && (
-                <Button
-                  onClick={copyInviteLink}
-                  className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors sm:block hidden flex flex-row whitespace-nowrap"
-                  variant="empty" // overriding styles manually
-                >
-                  {copied ? 'Copied ✓' : 'Copy Invite Link'}
-                </Button>
-              )}
-
-              {hasPermissions && (
-                <Button
-                  onClick={copyInviteLink}
-                  className="bg-gray-100 hover:bg-gray-200 text-[12px] hover:opacity-100 text-gray-900 transition-colors sm:hidden block"
-                  style={{padding : '6px 13px'}}
-                  variant="empty" // overriding styles manually
-                >                  
-                  {copied ? 'Copied ✓' : (<><Copy className="w-4 h-4 mr-2" /> Invite Link </>)}
-                </Button>
-              )}
-
-              <Link href="/" className='hidden sm:block'>
-                <Button className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors" variant="empty">
-                  {b('returnHome')}
-                </Button>
-              </Link>
-
-              <Button
-                onClick={async () => {
-                  await user.signOut()
-                  window.location.href = '/'
-                }}
-                className="bg-gray-100 hover:bg-gray-200 hover:opacity-100 text-gray-900 transition-colors hidden sm:block"
-                variant="empty"
-              >
-                {b('logOut')}
-              </Button>
-            </div>
-
-            {/* Mobile View (Dropdown Menu) */}
-            <div className="flex md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="shrink" className="p-2">
-                    <Menu className={`w-[30px] h-[30px] `} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white z-[100]">
-
-                  <DropdownMenuItem >
-                    <Link href="/" className={`cursor-pointer w-full flex items-center ${imageFilterClass} !text-green-dark `}>
-                      <Home className={`mr-2 h-4 w-4 `} /> Home
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => user?.signOut()} className='bg-red-200 text-red-800'>
-                    <LogOut className={`mr-2 h-4 w-4 `} /> Logout
-                  </DropdownMenuItem>
-
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-        {/* TABS */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className='flex flex-row gap-2'>
-            <button
-              className={`px-3 py-2 sm:px-6 sm:py-3  sm:text-lg text-sm rounded-lg font-[var(--font-bell)] transition-all duration-200 ${tab === 'new'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-                }`}
-              onClick={() => setTab('new')}
-            >
-              {d('newRecipes')}
-            </button>
-
-            <button
-              className={`px-3 py-2 sm:px-6 sm:py-3  sm:text-lg text-sm rounded-lg font-[var(--font-bell)] transition-all duration-200 ${tab === 'published'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-                }`}
-              onClick={() => setTab('published')}
-            >
-              {d('publishedRecipes')}
-            </button>
-
-            {isSuperAdmin && (
-              <button
-                className={`px-3 py-2 sm:px-6 sm:py-3  sm:text-lg text-sm rounded-lg font-[var(--font-bell)] transition-all duration-200 ${tab === 'users'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-                  }`}
-                onClick={() => setTab('users')}
-              >
-                {d('users')}
-              </button>
-            )}
-
-          </div>
-          {tab !== 'users' && (
-            <div className="min-w-[200px]">
-              <SearchableSelect
-                options={countries.map((c) => ({
-                  value: countriesData[c as keyof typeof countriesData].name,
-                  label: countriesData[c as keyof typeof countriesData].name,
-                  flag: countriesData[c as keyof typeof countriesData].flag,
-                }))}
-                value={selectedCountry}
-                onChange={setSelectedCountry}
-                placeholder={l('all')}
-                variant="light"
+        {/* ADMIN TAB SWITCHER */}
+        <AdminTabSwitcher
+          isSuperAdmin={isSuperAdmin}
+        >
+          {(activeTab) => {
+            return (
+              <TabContent
+                activeTab={activeTab}
+                isSuperAdmin={isSuperAdmin}
+                loading={loading}
+                recipes={recipes}
+                sortedUsers={sortedUsers}
+                selectedCountry={selectedCountry}
+                setSelectedCountry={setSelectedCountry}
+                roleUpdatingId={roleUpdatingId}
+                deleteUserId={deleteUserId}
+                setDeleteUserId={setDeleteUserId}
+                togglePublished={togglePublished}
+                updateUserRole={updateUserRole}
+                l={l as (key: string) => string}
+                d={d as (key: string) => string}
+                b={b as (key: string) => string}
+                SUPER_ADMIN_EMAIL={SUPER_ADMIN_EMAIL}
+                SUPER_ADMIN_SEC_EMAIL={SUPER_ADMIN_SEC_EMAIL}
+                loadTabData={loadTabData}
+                copyInviteLink={copyInviteLink}
+                copied={copied}
+                usersPagination={usersPagination}
+                currentPage={currentPage}
               />
-            </div>
-          )}
-        </div>
-
-        {/* CONTENT */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="text-gray-500 text-xl font-[var(--font-bell)]">
-              {b('loading')}
-            </div>
-          </div>
-        ) : tab === 'users' ? (
-          <div className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm overflow-x-auto">
-            <div className="grid grid-cols-6 gap-4 p-4 font-[var(--font-bell)] bg-gray-50 text-gray-700 font-medium  border-b border-gray-200 min-w-[800px]">
-              <div className="">Name</div>
-              <div className="">Email</div>
-              <div>Role</div>
-              <div>Signed up</div>
-              <div className="text-right">Action</div>
-              <div className="text-right">Delete</div>
-            </div>
-
-            {sortedUsers.map((u) => {
-              const userEmail = (u.primaryEmail || '').toLowerCase()
-              const isSuper = userEmail === SUPER_ADMIN_EMAIL || userEmail === SUPER_ADMIN_SEC_EMAIL
-
-              const isAdmin = u.role === 'team_member'
-              const badge = isSuper ? 'Super Admin' : isAdmin ? 'Admin' : 'Client'
-
-              return (
-                <div
-                  key={u.id}
-                  className={`grid grid-cols-6 gap-4 p-4 border-t border-gray-100 items-center transition-colors hover:bg-gray-50  min-w-[800px] ${isSuper ? 'bg-amber-50/50' : ''
-                    }`}
-                >
-                  <div className="  truncate text-gray-900 font-[var(--font-bell)]" title={u.displayName || undefined}>
-                    {u.displayName || '—'}
-                  </div>
-                  <div className="  truncate text-gray-600 font-[var(--font-bell)]" title={u.primaryEmail || undefined}>
-                    {u.primaryEmail || '—'}
-                  </div>
-
-                  <div className='whitespace-nowrap'>
-                    {isSuper ? (
-                      <span className="text-xs px-3 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold border border-amber-200">
-                        {badge}
-                      </span>
-                    ) : isAdmin ? (
-                      <span className="text-xs px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-                        {badge}
-                      </span>
-                    ) : (
-                      <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-semibold border border-gray-200">
-                        {badge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-gray-500 font-[var(--font-bell)] text-sm">
-                    {u.signedUpAt ? new Date(u.signedUpAt).toLocaleString() : '—'}
-                  </div>
-
-                  {/* Role toggle */}
-                  <div className="flex justify-end">
-                    {isSuper ? (
-                      <span className="text-xs text-gray-400">—</span>
-                    ) : (
-                      <Button
-                        onClick={() =>
-                          updateUserRole(u.id, isAdmin ? 'client' : 'team_member')
-                        }
-                        disabled={roleUpdatingId === u.id}
-                        className="bg-white hover:bg-gray-100 text-gray-900 border border-gray-200 !text-sm sm:text-lg !px-2 !py-1 sm:!px-4 sm:!py-2"
-                        variant="empty"
-                      >
-                        {roleUpdatingId === u.id
-                          ? 'Updating...'
-                          : isAdmin
-                            ? 'Make Client'
-                            : 'Make Admin'}
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Delete (super admin only) */}
-                  <div className="flex justify-end">
-                    {!isSuperAdmin || isSuper ? (
-                      <span className="text-xs text-gray-400">—</span>
-                    ) : (
-                      <Button
-                        className='bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 !text-sm sm:text-lg !px-2 !py-1 sm:!px-4 sm:!py-2'
-                        onClick={() => setDeleteUserId(u.id)}
-                        disabled={roleUpdatingId === u.id}
-                        variant="empty"
-                      >
-                        Delete
-                      </Button>
-
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-
-          </div>
-        ) : (
-          <RecipesList recipes={recipes} togglePublished={togglePublished} />
-        )}
-
-        <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
-          <DialogContent className="bg-white border-gray-200 shadow-xl">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 font-[var(--font-bell)] text-2xl">
-                Delete user?
-              </DialogTitle>
-              <DialogDescription className="text-gray-500 font-[var(--font-bell)]">
-                This action is permanent and cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-
-            <DialogFooter className="gap-2">
-              <Button
-                className="bg-gray-100 hover:bg-gray-200 text-gray-900"
-                onClick={() => {
-                  setDeleteUserId(null)
-                  toast('Deletion cancelled')
-                }}
-                variant="empty"
-              >
-                Cancel
-              </Button>
-
-              <Button
-                className='bg-red-600 hover:bg-red-700 text-white shadow-sm'
-                onClick={deleteUser}
-                disabled={!!roleUpdatingId}
-                variant="empty"
-              >
-                {roleUpdatingId ? 'Deleting...' : 'Delete'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
+            )
+          }}
+        </AdminTabSwitcher>
       </div>
+
+      <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+        <DialogContent className="bg-white border-gray-200 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 font-[var(--font-bell)] text-2xl">
+              Delete user?
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 font-[var(--font-bell)]">
+              This action is permanent and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2">
+            <Button
+              className="bg-gray-100 hover:bg-gray-200 text-gray-900"
+              onClick={() => {
+                setDeleteUserId(null)
+                toast('Deletion cancelled')
+              }}
+              variant="empty"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              className='bg-red-600 hover:bg-red-700 text-white shadow-sm'
+              onClick={deleteUser}
+              disabled={!!roleUpdatingId}
+              variant="empty"
+            >
+              {roleUpdatingId ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

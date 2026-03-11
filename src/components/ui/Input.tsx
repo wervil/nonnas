@@ -1,7 +1,7 @@
-import React, { InputHTMLAttributes } from 'react'
+import { clsx } from 'clsx'
+import { InputHTMLAttributes } from 'react'
 import { Control, Controller, FieldValues, Path } from 'react-hook-form'
 import { Typography } from './Typography'
-import { clsx } from 'clsx'
 
 interface InputProps<T extends FieldValues>
   extends InputHTMLAttributes<HTMLInputElement> {
@@ -9,9 +9,11 @@ interface InputProps<T extends FieldValues>
   description?: string
   name: Path<T>
   control: Control<T>
-  theme?: 'dark' | 'light'
   error?: string
   maxLength?: number
+  hideLabel?: boolean
+  hideCharacterCount?: boolean
+  containerClassName?: string
 }
 
 const Input = <T extends FieldValues>({
@@ -21,43 +23,46 @@ const Input = <T extends FieldValues>({
   error,
   className = '',
   description,
-  theme = 'dark',
   maxLength,
+  hideLabel = false,
+  hideCharacterCount = false,
+  containerClassName = '',
   ...props
 }: InputProps<T> & { description?: string }) => {
   return (
-    <div>
-      <Typography
-        as="label"
-        htmlFor={name}
-        color="primaryFocus"
-        className="mb-2"
-      >
-        {label}
-      </Typography>
+    <div className={containerClassName}>
+      {!hideLabel && (
+        <Typography
+          as="label"
+          htmlFor={name}
+          color="black"
+          className="mb-2"
+        >
+          {label}
+        </Typography>
+      )}
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState }) => {
           const charCount = (field.value as string)?.length || 0
-          
+
           return (
-            <>
+            <div className="flex flex-col">
               <input
                 {...field}
                 {...props}
                 id={name}
                 maxLength={maxLength}
                 className={clsx(
-                  'w-full px-3 py-2 border rounded-lg text-text-pale focus:outline-none text-base font-[var(--font-merriweather)]',
-                  theme === 'dark' ? 'bg-primary-hover' : 'bg-brown-pale',
-                  fieldState.error ? 'border-danger-main' : 'border-primary-main',
+                  'h-11.25 sm:h-12.25 w-full rounded-[inherit] px-3 sm:px-4 py-2 sm:py-3 items-center font-normal leading-normal text-[13px] sm:text-[14px] text-[#2D2D2D80]! tracking-[-0.1504px] bg-white border-none outline-none',
+                  fieldState.error ? 'border-red-500 focus:border-red-500' : '',
                   className
                 )}
               />
-              {maxLength && (
-                <Typography size="bodyXS" color={charCount > maxLength ? "dangerMain" : "primaryFocus"} className="mt-1">
-                  {charCount}/{maxLength} characters
+              {maxLength && !hideCharacterCount && (
+                <Typography size="bodyXS" color="black" className="mt-2">
+                  {charCount}/{maxLength} Characters
                 </Typography>
               )}
               {(fieldState.error || error) && (
@@ -65,15 +70,15 @@ const Input = <T extends FieldValues>({
                   {error || fieldState.error?.message}
                 </Typography>
               )}
-            </>
+            </div>
           )
         }}
       />
-      {description ? (
+      {description && (
         <Typography size="bodyXS" color="primaryFocus" className="mt-2">
           {description}
         </Typography>
-      ) : null}
+      )}
     </div>
   )
 }

@@ -127,7 +127,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Country Selector */}
         <div>
-          <Typography as="label" color="primaryFocus" className="mb-2">
+          <Typography as="label" color="black" className="mb-2">
             Country
           </Typography>
           <Controller
@@ -140,6 +140,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
                 onChange={field.onChange}
                 placeholder="Select country"
                 error={fieldState.error?.message}
+                variant='light'
               />
             )}
           />
@@ -147,7 +148,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
 
         {/* State/Region Selector */}
         <div>
-          <Typography as="label" color="primaryFocus" className="mb-2">
+          <Typography as="label" color="black" className="mb-2">
             State/Region
           </Typography>
           <Controller
@@ -161,6 +162,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
                 placeholder={selectedCountry ? 'Select state' : 'Select country first'}
                 disabled={!selectedCountry}
                 error={fieldState.error?.message}
+                variant='light'
               />
             )}
           />
@@ -170,7 +172,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* City Selector */}
         <div>
-          <Typography as="label" color="primaryFocus" className="mb-2">
+          <Typography as="label" color="black" className="mb-2">
             City
           </Typography>
           <Controller
@@ -207,6 +209,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
                   placeholder={selectedState ? 'Select city' : 'Select state first'}
                   disabled={!selectedState}
                   error={fieldState.error?.message}
+                  variant='light'
                 />
               )
             }}
