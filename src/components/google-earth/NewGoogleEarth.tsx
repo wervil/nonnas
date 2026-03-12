@@ -720,6 +720,7 @@ export default function Earth3DPage() {
     }
   }, [currentLevel, mapReady]);
   // Place nonna markers
+  // Place nonna markers
   useEffect(() => {
     if (!nonnaData.length || !mapReady || !map3dRef.current) return;
     const map3d = map3dRef.current;
@@ -765,7 +766,50 @@ export default function Earth3DPage() {
           marker.append(tplCompact.cloneNode(true));
           map3d.append(marker);
           placedMarkers.push(marker);
+
           marker.addEventListener("gmp-click", (e: Event) => {
+            // Get the actual click position within the SVG
+            const svgElement = marker.querySelector('svg');
+            if (!svgElement) {
+              console.log("[Earth3D] No SVG element found, allowing click");
+              // Fallback to normal behavior if we can't find SVG
+            } else {
+              const clickEvent = e as any;
+              const rect = svgElement.getBoundingClientRect();
+
+              // If we have client coordinates, check if click is within the circle
+              if (clickEvent.clientX && clickEvent.clientY) {
+                const svgX = clickEvent.clientX - rect.left;
+                const svgY = clickEvent.clientY - rect.top;
+
+                // Get SVG viewBox to calculate actual coordinates
+                const viewBox = svgElement.getAttribute('viewBox')?.split(' ').map(Number);
+                if (viewBox) {
+                  const [vbX, vbY, vbW, vbH] = viewBox;
+                  const actualX = (svgX / rect.width) * vbW + vbX;
+                  const actualY = (svgY / rect.height) * vbH + vbY;
+
+                  // Calculate center of marker (cx from SVG)
+                  const cx = vbW / 2;
+                  const aR = markerMode === "bubble-large" ? 100 : 34;
+                  const pad = markerMode === "bubble-large" ? 24 : 12;
+                  const cy = aR + pad;
+
+                  // Calculate distance from click to center
+                  const distance = Math.sqrt(Math.pow(actualX - cx, 2) + Math.pow(actualY - cy, 2));
+
+                  // Check if click is within the marker radius (with small buffer)
+                  const markerRadius = markerMode === "avatar" ? aR : (markerMode === "bubble-large" ? 85 : 28);
+                  const effectiveRadius = markerRadius + 10; // 10px buffer
+
+                  if (distance > effectiveRadius) {
+                    console.log("[Earth3D] Click outside marker radius:", distance, "vs", effectiveRadius, "- ignoring");
+                    return; // Click was outside the visible marker
+                  }
+                }
+              }
+            }
+
             console.log("[Earth3D] MARKER CLICKED! Event:", e);
             console.log("[Earth3D] Event target:", e.target);
             console.log("[Earth3D] Event currentTarget:", e.currentTarget);
@@ -775,44 +819,61 @@ export default function Earth3DPage() {
             e.stopPropagation();
             e.preventDefault();
 
-            // Only open CommentSection for individual nonnas at CITY/NONNA level
-            // At higher levels, always open DiscussionPanel for location-based discussions
-            const isDeepLevel = currentLevelRef.current === "CITY" || currentLevelRef.current === "NONNA";
+            // Only open CommentSection for individual nonnas at NONNA level only
+            // At higher levels or CITY level, always open DiscussionPanel for location-based discussions
+            const isNonnaLevel = currentLevelRef.current === "NONNA";
 
-            if (isDeepLevel && nonna.nonnaCount === 1 && nonna.recipeId) {
+            if (isNonnaLevel && nonna.nonnaCount === 1 && nonna.recipeId) {
               console.log("[Earth3D] Opening comment section for individual nonna at deep level:", nonna.representativeName);
               console.log("[Earth3D] Nonna recipeId:", nonna.recipeId);
               console.log("[Earth3D] Current level:", currentLevelRef.current);
               if (mounted) {
-                setCommentSection({
-                  open: true,
-                  recipeId: parseInt(nonna.recipeId, 10),
-                  nonnaName: nonna.representativeName,
-                });
+                // Check if comment section is already open for this same nonna
+                if (commentSection.open && commentSection.recipeId === parseInt(nonna.recipeId, 10)) {
+                  // Close the comment section if clicking the same nonna
+                  setCommentSection({ ...commentSection, open: false });
+                } else {
+                  // Close discussion panel if open, then open comment section
+                  setPanel(prev => ({ ...prev, open: false }));
+                  setCommentSection({
+                    open: true,
+                    recipeId: parseInt(nonna.recipeId, 10),
+                    nonnaName: nonna.representativeName,
+                  });
+                }
               }
             } else {
               // Open DiscussionPanel for clusters or at higher levels
               console.log("[Earth3D] Opening discussion panel for location:", nonna.representativeName, "count:", nonna.nonnaCount);
               console.log("[Earth3D] Current level:", currentLevelRef.current, "- opening DiscussionPanel");
               if (mounted) {
-                setPanel({
-                  open: true,
-                  region: nonna.countryName || nonna.representativeName,
-                  regionDisplayName: nonna.countryName ? `${nonna.countryName} • ${nonna.representativeName}` : nonna.representativeName,
-                  scope: "city", // Nonnas are at city level
-                  country: nonna.countryName || undefined,
-                  state: undefined,
-                  city: nonna.representativeName,
-                  nonnas: [{
-                    id: nonna.id,
-                    name: nonna.representativeName,
-                    recipeTitle: nonna.representativeTitle || undefined,
-                    history: nonna.history || undefined,
-                    photo: nonna.representativePhoto ? [nonna.representativePhoto] : null,
-                    origin: nonna.origin || undefined,
-                  }],
-                  initialTab: "discussion", // Always default to Community tab
-                });
+                // Check if discussion panel is already open for this same location
+                const currentRegion = nonna.countryName || nonna.representativeName;
+                if (panel.open && panel.region === currentRegion) {
+                  // Close the discussion panel if clicking the same location
+                  setPanel({ ...panel, open: false });
+                } else {
+                  // Close comment section if open, then open discussion panel
+                  setCommentSection(prev => ({ ...prev, open: false }));
+                  setPanel({
+                    open: true,
+                    region: nonna.countryName || nonna.representativeName,
+                    regionDisplayName: nonna.countryName ? `${nonna.countryName} • ${nonna.representativeName}` : nonna.representativeName,
+                    scope: "city", // Nonnas are at city level
+                    country: nonna.countryName || undefined,
+                    state: undefined,
+                    city: nonna.representativeName,
+                    nonnas: [{
+                      id: nonna.id,
+                      name: nonna.representativeName,
+                      recipeTitle: nonna.representativeTitle || undefined,
+                      history: nonna.history || undefined,
+                      photo: nonna.representativePhoto ? [nonna.representativePhoto] : null,
+                      origin: nonna.origin || undefined,
+                    }],
+                    initialTab: "discussion", // Always default to Community tab
+                  });
+                }
               }
             }
           });
@@ -944,8 +1005,9 @@ export default function Earth3DPage() {
       // Enable single-finger gestures for mobile
       map3d.setAttribute("gesture-handling", "auto");
 
-      // Suppress noisy map labels
+      // Suppress noisy map labels and default UI elements
       map3d.setAttribute("default-labels-disabled", "");
+      map3d.setAttribute("default-ui-disabled", "");
       map3d.setAttribute("road-labels-mode", "none");
       map3d.setAttribute("transit-labels-mode", "none");
       map3d.setAttribute("poi-labels-mode", "none");
@@ -1224,6 +1286,96 @@ export default function Earth3DPage() {
 
         if (isMarkerClick) {
           console.log("[Earth3D] Click originated from marker, ignoring map click");
+          return;
+        }
+
+        // If at NONNA level and clicking on non-marker area, go back to CITY level and 2D mode
+        if (currentLevelRef.current === "NONNA") {
+          console.log("[Earth3D] At NONNA level, clicking non-marker area - going back to CITY level and 2D mode");
+          if (mounted && map3d) {
+            // Close comment section if open
+            setCommentSection(prev => ({ ...prev, open: false }));
+
+            // Set level to CITY
+            setLevel("CITY");
+            currentLevelRef.current = "CITY";
+
+            // Set flight state for smooth transition
+            flightStateRef.current = {
+              active: true,
+              targetRange: ZOOM_RANGES.CITY,
+              targetLevel: "CITY",
+              startTime: Date.now(),
+              lastRanges: [],
+            };
+
+            // Fly to CITY level with 2D mode (tilt: 0)
+            map3d.flyCameraTo({
+              endCamera: {
+                center: map3d.center,
+                range: ZOOM_RANGES.CITY,
+                heading: map3d.heading,
+                tilt: 0, // 2D mode
+              },
+              durationMillis: 1000,
+            });
+
+            // After a short delay, open discussion panel for the current location
+            setTimeout(async () => {
+              if (!mounted || !map3d) return;
+
+              try {
+                // Get current center coordinates
+                const center = map3d.center;
+                const latLng = { lat: center.lat, lng: center.lng };
+
+                // Geocode the current location to get city info
+                const response = await geocoder.geocode({ location: latLng });
+                const first = response?.results?.[0];
+
+                if (first && mounted) {
+                  const info = parseAdminLevelsFromGeocodeResult(first);
+
+                  // Try to get city name from geocode result
+                  const cityComponent = first.address_components?.find((c: any) =>
+                    c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+                  );
+                  const cityName = cityComponent?.long_name;
+                  const targetName = cityName || info.state || info.country;
+                  const featureType = cityName ? "city" : (info.state ? "state" : "country");
+
+                  // Create region display name
+                  let regionDisplayName = targetName;
+                  if (featureType === "city") {
+                    if (info.state && info.country) {
+                      regionDisplayName = `${info.country} • ${info.state} • ${targetName}`;
+                    } else if (info.country) {
+                      regionDisplayName = `${info.country} • ${targetName}`;
+                    }
+                  } else if (featureType === "state") {
+                    regionDisplayName = `${info.country || 'Unknown Country'} • ${targetName}`;
+                  }
+
+                  // Open discussion panel
+                  setPanel({
+                    open: true,
+                    region: targetName,
+                    regionDisplayName,
+                    scope: featureType,
+                    country: info.country || undefined,
+                    state: info.state || undefined,
+                    city: featureType === "city" ? targetName : undefined,
+                    nonnas: [],
+                    initialTab: "discussion",
+                  });
+
+                  console.log("[Earth3D] Opened discussion panel for:", targetName);
+                }
+              } catch (err) {
+                console.error("[Earth3D] Error opening discussion panel after returning to CITY level:", err);
+              }
+            }, 1200); // Wait for camera animation to complete
+          }
           return;
         }
 
