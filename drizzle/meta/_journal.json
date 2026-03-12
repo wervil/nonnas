@@ -57,6 +57,20 @@
       "when": 1773158302732,
       "tag": "0007_add-city-and-coordinates-columns",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773330537399,
+      "tag": "0008_add-city-to-threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773331201616,
+      "tag": "0009_add-geographic-hierarchy-to-threads",
+      "breakpoints": true
     }
   ]
 }

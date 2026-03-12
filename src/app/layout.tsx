@@ -7,7 +7,7 @@ import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
-import { Footer } from "@/components/Footer";
+import { ConditionalFooter } from "@/components/ConditionalFooter";
 import { UserNamePrompt } from "@/components/UserNamePrompt";
 import { StackProvider, StackTheme } from "@stackframe/stack";
 import { Toaster } from "sonner";
@@ -46,7 +46,7 @@ export default async function RootLayout({
             <StackTheme>
               <div className="flex flex-col min-h-svh">
                 <div className="flex-1">{children}</div>
-                <Footer />
+                <ConditionalFooter />
               </div>
               <Suspense fallback={null}>
                 <UserNamePrompt />

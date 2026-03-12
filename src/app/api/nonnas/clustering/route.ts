@@ -19,6 +19,7 @@ type GlobeNonna = {
   representativeName: string;
   representativeTitle: string;
   representativePhoto: string | null;
+  recipeId?: number; // Add recipe ID
   region?: string;
   clusterLevel?: "continent" | "country" | "state" | "nonna";
 };
@@ -80,6 +81,7 @@ export async function GET(req: NextRequest) {
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
           repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add sample recipe ID
         })
         .from(recipes)
         .where(isNotNull(recipes.country))
@@ -119,6 +121,7 @@ export async function GET(req: NextRequest) {
             representativeName: r.repName,
             representativeTitle: r.repTitle,
             representativePhoto: r.repPhoto || null,
+            recipeId: r.sampleRecipeId, // Add recipe ID
             clusterLevel: "continent",
           };
         }
@@ -136,6 +139,7 @@ export async function GET(req: NextRequest) {
             representativeName: r.repName,
             representativeTitle: r.repTitle,
             representativePhoto: r.repPhoto || null,
+            recipeId: r.sampleRecipeId, // Add recipe ID
             clusterLevel: "country",
           };
         }
@@ -158,6 +162,7 @@ export async function GET(req: NextRequest) {
           representativeName: r.repName,
           representativeTitle: r.repTitle,
           representativePhoto: r.repPhoto || null,
+          recipeId: r.sampleRecipeId, // Add recipe ID
           region: regionName,
           clusterLevel: "state",
         });
@@ -183,6 +188,7 @@ export async function GET(req: NextRequest) {
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
           repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
         .where(isNotNull(recipes.country))
@@ -205,6 +211,7 @@ export async function GET(req: NextRequest) {
             representativeName: r.repName,
             representativeTitle: r.repTitle,
             representativePhoto: r.repPhoto || null,
+            recipeId: r.sampleRecipeId, // Add recipe ID
           };
         }
         continentMap[continent].nonnaCount += Number(r.count);
@@ -218,6 +225,7 @@ export async function GET(req: NextRequest) {
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
           repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
         .where(isNotNull(recipes.country))
@@ -235,6 +243,7 @@ export async function GET(req: NextRequest) {
           representativeName: r.repName,
           representativeTitle: r.repTitle,
           representativePhoto: r.repPhoto || null,
+          recipeId: r.sampleRecipeId, // Add recipe ID
         };
       });
     } else if (level === "COUNTRY" || level === "STATE") {
@@ -256,6 +265,7 @@ export async function GET(req: NextRequest) {
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
           repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
         .where(and(...conditions))
@@ -291,6 +301,7 @@ export async function GET(req: NextRequest) {
           representativeName: r.repName,
           representativeTitle: r.repTitle,
           representativePhoto: r.repPhoto || null,
+          recipeId: r.sampleRecipeId, // Add recipe ID
           region: regionName,
         };
       });
@@ -351,6 +362,7 @@ export async function GET(req: NextRequest) {
           representativeName: nonnaName,
           representativeTitle: r.grandmotherTitle,
           representativePhoto: r.avatar_image || r.photo?.[0] || null,
+          recipeId: r.id, // Add recipe ID (this is the actual recipe ID)
           region: r.region || undefined,
         };
       });

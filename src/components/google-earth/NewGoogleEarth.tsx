@@ -1,6 +1,9 @@
 "use client";
+import { useUser } from "@stackframe/stack";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-
+import CommentSection from "../Comments/CommentSection";
+import DiscussionPanel from "../Map/DiscussionPanel";
 // Search result type
 type SearchResult = {
   place_id: string;
@@ -19,18 +22,17 @@ const ZOOM_RANGES = {
 type ZoomLevel = "EARTH" | "CONTINENT" | "COUNTRY" | "STATE" | "CITY" | "NONNA";
 const ZOOM_LEVEL_META: Record<
   ZoomLevel,
-  { label: string; icon: string; description: string }
+  { label: string; description: string }
 > = {
-  EARTH: { label: "World", icon: "🌍", description: "See all Nonnas globally" },
+  EARTH: { label: "World", description: "See all Nonnas globally" },
   CONTINENT: {
-    label: "Region",
-    icon: "🗺️",
+    label: "Continent",
     description: "Browse by continent",
   },
-  COUNTRY: { label: "Country", icon: "📍", description: "Explore by country" },
-  STATE: { label: "State", icon: "🏙️", description: "Dive into regions" },
-  CITY: { label: "City", icon: "🏘️", description: "Find local Nonnas" },
-  NONNA: { label: "Nonna", icon: "👵", description: "Meet a Nonna" },
+  COUNTRY: { label: "Country", description: "Explore by country" },
+  STATE: { label: "Region", description: "Dive into regions" },
+  CITY: { label: "City", description: "Find local Nonnas" },
+  NONNA: { label: "Nonna", description: "Meet a Nonna" },
 };
 // Teal brand palette
 const TEAL = {
@@ -228,7 +230,7 @@ function buildMarkerTemplate(opts: {
       <image href="${imgHref}" x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}"
         clip-path="url(#av${uid})" preserveAspectRatio="xMidYMid slice"/>
       <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="${TEAL.light}" stroke-width="3.5"/>
-    `;
+          `;
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
   width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" overflow="visible">
@@ -289,6 +291,9 @@ type GlobeNonna = {
   representativeName: string;
   representativeTitle: string;
   representativePhoto: string | null;
+  recipeId: string;
+  history?: string;
+  origin?: string;
 };
 // ─────────────────────────────────────────────────────────────────────────────
 //  LEVEL INDICATOR COMPONENT
@@ -333,7 +338,6 @@ function LevelIndicator({ currentLevel }: { currentLevel: ZoomLevel }) {
           boxShadow: "0 4px 24px rgba(13,148,136,0.3)",
         }}
       >
-        <span style={{ fontSize: "22px" }}>{meta.icon}</span>
         <span
           style={{
             color: "#ccfbf1",
@@ -387,10 +391,12 @@ function ZoomControl({
   onZoomIn,
   onZoomOut,
   currentLevel,
+  isMobile = false,
 }: {
   onZoomIn: () => void;
   onZoomOut: () => void;
   currentLevel: ZoomLevel;
+  isMobile?: boolean;
 }) {
   const levels: ZoomLevel[] = [
     "EARTH",
@@ -403,8 +409,8 @@ function ZoomControl({
   const canZoomIn = levels.indexOf(currentLevel) < levels.length - 1;
   const canZoomOut = levels.indexOf(currentLevel) > 0;
   const btnStyle = (enabled: boolean): React.CSSProperties => ({
-    width: "64px",
-    height: "64px",
+    width: isMobile ? "56px" : "64px",
+    height: isMobile ? "56px" : "64px",
     borderRadius: "50%",
     display: "flex",
     alignItems: "center",
@@ -417,21 +423,22 @@ function ZoomControl({
     opacity: enabled ? 1 : 0.4,
     transition: "all 0.2s ease",
     color: "white",
-    fontSize: "32px",
+    fontSize: isMobile ? "28px" : "32px",
     fontWeight: 300,
     lineHeight: 1,
     userSelect: "none",
+    WebkitTapHighlightColor: "transparent",
   });
   return (
     <div
       style={{
         position: "absolute",
-        right: "24px",
+        right: isMobile ? "8px" : "24px",
         top: "50%",
         transform: "translateY(-50%)",
         display: "flex",
         flexDirection: "column",
-        gap: "12px",
+        gap: isMobile ? "8px" : "12px",
         zIndex: 50,
       }}
     >
@@ -441,12 +448,18 @@ function ZoomControl({
         disabled={!canZoomIn}
         title="Zoom In"
         style={btnStyle(canZoomIn)}
+        onTouchStart={(e) => {
+          if (canZoomIn) (e.currentTarget as HTMLElement).style.transform = "scale(0.95)";
+        }}
+        onTouchEnd={(e) => {
+          if (canZoomIn) (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+        }}
         onMouseEnter={(e) => {
-          if (canZoomIn)
+          if (!isMobile && canZoomIn)
             (e.currentTarget as HTMLElement).style.transform = "scale(1.1)";
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+          if (!isMobile) (e.currentTarget as HTMLElement).style.transform = "scale(1)";
         }}
       >
         +
@@ -457,12 +470,19 @@ function ZoomControl({
         disabled={!canZoomOut}
         title="Zoom Out"
         style={btnStyle(canZoomOut)}
+        onTouchStart={(e) => {
+          if (canZoomOut) (e.currentTarget as HTMLElement).style.transform = "scale(0.95)";
+        }}
+        onTouchEnd={(e) => {
+          if (canZoomOut) (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+        }}
         onMouseEnter={(e) => {
-          if (canZoomOut)
+          if (!isMobile && canZoomOut)
             (e.currentTarget as HTMLElement).style.transform = "scale(1.1)";
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+          if (!isMobile && canZoomOut)
+            (e.currentTarget as HTMLElement).style.transform = "scale(1)";
         }}
       >
         −
@@ -477,6 +497,7 @@ export default function Earth3DPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const map3dRef = useRef<any>(null);
+  const user = useUser();
   const [activePlaceName, setActivePlaceName] = useState<string | null>(null);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
@@ -484,6 +505,8 @@ export default function Earth3DPage() {
   const [nonnaData, setNonnaData] = useState<GlobeNonna[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -492,6 +515,55 @@ export default function Earth3DPage() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const geocoderRef = useRef<any>(null);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Discussion Panel state
+  const [panel, setPanel] = useState<{
+    open: boolean;
+    region: string;
+    regionDisplayName: string;
+    scope: "country" | "state" | "city";
+    country?: string;
+    state?: string;
+    city?: string;
+    nonnas: Array<{
+      id: string | number;
+      name: string;
+      recipeTitle?: string;
+      history?: string;
+      photo?: string[] | null;
+      origin?: string;
+    }>;
+    initialTab: "discussion" | "nonnas";
+  }>({
+    open: false,
+    region: "",
+    regionDisplayName: "",
+    scope: "country",
+    nonnas: [],
+    initialTab: "discussion", // Default to Community tab
+  });
+
+  // Comment Section state for nonna-specific discussions
+  const [commentSection, setCommentSection] = useState<{
+    open: boolean;
+    recipeId: number;
+    nonnaName: string;
+  }>({
+    open: false,
+    recipeId: 0,
+    nonnaName: "",
+  });
   const { currentLevel, setLevel } = useEarthNavigation();
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
   useEffect(() => {
@@ -568,25 +640,83 @@ export default function Earth3DPage() {
     if (currentLevel === "NONNA") {
       setIs3DMode(true);
       if (map3d.tilt < 10) {
-
+        map3d.flyCameraTo({
+          endCamera: {
+            center: map3d.center,
+            range: map3d.range,
+            heading: map3d.heading,
+            tilt: 65,
+          },
+          durationMillis: 800,
+        });
       }
     } else {
       setIs3DMode(false);
       if (map3d.tilt > 10) {
-
+        map3d.flyCameraTo({
+          endCamera: {
+            center: map3d.center,
+            range: map3d.range,
+            heading: map3d.heading,
+            tilt: 0,
+          },
+          durationMillis: 800,
+        });
       }
     }
   }, [currentLevel, mapReady]);
+
+  // Sync 2D/3D toggle with actual map tilt
+  useEffect(() => {
+    if (!mapReady || !map3dRef.current) return;
+
+    const checkTilt = () => {
+      const map3d = map3dRef.current;
+      if (map3d) {
+        const currentTilt = Number(map3d.tilt) || 0;
+        setIs3DMode(currentTilt > 10);
+      }
+    };
+
+    // Check immediately
+    checkTilt();
+
+    // Set up interval to monitor tilt changes
+    const interval = setInterval(checkTilt, 500);
+
+    return () => clearInterval(interval);
+  }, [mapReady]);
   // Conditional labels for country names
   useEffect(() => {
     if (!mapReady || !map3dRef.current) return;
     const map3d = map3dRef.current;
     const deepLevels = ["COUNTRY", "STATE", "CITY", "NONNA"];
     const enableLabels = deepLevels.includes(currentLevel);
+
     if (enableLabels) {
-      map3d.mode = "HYBRID";
+      map3d.mode = "HYBRID"; // Use satellite base with labels
+
+      // Disable all road labels
+      map3d.setAttribute("road-labels-mode", "none");
+      map3d.setAttribute("transit-labels-mode", "none");
+      map3d.setAttribute("highway-labels-mode", "none");
+      map3d.setAttribute("arterial-labels-mode", "none");
+      map3d.setAttribute("local-road-labels-mode", "none");
+
+      // DISABLE city/POI markers but KEEP text labels
+      map3d.setAttribute("poi-labels-mode", "none"); // Removes POI markers
+      map3d.setAttribute("city-labels-mode", "text-only"); // Show city text labels only, no markers
+      map3d.setAttribute("country-labels-mode", "text-only"); // Show country text labels only, no markers
+
     } else {
       map3d.mode = "SATELLITE";
+      // Ensure all labels are disabled at high zoom levels
+      map3d.setAttribute("default-labels-disabled", "");
+      map3d.setAttribute("road-labels-mode", "none");
+      map3d.setAttribute("transit-labels-mode", "none");
+      map3d.setAttribute("poi-labels-mode", "none");
+      map3d.setAttribute("city-labels-mode", "none");
+      map3d.setAttribute("country-labels-mode", "none");
     }
   }, [currentLevel, mapReady]);
   // Place nonna markers
@@ -594,7 +724,7 @@ export default function Earth3DPage() {
     if (!nonnaData.length || !mapReady || !map3dRef.current) return;
     const map3d = map3dRef.current;
     const placedMarkers: any[] = [];
-    const timers: ReturnType<typeof setTimeout>[] = [];
+    let mounted = true;
     (async () => {
       try {
         const { Marker3DInteractiveElement } =
@@ -626,32 +756,65 @@ export default function Earth3DPage() {
             expanded: showExpanded,
             mode: markerMode,
           });
-          const tplExpanded = buildMarkerTemplate({
-            name: nonna.representativeName,
-            photoUrl: nonna.representativePhoto,
-            avatarUri,
-            countryCode: nonna.countryCode,
-            countryName: nonna.countryName,
-            nonnaCount: nonna.nonnaCount,
-            expanded: true,
-            mode: markerMode,
-          });
           const marker = new Marker3DInteractiveElement({
             position: { lat: nonna.lat, lng: nonna.lng, altitude: 50 },
             altitudeMode: "RELATIVE_TO_GROUND",
           } as any);
+          marker.setAttribute('data-marker', 'nonna');
+          marker.setAttribute('data-nonna-name', nonna.representativeName);
           marker.append(tplCompact.cloneNode(true));
           map3d.append(marker);
           placedMarkers.push(marker);
-          let localTimer: ReturnType<typeof setTimeout> | null = null;
           marker.addEventListener("gmp-click", (e: Event) => {
+            console.log("[Earth3D] MARKER CLICKED! Event:", e);
+            console.log("[Earth3D] Event target:", e.target);
+            console.log("[Earth3D] Event currentTarget:", e.currentTarget);
+            console.log("[Earth3D] Nonna data:", nonna.representativeName);
+            console.log("[Earth3D] Nonna count:", nonna.nonnaCount);
+
             e.stopPropagation();
-            marker.replaceChildren(tplExpanded.cloneNode(true));
-            if (localTimer) clearTimeout(localTimer);
-            localTimer = setTimeout(() => {
-              marker.replaceChildren(tplCompact.cloneNode(true));
-            }, 5000);
-            timers.push(localTimer!);
+            e.preventDefault();
+
+            // Only open CommentSection for individual nonnas at CITY/NONNA level
+            // At higher levels, always open DiscussionPanel for location-based discussions
+            const isDeepLevel = currentLevelRef.current === "CITY" || currentLevelRef.current === "NONNA";
+
+            if (isDeepLevel && nonna.nonnaCount === 1 && nonna.recipeId) {
+              console.log("[Earth3D] Opening comment section for individual nonna at deep level:", nonna.representativeName);
+              console.log("[Earth3D] Nonna recipeId:", nonna.recipeId);
+              console.log("[Earth3D] Current level:", currentLevelRef.current);
+              if (mounted) {
+                setCommentSection({
+                  open: true,
+                  recipeId: parseInt(nonna.recipeId, 10),
+                  nonnaName: nonna.representativeName,
+                });
+              }
+            } else {
+              // Open DiscussionPanel for clusters or at higher levels
+              console.log("[Earth3D] Opening discussion panel for location:", nonna.representativeName, "count:", nonna.nonnaCount);
+              console.log("[Earth3D] Current level:", currentLevelRef.current, "- opening DiscussionPanel");
+              if (mounted) {
+                setPanel({
+                  open: true,
+                  region: nonna.countryName || nonna.representativeName,
+                  regionDisplayName: nonna.countryName ? `${nonna.countryName} • ${nonna.representativeName}` : nonna.representativeName,
+                  scope: "city", // Nonnas are at city level
+                  country: nonna.countryName || undefined,
+                  state: undefined,
+                  city: nonna.representativeName,
+                  nonnas: [{
+                    id: nonna.id,
+                    name: nonna.representativeName,
+                    recipeTitle: nonna.representativeTitle || undefined,
+                    history: nonna.history || undefined,
+                    photo: nonna.representativePhoto ? [nonna.representativePhoto] : null,
+                    origin: nonna.origin || undefined,
+                  }],
+                  initialTab: "discussion", // Always default to Community tab
+                });
+              }
+            }
           });
         }
       } catch (err) {
@@ -659,7 +822,7 @@ export default function Earth3DPage() {
       }
     })();
     return () => {
-      for (const t of timers) clearTimeout(t);
+      mounted = false;
       for (const m of placedMarkers) {
         try {
           m.remove();
@@ -777,11 +940,10 @@ export default function Earth3DPage() {
         mode: "HYBRID",
         ...(mapId ? { mapId } : {}),
       });
-      // Suppress noisy map labels
-      map3d.setAttribute("default-labels-disabled", "");
-      map3d.setAttribute("road-labels-mode", "none");
-      map3d.setAttribute("transit-labels-mode", "none");
-      map3d.setAttribute("poi-labels-mode", "none");
+
+      // Enable single-finger gestures for mobile
+      map3d.setAttribute("gesture-handling", "auto");
+
       // Suppress noisy map labels
       map3d.setAttribute("default-labels-disabled", "");
       map3d.setAttribute("road-labels-mode", "none");
@@ -1047,15 +1209,31 @@ export default function Earth3DPage() {
       listeners.push(() =>
         map3d.removeEventListener("gmp-mousemove" as any, handleMouseMove),
       );
-      // ── Click → center + highlight boundary ──
+      // ── Click → center + highlight boundary + OPEN PANEL ──
       const handleMapClick = async (e: any) => {
+        console.log("[Earth3D] MAP CLICK HANDLER STARTED");
+        console.log("[Earth3D] Click event target:", e.target);
+        console.log("[Earth3D] Click event currentTarget:", e.currentTarget);
+
+        // Check if click originated from a marker
+        const isMarkerClick = e.target && (
+          e.target.closest('[data-marker="nonna"]') ||
+          e.target.getAttribute('data-marker') === 'nonna' ||
+          e.currentTarget?.getAttribute('data-marker') === 'nonna'
+        );
+
+        if (isMarkerClick) {
+          console.log("[Earth3D] Click originated from marker, ignoring map click");
+          return;
+        }
+
+        console.log("[Earth3D] Processing map click (not from marker)");
         try {
           console.log("[Earth3D] Click event:", e);
           e.preventDefault?.();
           let latLng = extractLatLng(e.position || e.latLng);
           if (!latLng && e.placeId) {
             console.log("[Earth3D] No latlng but have placeId:", e.placeId);
-            // Geocode using placeId
             const response = await geocoder.geocode({ placeId: e.placeId });
             const first = response?.results?.[0];
             if (first && first.geometry && first.geometry.location) {
@@ -1070,22 +1248,88 @@ export default function Earth3DPage() {
           console.log("[Earth3D] Click at latlng:", latLng);
           const level = currentLevelRef.current;
           const response = await geocoder.geocode({ location: latLng });
-          const first = response?.results?.[0];
+          let first = response?.results?.[0];
           console.log("[Earth3D] Geocode first result:", first);
+
+          const hasCountryInfo = first && first.address_components &&
+            first.address_components.some((c: any) => c.types?.includes("country"));
+
+          console.log("[Earth3D] Country check:", { hasCountryInfo, firstTypes: first?.types });
+
+          if (!hasCountryInfo) {
+            console.log("[Earth3D] No country info, trying broader search...");
+            try {
+              const broaderResponse = await geocoder.geocode({
+                location: latLng,
+                types: ['country']
+              });
+              const broaderResult = broaderResponse?.results?.[0];
+              if (broaderResult) {
+                console.log("[Earth3D] Broader search result:", broaderResult);
+                first = broaderResult;
+              }
+            } catch (broaderError) {
+              console.warn("[Earth3D] Broader search failed, using fallback:", broaderError);
+              // If broader search fails, try without any parameters
+              try {
+                const fallbackResponse = await geocoder.geocode({ location: latLng });
+                const fallbackResult = fallbackResponse?.results?.find((r: any) =>
+                  r.address_components?.some((c: any) => c.types?.includes("country"))
+                );
+                if (fallbackResult) {
+                  console.log("[Earth3D] Fallback search result:", fallbackResult);
+                  first = fallbackResult;
+                }
+              } catch (fallbackError) {
+                console.error("[Earth3D] All geocoding attempts failed:", fallbackError);
+                return; // Exit gracefully if all attempts fail
+              }
+            }
+          }
+
           if (!first || !mounted) return;
           const info = parseAdminLevelsFromGeocodeResult(first);
           console.log("[Earth3D] Parsed info:", info);
-          // Determine target name and feature type for boundary highlighting
-          const targetName = info.state || info.country;
-          const featureType = info.state ? "state" : "country";
-          console.log("[Earth3D] Target name:", targetName, "featureType:", featureType);
+
+          // Determine what to show based on zoom level
+          let targetName: string | null = null;
+          let featureType: "country" | "state" | "city" = "country";
+
+          if (level === "EARTH" || level === "CONTINENT" || level === "COUNTRY") {
+            // At high zoom levels, show country
+            targetName = info.country;
+            featureType = "country";
+          } else if (level === "STATE") {
+            // At state level, prefer state, fallback to country
+            targetName = info.state || info.country;
+            featureType = info.state ? "state" : "country";
+          } else {
+            // At CITY or NONNA level, try to get city from geocode result
+            // Look for locality in address components
+            const cityComponent = first.address_components?.find((c: any) =>
+              c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+            );
+            const cityName = cityComponent?.long_name;
+
+            if (cityName) {
+              targetName = cityName;
+              featureType = "city";
+            } else {
+              // Fallback to state or country if no city found
+              targetName = info.state || info.country;
+              featureType = info.state ? "state" : "country";
+            }
+          }
+
+          console.log("[Earth3D] Target name:", targetName, "featureType:", featureType, "level:", level);
+
           // Fly to clicked location without changing zoom level
           isProgrammaticFlight = true;
           map3d.flyCameraTo({
             endCamera: {
               center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
-              range: map3d.range, // Keep current range
-              tilt: map3d.tilt,   // Keep current tilt
+              range: map3d.range,
+              tilt: map3d.tilt,
               heading: 0,
             },
             durationMillis: 1500,
@@ -1093,25 +1337,73 @@ export default function Earth3DPage() {
           setTimeout(() => {
             isProgrammaticFlight = false;
           }, 1700);
+
+          // Handle boundary highlighting and panel
           if (targetName) {
+            // If clicking on the same region, close panel and clear boundary
             if (targetName === activeHighlightName) {
+              console.log("[Earth3D] Clicking same region - closing panel");
               clearPolygonOverlays();
               activeHighlightName = null;
               if (mounted) {
                 setClickedLabel(null);
                 setHoveredLabel(null);
+                setPanel(prev => ({ ...prev, open: false }));
               }
             } else {
+              // Clicking on a new region - open panel and draw boundary
+              console.log("[Earth3D] Clicking new region - opening panel for:", targetName);
               activeHighlightName = targetName;
+
               if (mounted) {
                 setClickedLabel(targetName);
                 setHoveredLabel(null);
+                setActiveCountry(info.country || null);
+                setActivePlaceName(targetName);
+
+                // Open the discussion panel with appropriate display name
+                let regionDisplayName = targetName;
+
+                if (featureType === "city") {
+                  // For cities, show: City, State, Country or City, Country
+                  if (info.state && info.country) {
+                    regionDisplayName = `${info.country} • ${info.state} • ${targetName}`;
+                  } else if (info.country) {
+                    regionDisplayName = `${info.country} • ${targetName}`;
+                  }
+                } else if (featureType === "state") {
+                  // For states, show: Country • State
+                  regionDisplayName = `${info.country || 'Unknown Country'} • ${targetName}`;
+                } else {
+                  // For countries, just show the country name
+                  regionDisplayName = targetName;
+                }
+
+                console.log("[Earth3D] Opening panel with:", {
+                  region: targetName,
+                  regionDisplayName,
+                  scope: featureType
+                });
+
+                setPanel({
+                  open: true,
+                  region: targetName,
+                  regionDisplayName,
+                  scope: featureType,
+                  country: info.country || undefined,
+                  state: info.state || undefined,
+                  city: featureType === "city" ? targetName : undefined,
+                  nonnas: [],
+                  initialTab: "discussion",
+                });
               }
+
+              // Draw boundary after setting panel state
               fetchAndDrawBoundary(targetName, featureType, info.countryCode);
             }
           }
-          if (mounted && info.country) setActiveCountry(info.country);
-          setActivePlaceName(targetName);
+
+          console.log("[Earth3D] handleMapClick completed");
         } catch (err) {
           console.error("[Earth3D] click error:", err);
         }
@@ -1172,8 +1464,8 @@ export default function Earth3DPage() {
 
         // Zoom level detection - more gradual thresholds with overlaps for smooth scroll zoom
         let newLevel: ZoomLevel = "EARTH";
-        if (currentRange <= ZOOM_RANGES.NONNA * 3) newLevel = "NONNA"; // 90000
-        else if (currentRange <= ZOOM_RANGES.CITY * 3) newLevel = "CITY"; // 450000
+        if (currentRange <= ZOOM_RANGES.NONNA * 2) newLevel = "NONNA"; // 60000 - lower threshold for easier transition
+        else if (currentRange <= ZOOM_RANGES.CITY * 2.5) newLevel = "CITY"; // 375000
         else if (currentRange <= ZOOM_RANGES.STATE * 2) newLevel = "STATE"; // 1600000
         else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) newLevel = "COUNTRY"; // 6000000
         else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5)
@@ -1265,7 +1557,7 @@ export default function Earth3DPage() {
         }
       }
     };
-  }, [setLevel]);
+  }, [setLevel, handleZoomIn]);
 
   // Search functionality
   const performSearch = useCallback(async (query: string) => {
@@ -1464,16 +1756,21 @@ export default function Earth3DPage() {
     }
   }, []);
 
-  // Close search results when clicking outside
+  // Close search results when clicking outside (supports touch)
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
         setShowSearchResults(false);
       }
     };
 
+    // Add both mouse and touch event listeners for mobile compatibility
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const displayLabel = clickedLabel || hoveredLabel || null;
@@ -1482,23 +1779,58 @@ export default function Earth3DPage() {
   const currentRange = map3dRef.current ? Number(map3dRef.current.range ?? ZOOM_RANGES.EARTH) : ZOOM_RANGES.EARTH;
   const isAtEarthOrContinentLevel = currentLevel === "EARTH" || currentLevel === "CONTINENT" || currentRange > ZOOM_RANGES.COUNTRY * 2;
   const showNameLabel = displayLabel && !isAtEarthOrContinentLevel;
+
+  // Mobile-responsive styles
+  const mobileStyles = {
+    searchContainer: {
+      position: "absolute" as const,
+      left: isMobile ? "12px" : "24px",
+      top: isMobile ? "12px" : "24px",
+      right: isMobile ? "12px" : "auto",
+      zIndex: 100,
+      width: isMobile ? "auto" : "280px",
+      maxWidth: isMobile ? "calc(100vw - 24px)" : "280px",
+    },
+    searchInput: {
+      width: "100%",
+      padding: isMobile ? "14px 48px 14px 16px" : "16px 52px 16px 20px",
+      border: "none",
+      outline: "none",
+      background: "transparent",
+      fontSize: isMobile ? "16px" : "15px", // 16px prevents zoom on iOS
+      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      color: "#1f2937",
+      borderRadius: "16px",
+      WebkitTapHighlightColor: "transparent", // Remove tap highlight on iOS
+    },
+    levelNavContainer: {
+      position: "absolute" as const,
+      left: isMobile ? "8px" : "24px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: isMobile ? "6px" : "10px",
+      zIndex: 50,
+    },
+    zoomContainer: {
+      position: "absolute" as const,
+      right: isMobile ? "8px" : "24px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: isMobile ? "8px" : "12px",
+      zIndex: 50,
+    },
+  };
+
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
 
-      {/* Search Bar - Centered at top */}
-      <div
-        style={{
-          position: "absolute",
-          top: "24px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 100,
-          width: "100%",
-          maxWidth: "480px",
-          padding: "0 20px",
-        }}
-      >
+      {/* Search Bar - Mobile responsive */}
+      <div style={mobileStyles.searchContainer}>
         <div
           ref={searchInputRef}
           style={{
@@ -1515,17 +1847,7 @@ export default function Earth3DPage() {
             value={searchQuery}
             onChange={handleSearchInputChange}
             placeholder="Search for a city, country, or region..."
-            style={{
-              width: "100%",
-              padding: "16px 52px 16px 20px",
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              fontSize: "15px",
-              fontFamily: "ui-sans-serif, system-ui, sans-serif",
-              color: "#1f2937",
-              borderRadius: "16px",
-            }}
+            style={mobileStyles.searchInput}
           />
           {/* Search icon */}
           <div
@@ -1535,14 +1857,14 @@ export default function Earth3DPage() {
               top: "50%",
               transform: "translateY(-50%)",
               color: isSearching ? TEAL.primary : "#9ca3af",
-              fontSize: "18px",
+              fontSize: isMobile ? "16px" : "18px",
               pointerEvents: "none",
             }}
           >
             {isSearching ? "⌛" : "🔍"}
           </div>
 
-          {/* Search results dropdown */}
+          {/* Search results dropdown - Mobile optimized */}
           {showSearchResults && searchResults.length > 0 && (
             <div
               style={{
@@ -1556,7 +1878,7 @@ export default function Earth3DPage() {
                 boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
                 border: "1px solid rgba(13, 148, 136, 0.15)",
                 marginTop: "8px",
-                maxHeight: "320px",
+                maxHeight: isMobile ? "40vh" : "320px",
                 overflowY: "auto",
               }}
             >
@@ -1565,21 +1887,28 @@ export default function Earth3DPage() {
                   key={result.place_id}
                   onClick={() => handleSearchResultClick(result)}
                   style={{
-                    padding: "14px 20px",
+                    padding: isMobile ? "12px 16px" : "14px 20px",
                     borderBottom: index < searchResults.length - 1 ? "1px solid rgba(0, 0, 0, 0.06)" : "none",
                     cursor: "pointer",
                     transition: "background-color 0.15s ease",
+                    WebkitTapHighlightColor: "transparent",
                   }}
-                  onMouseEnter={(e) => {
+                  onTouchStart={(e) => {
                     (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(13, 148, 136, 0.08)";
                   }}
-                  onMouseLeave={(e) => {
+                  onTouchEnd={(e) => {
                     (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isMobile) (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(13, 148, 136, 0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isMobile) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
                   }}
                 >
                   <div
                     style={{
-                      fontSize: "14px",
+                      fontSize: isMobile ? "13px" : "14px",
                       fontWeight: 600,
                       color: "#1f2937",
                       marginBottom: "2px",
@@ -1591,7 +1920,7 @@ export default function Earth3DPage() {
                   {result.secondary_text && (
                     <div
                       style={{
-                        fontSize: "12px",
+                        fontSize: isMobile ? "11px" : "12px",
                         color: "#6b7280",
                         fontFamily: "ui-sans-serif, system-ui, sans-serif",
                       }}
@@ -1606,31 +1935,15 @@ export default function Earth3DPage() {
         </div>
       </div>
 
-      {/* Location label — only at deeper zoom levels */}
-      {showNameLabel && (
-        <div
-          className="pointer-events-none absolute left-1/2 z-20"
-          style={{
-            top: "18%",
-            transform: "translateX(-50%)",
-            animation: "fadeInLabel 0.25s ease-out both",
-          }}
-        >
-
-
-
-
-        </div>
-      )}
-
       {/* Globe ring overlay */}
-      {/* <div
+      <div
         ref={overlayRef}
         className="pointer-events-none absolute top-1/2 left-1/2 z-10"
         style={{
           transform: "translate(-50%, -50%)",
           opacity: 0,
           willChange: "width, height, opacity",
+
         }}
       >
         <svg
@@ -1670,29 +1983,86 @@ export default function Earth3DPage() {
             </textPath>
           </text>
         </svg>
-      </div> */}
+      </div>
       {/* Zoom controls — right side, large and friendly */}
       {mapReady && (
         <ZoomControl
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           currentLevel={currentLevel}
+          isMobile={isMobile}
         />
       )}
-      {/* Left-side level navigation — simplified labels */}
-      {mapReady && (
+      {/* 2D/3D Toggle - Mobile responsive */}
+      {mapReady && (currentLevel === "CITY" || currentLevel === "NONNA") && (
         <div
           style={{
             position: "absolute",
-            left: "24px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
+            right: isMobile ? "8px" : "24px",
+            top: isMobile ? "calc(50% + 70px)" : "calc(50% + 90px)",
             zIndex: 50,
           }}
         >
+          <button
+            onClick={() => {
+              if (!map3dRef.current) return;
+              const map3d = map3dRef.current;
+              const newTilt = map3d.tilt > 10 ? 0 : 65;
+              map3d.flyCameraTo({
+                endCamera: {
+                  center: map3d.center,
+                  range: map3d.range,
+                  heading: map3d.heading,
+                  tilt: newTilt,
+                },
+                durationMillis: 1000,
+              });
+              setIs3DMode(newTilt > 10);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: isMobile ? "6px" : "8px",
+              padding: isMobile ? "10px 16px" : "12px 20px",
+              borderRadius: "999px",
+              background: is3DMode
+                ? "rgba(13,148,136,0.85)"
+                : "rgba(0,0,0,0.5)",
+              border: `1.5px solid ${is3DMode ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.12)"}`,
+              backdropFilter: "blur(10px)",
+              boxShadow: is3DMode ? `0 4px 20px ${TEAL.glow}` : "none",
+              cursor: "pointer",
+              transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+              color: is3DMode ? "white" : "rgba(220,220,220,0.8)",
+              fontSize: isMobile ? "12px" : "14px",
+              fontWeight: 600,
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              userSelect: "none",
+              WebkitTapHighlightColor: "transparent",
+            }}
+            onTouchStart={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = "scale(0.95)";
+            }}
+            onTouchEnd={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+            }}
+            onMouseEnter={(e) => {
+              if (!isMobile) (e.currentTarget as HTMLElement).style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              if (!isMobile) (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+            }}
+          >
+            <span style={{ fontSize: isMobile ? "16px" : "18px" }}>
+              {is3DMode ? "🌐" : "🗺️"}
+            </span>
+            <span>{is3DMode ? "3D" : "2D"}</span>
+          </button>
+        </div>
+      )}
+      {/* Left-side level navigation — Mobile responsive */}
+      {mapReady && (
+        <div style={mobileStyles.levelNavContainer}>
           {(["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY"] as const).map(
             (lvl) => {
               const isActive = currentLevel === lvl;
@@ -1702,7 +2072,6 @@ export default function Earth3DPage() {
                   key={lvl}
                   onClick={() => {
                     if (!map3dRef.current) return;
-
 
                     // Set flight state to pause scroll-based detection during animation
                     flightStateRef.current = {
@@ -1730,8 +2099,8 @@ export default function Earth3DPage() {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
-                    padding: "10px 16px",
+                    gap: isMobile ? "6px" : "10px",
+                    padding: isMobile ? "8px 12px" : "10px 16px",
                     borderRadius: "999px",
                     background: isActive
                       ? "rgba(13,148,136,0.85)"
@@ -1743,27 +2112,32 @@ export default function Earth3DPage() {
                     transform: isActive ? "scale(1.06)" : "scale(1)",
                     transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
                     color: isActive ? "white" : "rgba(220,220,220,0.8)",
-                    fontSize: "13px",
+                    fontSize: isMobile ? "11px" : "13px",
                     fontWeight: 600,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                     fontFamily: "ui-sans-serif, system-ui, sans-serif",
                     userSelect: "none",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                  onTouchStart={(e) => {
+                    if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
+                  }}
+                  onTouchEnd={(e) => {
+                    if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
                   }}
                   onMouseEnter={(e) => {
-                    if (!isActive)
+                    if (!isMobile && !isActive)
                       (e.currentTarget as HTMLElement).style.background =
                         "rgba(13,148,136,0.4)";
                   }}
                   onMouseLeave={(e) => {
-                    if (!isActive)
+                    if (!isMobile && !isActive)
                       (e.currentTarget as HTMLElement).style.background =
                         "rgba(0,0,0,0.5)";
                   }}
                 >
-                  <span style={{ fontSize: "16px", lineHeight: 1 }}>
-                    {meta.icon}
-                  </span>
+
                   <span>{meta.label}</span>
                   {isActive && (
                     <span
@@ -1781,10 +2155,159 @@ export default function Earth3DPage() {
               );
             },
           )}
+          {/* NONNA tile */}
+          <button
+            onClick={() => {
+              if (!map3dRef.current) return;
+
+              // Set flight state to pause scroll-based detection during animation
+              flightStateRef.current = {
+                active: true,
+                targetRange: ZOOM_RANGES.NONNA,
+                targetLevel: "NONNA",
+                startTime: Date.now(),
+                lastRanges: [],
+              };
+
+              setLevel("NONNA"); // Explicitly set the level for active state
+              const targetTilt = 65; // 3D tilt for NONNA level
+
+              map3dRef.current.flyCameraTo({
+                endCamera: {
+                  center: map3dRef.current.center,
+                  range: ZOOM_RANGES.NONNA,
+                  heading: map3dRef.current.heading,
+                  tilt: targetTilt,
+                },
+                durationMillis: 1500,
+              });
+            }}
+            title="See individual Nonnas in 3D view"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "left",
+              padding: isMobile ? "8px 12px" : "10px 16px",
+              borderRadius: "999px",
+              background: currentLevel === "NONNA"
+                ? "rgba(13,148,136,0.85)"
+                : "rgba(0,0,0,0.5)",
+              border: `1.5px solid ${currentLevel === "NONNA" ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.12)"}`,
+              backdropFilter: "blur(10px)",
+              boxShadow: currentLevel === "NONNA" ? `0 4px 20px ${TEAL.glow}` : "none",
+              cursor: "pointer",
+              transform: currentLevel === "NONNA" ? "scale(1.06)" : "scale(1)",
+              transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+              color: currentLevel === "NONNA" ? "white" : "rgba(220,220,220,0.8)",
+              fontSize: isMobile ? "11px" : "13px",
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              userSelect: "none",
+              WebkitTapHighlightColor: "transparent",
+            }}
+            onTouchStart={(e) => {
+              if (currentLevel !== "NONNA") (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
+            }}
+            onTouchEnd={(e) => {
+              if (currentLevel !== "NONNA") (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
+            }}
+            onMouseEnter={(e) => {
+              if (!isMobile && currentLevel !== "NONNA")
+                (e.currentTarget as HTMLElement).style.background =
+                  "rgba(13,148,136,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              if (!isMobile && currentLevel !== "NONNA")
+                (e.currentTarget as HTMLElement).style.background =
+                  "rgba(0,0,0,0.5)";
+            }}
+          >
+            <span>NONNA</span>
+            {currentLevel === "NONNA" && (
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: TEAL.lighter,
+                  boxShadow: `0 0 6px ${TEAL.lighter}`,
+                  marginLeft: "8px",
+                }}
+              />
+            )}
+          </button>
         </div>
       )}
-      {/* Bottom level indicator with progress dots */}
-      {mapReady && <LevelIndicator currentLevel={currentLevel} />}
+
+
+      {/* Discussion Panel */}
+      <DiscussionPanel
+        isOpen={panel.open}
+        onClose={() => setPanel({ ...panel, open: false })}
+        region={panel.region}
+        regionDisplayName={panel.regionDisplayName}
+        scope={panel.scope}
+        country={panel.country}
+        state={panel.state}
+        city={panel.city}
+        nonnas={panel.nonnas}
+        initialTab={panel.initialTab}
+      />
+
+      {/* Comment Section for nonna-specific discussions */}
+      {commentSection.open && (
+        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-[99999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
+          {/* Enhanced Header with gradient */}
+          <div className="relative overflow-hidden">
+            {/* Animated background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-50 via-orange-50/40 to-yellow-50/30" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/15 to-yellow-500/15 rounded-full blur-2xl" style={{ animationDelay: '1s' }} />
+
+            <div className="relative px-6 py-6 border-b border-amber-100/50">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-600 flex items-center justify-center shadow-lg shadow-amber-500/30 border border-amber-400/20">
+                      <span className="text-2xl filter drop-shadow-sm">💬</span>
+                      {/* Glow effect */}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-400/30 to-orange-400/30 blur-sm animate-pulse" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 leading-tight">
+                        Discussion with {commentSection.nonnaName}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Share memories and stories about this Nonna&apos;s recipes
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCommentSection({ ...commentSection, open: false })}
+                  className="shrink-0 w-5 h-5 rounded-xl "
+                  aria-label="Close discussion"
+                >
+                  <X className="w-5 items-center h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content area with subtle background */}
+          <div className="flex-1 overflow-y-auto relative bg-gradient-to-b from-white via-white to-amber-50/20">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
+            <div className="relative p-6">
+              <CommentSection
+                recipeId={commentSection.recipeId}
+                userId={user?.id}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

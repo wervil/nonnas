@@ -71,7 +71,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
                     <span
                         className={`px-1.5 py-0.5 rounded text-[12px] font-medium border bg-[#FFCCC866] text-black border-[#FFCCC866]`}
                     >
-                        {thread.scope === 'country' ? '🌍 Country' : '📍 State'}
+                        {thread.scope === 'country' ? '🌍 Country' : thread.scope === 'city' ? '📍 City' : '📍 State'}
                     </span>
 
                 </div>

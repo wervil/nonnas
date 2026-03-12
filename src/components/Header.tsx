@@ -12,6 +12,7 @@ import {
   Download,
   Home,
   Loader2,
+  LogIn,
   LogOut,
   Menu,
   MessageCircle,
@@ -346,7 +347,7 @@ export const Header = ({
                     href="/handler/sign-in"
                     className={`cursor-pointer w-full flex items-center rounded-md transition-colors ${imageFilterClass} text-[#9BC9C3]!`}
                   >
-                    <UserPlus className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Log in
+                    <LogIn className={`mr-2 h-4 w-4 ${imageFilterClass}`} /> Log in
                   </Link>
                 </DropdownMenuItem>
               )}

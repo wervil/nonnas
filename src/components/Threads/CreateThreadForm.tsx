@@ -1,21 +1,27 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { Send, Loader2, Paperclip, X, Video, Mic } from 'lucide-react'
 import { upload } from '@vercel/blob/client'
+import { Loader2, Mic, Paperclip, Send, Video, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Attachment, AttachmentType } from '../Comments/CommentEditor'
 
 interface CreateThreadFormProps {
     region: string
-    scope: 'country' | 'state'
+    scope: 'country' | 'state' | 'city'
+    country?: string
+    state?: string
+    city?: string
     onSuccess?: () => void
 }
 
 export default function CreateThreadForm({
     region,
     scope,
+    country,
+    state,
+    city,
     onSuccess,
 }: CreateThreadFormProps) {
     const router = useRouter()
@@ -103,6 +109,9 @@ export default function CreateThreadForm({
                 body: JSON.stringify({
                     region,
                     scope,
+                    country,
+                    state,
+                    city,
                     title,
                     content,
                     attachments,
@@ -247,8 +256,8 @@ export default function CreateThreadForm({
                     <span className="text-gray-400">•</span>
                     <span>
                         <strong className="text-gray-900">Scope:</strong>{' '}
-                        <span className={scope === 'country' ? 'text-blue-600' : 'text-emerald-600'}>
-                            {scope === 'country' ? '🌍 Country' : '📍 State'}
+                        <span className={scope === 'country' ? 'text-blue-600' : scope === 'city' ? 'text-indigo-600' : 'text-emerald-600'}>
+                            {scope === 'country' ? '🌍 Country' : scope === 'city' ? '🏙️ City' : '📍 State'}
                         </span>
                     </span>
                 </div>

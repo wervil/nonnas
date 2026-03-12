@@ -1,3 +1,4 @@
+import { upload } from '@vercel/blob/client';
 import { FileAudio, Link as LinkIcon, Paperclip, User, X } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
@@ -42,35 +43,12 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
         }
     };
 
-    const uploadToCloudinary = async (file: File): Promise<string> => {
-        // Generate timestamp ONCE
-        const timestamp = Math.floor(Date.now() / 1000);
-
-        // 1. Get signature
-        const signRes = await fetch('/api/cloudinary/sign', {
-            method: 'POST',
-            body: JSON.stringify({ paramsToSign: { timestamp } })
+    const uploadToVercelBlob = async (file: File): Promise<string> => {
+        const newBlob = await upload(file.name, file, {
+            access: 'public',
+            handleUploadUrl: '/api/upload',
         });
-        const { signature } = await signRes.json();
-
-        // 2. Upload
-        const formData = new FormData();
-        formData.append('file', file);
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
-        const apiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY!;
-
-        formData.append('api_key', apiKey);
-        formData.append('timestamp', timestamp.toString());
-        formData.append('signature', signature);
-
-        // Note: 'auto' resource type usually works, or specific.
-        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-            method: 'POST',
-            body: formData
-        });
-        const data = await uploadRes.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.secure_url;
+        return newBlob.url;
     }
 
     const handleSend = async () => {
@@ -82,14 +60,7 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
             let attachmentType = undefined;
 
             if (attachment) {
-                // Upload
-                // check if CLOUDINARY env vars exist, else mock or error
-                if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
-                    alert('Cloudinary not configured');
-                    setIsSending(false);
-                    return;
-                }
-                attachmentUrl = await uploadToCloudinary(attachment.file);
+                attachmentUrl = await uploadToVercelBlob(attachment.file);
                 attachmentType = attachment.type;
             }
 

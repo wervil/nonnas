@@ -100,14 +100,19 @@ export type NewRecipeTranslation = InferInsertModel<typeof recipe_translations>;
 // PHASE C: SOCIAL FEATURES
 // ============================================
 
-// Thread scope enum - country or state level
-export const threadScope = pgEnum("thread_scope", ["country", "state"]);
+// Thread scope enum - country, state, or city level
+export const threadScope = pgEnum("thread_scope", ["country", "state", "city"]);
 
 // Threads table - Regional discussions
 export const threads = pgTable("threads", {
   id: serial("id").primaryKey(),
   region: text("region").notNull(), // region_id (e.g., 'italy', 'sicily')
-  scope: threadScope("scope").notNull(), // 'country' or 'state'
+  scope: threadScope("scope").notNull(), // 'country', 'state', or 'city'
+
+  // Geographic hierarchy columns
+  country: text("country"), // country name (e.g., 'Pakistan')
+  state: text("state"), // state/province name (e.g., 'Punjab')
+  city: text("city"), // city name (e.g., 'Lahore')
 
   title: text("title").notNull(),
   content: text("content").notNull(),
