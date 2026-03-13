@@ -241,9 +241,8 @@ export const Book = forwardRef<BookHandle, Props>(
     return (
       <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
         <div
-          className={`transition-all duration-300 ease-in-out h-full relative ${
-            isSidebarOpen ? "w-full lg:w-[calc(100%-400px)]" : "w-full"
-          }`}
+          className={`transition-all duration-300 ease-in-out h-full relative ${isSidebarOpen ? "w-full lg:w-[calc(100%-400px)]" : "w-full"
+            }`}
         >
           <div
             className="
@@ -253,13 +252,12 @@ export const Book = forwardRef<BookHandle, Props>(
 "
           >
             <div
-              className={`custom-container flex items-center h-full relative ${
-                currentPage === 0 ? "justify-center" : "justify-center"
-              }`}
+              className={`custom-container flex items-center h-full relative ${currentPage === 0 ? "justify-center" : "justify-center"
+                }`}
             >
-              {/* Welcome Text Section - Only show on cover page */}
-              {currentPage === 0 && (
-                <div className="flex flex-col justify-center ml-32 pr-8 w-[55%] max-w-[500px]">
+              {/* Welcome Text Section - Only show on cover page and desktop */}
+              {currentPage === 0 && !isMobile && (
+                <div className="flex flex-col justify-center ml-32 pr-8 w-[55%] max-w-125">
                   <h1 className="text-[76px] leading-20  mb-4">
                     Welcome To The Nonnas Of The World
                   </h1>
@@ -274,22 +272,17 @@ export const Book = forwardRef<BookHandle, Props>(
               )}
 
               <button
-                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${
-                  isPrevDisabled
-                    ? "opacity-30 cursor-not-allowed pointer-events-none"
-                    : "cursor-pointer hover:scale-110 transition-transform"
-                }`}
+                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${isPrevDisabled
+                  ? "opacity-30 cursor-not-allowed pointer-events-none"
+                  : "cursor-pointer hover:scale-110 transition-transform"
+                  }`}
                 onClick={prevPage}
                 disabled={isPrevDisabled}
                 style={{ color: "white", fontSize: 20 }}
               >
-                {window.innerWidth > 768 ? (
-                  <div className="bg-white rounded-md p-2">
-                    <ArrowLeft size={40} color="black" />
-                  </div>
-                ) : (
-                  <div className="navigation-arrow" />
-                )}
+                <div className="bg-white rounded-md p-3 sm:p-4">
+                  <ArrowLeft size={32} className="w-8 h-8 sm:w-10 sm:h-10" color="black" />
+                </div>
               </button>
 
               <div
@@ -301,13 +294,13 @@ export const Book = forwardRef<BookHandle, Props>(
                     : !isSinglePage && currentPage === 0
                       ? "translateX(-200px) translateY(0)"
                       : isSinglePage
-                        ? "translateX(80px) translateY(20px)"
-                        : "translateX(80px) translateY(0)",
+                        ? "translateX(0) translateY(0)"
+                        : "translateX(0) translateY(0)",
                   ...(isSinglePage
                     ? {
-                        width: isMobile ? "250px" : `${contentHeight * 0.65}px`,
-                        maxWidth: "100%",
-                      }
+                      width: isMobile ? "250px" : `${contentHeight * 0.65}px`,
+                      maxWidth: "100%",
+                    }
                     : {}),
                 }}
               >
@@ -402,22 +395,17 @@ export const Book = forwardRef<BookHandle, Props>(
               </div>
 
               <button
-                className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-[10px] md:right-4 ${
-                  isNextDisabled
-                    ? "opacity-30 cursor-not-allowed pointer-events-none"
-                    : "cursor-pointer hover:scale-110 transition-transform"
-                }`}
+                className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-2.5 md:right-4 ${isNextDisabled
+                  ? "opacity-30 cursor-not-allowed pointer-events-none"
+                  : "cursor-pointer hover:scale-110 transition-transform"
+                  }`}
                 onClick={nextPage}
                 disabled={isNextDisabled}
                 style={{ color: "white", fontSize: 20 }}
               >
-                {window.innerWidth > 768 ? (
-                  <div className="bg-white rounded-md p-2">
-                    <ArrowRight size={40} color="black" />
-                  </div>
-                ) : (
-                  <div className="navigation-arrow" />
-                )}
+                <div className="bg-white rounded-md p-3 sm:p-4">
+                  <ArrowRight size={32} className="w-8 h-8 sm:w-10 sm:h-10" color="black" />
+                </div>
               </button>
             </div>
           </div>
@@ -426,34 +414,40 @@ export const Book = forwardRef<BookHandle, Props>(
           {!isSidebarOpen && currentRecipeId && (
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="absolute top-8 sm:right-8 right-0  z-[100] bg-amber-600 text-white p-3 sm:rounded-full rounded-[20px_0px_0px_20px] shadow-lg hover:bg-amber-700 transition-colors border-2 border-amber-500 flex items-center gap-2"
+              className="absolute bottom-8 right-8 z-100 bg-[#CDD8F9] text-[#504DED] p-3 rounded-md shadow-lg hover:bg-[#B8C5F5] transition-colors border-2 border-[#A8B8F0] flex items-center gap-2"
             >
               <MessageCircle size={24} />
-              <span className="font-serif sm:block hidden">Discussions</span>
+              <span className="font-serif hidden">Discussions</span>
             </button>
           )}
         </div>
 
         {/* Sidebar - Comments Section */}
         <div
-          className={`fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden w-full md:w-[80%] lg:w-[400px] ${
-            isSidebarOpen ? "translate-x-[0px]" : "translate-x-full"
-          }`}
+          className={`fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 z-1000 overflow-hidden w-full md:w-[80%] lg:w-150 ${isSidebarOpen ? "translate-x-0" : "translate-x-full"
+            }`}
         >
-          <div className="h-full flex flex-col relative">
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="absolute top-4 right-4 z-10 text-gray-500 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Close sidebar"
-            >
-              <X size={24} />
-            </button>
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex justify-between items-start ">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Nonna Rosa</h2>
+                  <p className="text-sm text-gray-500 mt-1">Sicily, Italy</p>
+                </div>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label="Close sidebar"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-16">
-              {/* Decorative background with vintage paper texture effect */}
-              {/* <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 pointer-events-none -z-10" /> */}
+            </div>
 
-              <div className="relative z-10">
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 pt-4">
                 {currentRecipeId ? (
                   <CommentSection
                     key={currentRecipeId}
@@ -465,7 +459,7 @@ export const Book = forwardRef<BookHandle, Props>(
                     <h3 className="text-xl font-serif text-gray-900 mb-2">
                       Select a Recipe
                     </h3>
-                    <p className="opacity-70">
+                    <p className="opacity-70 text-sm">
                       Turn the pages to view discussions for each recipe.
                     </p>
                   </div>

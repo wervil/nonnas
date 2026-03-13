@@ -76,19 +76,23 @@ function loadGoogleMaps(apiKey: string) {
     s.id = scriptId;
     s.async = true;
     s.defer = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=alpha&loading=async`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=beta&loading=async`;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
     document.head.appendChild(s);
   });
 }
 type LatLngLiteral = { lat: number; lng: number };
-function extractLatLng(rawPos: any): LatLngLiteral | null {
-  if (!rawPos) return null;
+type RemovableOverlay = { remove: () => void };
+function extractLatLng(rawPos: unknown): LatLngLiteral | null {
+  if (!rawPos || typeof rawPos !== "object") return null;
+  const obj = rawPos as Record<string, unknown>;
+  const rawLat = obj["lat"];
+  const rawLng = obj["lng"];
   const lat =
-    typeof rawPos.lat === "function" ? rawPos.lat() : Number(rawPos.lat);
+    typeof rawLat === "function" ? Number((rawLat as () => unknown)()) : Number(rawLat);
   const lng =
-    typeof rawPos.lng === "function" ? rawPos.lng() : Number(rawPos.lng);
+    typeof rawLng === "function" ? Number((rawLng as () => unknown)()) : Number(rawLng);
   if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
   return null;
 }
@@ -109,6 +113,19 @@ function parseAdminLevelsFromGeocodeResult(result: any) {
     }
   }
   return { country, countryCode, state, stateCode };
+}
+
+function getContinentFromLatLng(lat: number, lng: number): string | null {
+  // Simple continent detection based on coordinates
+  // These are rough boundaries for major continents
+  if (lat > 10 && lat < 85 && lng > -170 && lng < -50) return "North America";
+  if (lat > -60 && lat < 15 && lng > -85 && lng < -35) return "South America";
+  if (lat > 35 && lat < 70 && lng > -10 && lng < 40) return "Europe";
+  if (lat > -35 && lat < 37 && lng > -20 && lng < 55) return "Africa";
+  if (lat > -10 && lat < 70 && lng > 5 && lng < 180) return "Asia";
+  if (lat > -50 && lat < -10 && lng > 110 && lng < 180) return "Australia";
+  if (lat > -90 && lat < -60 && lng > -180 && lng < 180) return "Antarctica";
+  return null;
 }
 // Avatar generation
 function hashStr(s: string): number {
@@ -690,7 +707,7 @@ export default function Earth3DPage() {
   useEffect(() => {
     if (!mapReady || !map3dRef.current) return;
     const map3d = map3dRef.current;
-    const deepLevels = ["COUNTRY", "STATE", "CITY", "NONNA"];
+    const deepLevels = ["CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
     const enableLabels = deepLevels.includes(currentLevel);
 
     if (enableLabels) {
@@ -702,7 +719,6 @@ export default function Earth3DPage() {
       map3d.setAttribute("highway-labels-mode", "none");
       map3d.setAttribute("arterial-labels-mode", "none");
       map3d.setAttribute("local-road-labels-mode", "none");
-
       // DISABLE city/POI markers but KEEP text labels
       map3d.setAttribute("poi-labels-mode", "none"); // Removes POI markers
       map3d.setAttribute("city-labels-mode", "text-only"); // Show city text labels only, no markers
@@ -1036,7 +1052,7 @@ export default function Earth3DPage() {
       map3dRef.current = map3d;
       setMapReady(true);
       // Boundary polygon helpers (teal)
-      const polygonOverlays: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const polygonOverlays: RemovableOverlay[] = [];
       let activeHighlightName: string | null = null;
       let lastHoverName: string | null = null;
       let hoverTimer: NodeJS.Timeout | null = null;
@@ -1061,7 +1077,7 @@ export default function Earth3DPage() {
       };
       const fetchAndDrawBoundary = async (
         name: string,
-        featureType: "country" | "state" | "city",
+        featureType: "continent" | "country" | "state" | "city",
         countryCode?: string | null,
       ) => {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
@@ -1071,7 +1087,11 @@ export default function Earth3DPage() {
             format: "json",
             limit: "1",
           });
-          if (featureType === "country") {
+          if (featureType === "continent") {
+            // Nominatim doesn't have a reliable continent featuretype, but a plain q search
+            // often returns a polygon for well-known continents.
+            params.set("q", name);
+          } else if (featureType === "country") {
             params.set("q", name);
             params.set("featuretype", "country");
           } else if (featureType === "state") {
@@ -1085,9 +1105,10 @@ export default function Earth3DPage() {
             if (countryCode)
               params.set("countrycodes", countryCode.toLowerCase());
           }
+
           const res = await fetch(
             `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-            { headers: { "User-Agent": "NonnasMaps/1.0" } },
+            undefined,
           );
           if (!res.ok) {
             console.error("[Earth3D] Nominatim fetch failed:", res.status, res.statusText);
@@ -1147,35 +1168,74 @@ export default function Earth3DPage() {
           console.error("[Earth3D] Boundary fetch/draw error for", name, ":", err);
         }
       };
-      let hoverPolygonOverlays: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
-      const handleMouseMove = async (e: any) => {
-        const latLng = extractLatLng(e.position || e.latLng);
-        if (!latLng) return;
+      let hoverPolygonOverlays: RemovableOverlay[] = [];
+      let lastHoverNoLatLngLogAt = 0;
+      const handleMouseMove = async (e: unknown) => {
+        const ev = e && typeof e === "object" ? (e as Record<string, unknown>) : null;
+        const latLng = extractLatLng(ev?.position ?? ev?.latLng);
+        if (!latLng) {
+          const now = Date.now();
+          if (now - lastHoverNoLatLngLogAt > 1200) {
+            lastHoverNoLatLngLogAt = now;
+            console.log("[Earth3D] hover event missing latLng", {
+              keys: ev ? Object.keys(ev) : null,
+              position: ev?.position,
+              latLng: ev?.latLng,
+              screenX: ev?.clientX,
+              screenY: ev?.clientY,
+            });
+          }
+          return;
+        }
+
         if (hoverTimer) clearTimeout(hoverTimer);
         hoverTimer = setTimeout(async () => {
           try {
             const level = currentLevelRef.current;
-            const currentRange = map3dRef.current ? Number(map3dRef.current.range ?? ZOOM_RANGES.EARTH) : ZOOM_RANGES.EARTH;
-            // Only show hover highlights at country-level and deeper
-            if (level === "EARTH" || currentRange > ZOOM_RANGES.COUNTRY * 2) {
-              return;
-            }
+
             const response = await geocoder.geocode({ location: latLng });
             const first = response?.results?.[0];
             if (!first || !mounted) return;
             const info = parseAdminLevelsFromGeocodeResult(first);
+
             let hoverName: string | null = null;
-            let featureType: "country" | "state" | "city" = "country";
-            if (level === "CONTINENT" || level === "COUNTRY") {
+            let featureType: "continent" | "country" | "state" | "city" = "continent";
+
+            // The logic: show the boundary of what you're ABOUT TO SELECT (the next level down)
+
+            // EARTH/WORLD VIEW → Next level is CONTINENT, so show continent boundaries
+            if (level === "EARTH") {
+              hoverName = getContinentFromLatLng(latLng.lat, latLng.lng);
+              featureType = "continent";
+            }
+            // CONTINENT VIEW → Next level is COUNTRY, so highlight the COUNTRY boundary
+            else if (level === "CONTINENT") {
               hoverName = info.country;
               featureType = "country";
-            } else if (level === "STATE") {
-              hoverName = info.state || info.country;
-              featureType = info.state ? "state" : "country";
-            } else {
-              hoverName = info.state || info.country;
-              featureType = info.state ? "state" : "country";
             }
+            // COUNTRY VIEW → Next level is STATE, so highlight the STATE/REGION boundary
+            else if (level === "COUNTRY") {
+              hoverName = info.state;
+              featureType = "state";
+            }
+            // STATE VIEW → Next level is CITY, so highlight the CITY boundary
+            else if (level === "STATE") {
+              // Try to get city from geocode result
+              const cityComponent = first.address_components?.find((c: any) =>
+                c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+              );
+              hoverName = cityComponent?.long_name || null;
+              featureType = "city";
+            }
+            // CITY/NONNA VIEW → At deepest level, show city boundary
+            else {
+              const cityComponent = first.address_components?.find((c: any) =>
+                c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+              );
+              hoverName = cityComponent?.long_name || null;
+              featureType = "city";
+            }
+
             if (
               hoverName &&
               hoverName !== lastHoverName &&
@@ -1184,7 +1244,7 @@ export default function Earth3DPage() {
               lastHoverName = hoverName;
               if (mounted) setHoveredLabel(hoverName);
 
-              // Draw hover highlight polygon
+              // Draw hover highlight polygon for the NEXT LEVEL DOWN
               if (hoverName && hoverName !== activeHighlightName) {
                 // Clear previous hover polygons
                 for (const p of hoverPolygonOverlays) {
@@ -1199,19 +1259,29 @@ export default function Earth3DPage() {
                     format: "json",
                     limit: "1",
                   });
-                  if (featureType === "country") {
-                    params.set("q", hoverName);
+                  if (featureType === "continent") {
+                    // For continents, use a simplified approach since Nominatim doesn't support continent boundaries well
+                    // We'll skip continent boundary drawing for now and just show the label
+                    console.log("[Earth3D] Continent hover detected:", hoverName);
+                    return;
+                  } else if (featureType === "country") {
                     params.set("featuretype", "country");
+                    params.set("q", hoverName);
                   } else if (featureType === "state") {
                     params.set("featuretype", "state");
                     params.set("state", hoverName);
+                    if (info.countryCode)
+                      params.set("countrycodes", info.countryCode.toLowerCase());
+                  } else if (featureType === "city") {
+                    params.set("featuretype", "city");
+                    params.set("city", hoverName);
                     if (info.countryCode)
                       params.set("countrycodes", info.countryCode.toLowerCase());
                   }
 
                   const res = await fetch(
                     `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-                    { headers: { "User-Agent": "NonnasMaps/1.0" } },
+                    undefined,
                   );
                   if (res.ok) {
                     const data = await res.json();
@@ -1268,9 +1338,21 @@ export default function Earth3DPage() {
         }, 120);
       };
       map3d.addEventListener("gmp-mousemove" as any, handleMouseMove);
+      map3d.addEventListener("gmp-pointermove" as any, handleMouseMove);
+
+      const handleDomPointerMove = (ev: PointerEvent | MouseEvent) => {
+        handleMouseMove({ clientX: ev.clientX, clientY: ev.clientY } as unknown);
+      };
+      map3d.addEventListener("pointermove", handleDomPointerMove);
+      map3d.addEventListener("mousemove", handleDomPointerMove);
       listeners.push(() =>
         map3d.removeEventListener("gmp-mousemove" as any, handleMouseMove),
       );
+      listeners.push(() =>
+        map3d.removeEventListener("gmp-pointermove" as any, handleMouseMove),
+      );
+      listeners.push(() => map3d.removeEventListener("pointermove", handleDomPointerMove));
+      listeners.push(() => map3d.removeEventListener("mousemove", handleDomPointerMove));
       // ── Click → center + highlight boundary + OPEN PANEL ──
       const handleMapClick = async (e: any) => {
         console.log("[Earth3D] MAP CLICK HANDLER STARTED");
@@ -1443,49 +1525,88 @@ export default function Earth3DPage() {
           const info = parseAdminLevelsFromGeocodeResult(first);
           console.log("[Earth3D] Parsed info:", info);
 
-          // Determine what to show based on zoom level
+          // Determine what to show based on zoom level - match the hover logic
           let targetName: string | null = null;
-          let featureType: "country" | "state" | "city" = "country";
+          let featureType: "country" | "state" | "city" | "continent" = "country";
+          let nextLevel: ZoomLevel | null = null;
 
-          if (level === "EARTH" || level === "CONTINENT" || level === "COUNTRY") {
-            // At high zoom levels, show country
+          if (level === "EARTH") {
+            // At EARTH level, clicking takes you to CONTINENT view
+            // We detect the continent from coordinates and zoom to continent level
+            const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
+            targetName = continent;
+            featureType = "continent";
+            nextLevel = "CONTINENT";
+          } else if (level === "CONTINENT") {
+            // At CONTINENT level, clicking a country takes you to COUNTRY view
             targetName = info.country;
             featureType = "country";
+            nextLevel = "COUNTRY";
+          } else if (level === "COUNTRY") {
+            // At COUNTRY level, clicking a state takes you to STATE view
+            targetName = info.state;
+            featureType = "state";
+            nextLevel = "STATE";
           } else if (level === "STATE") {
-            // At state level, prefer state, fallback to country
-            targetName = info.state || info.country;
-            featureType = info.state ? "state" : "country";
-          } else {
-            // At CITY or NONNA level, try to get city from geocode result
-            // Look for locality in address components
+            // At STATE level, clicking a city takes you to CITY view
             const cityComponent = first.address_components?.find((c: any) =>
               c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
             );
-            const cityName = cityComponent?.long_name;
-
-            if (cityName) {
-              targetName = cityName;
-              featureType = "city";
-            } else {
-              // Fallback to state or country if no city found
-              targetName = info.state || info.country;
-              featureType = info.state ? "state" : "country";
-            }
+            targetName = cityComponent?.long_name || null;
+            featureType = "city";
+            nextLevel = "CITY";
+          } else {
+            // At CITY or NONNA level, clicking stays at current level
+            const cityComponent = first.address_components?.find((c: any) =>
+              c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+            );
+            targetName = cityComponent?.long_name || null;
+            featureType = "city";
+            nextLevel = level; // Stay at current level
           }
 
-          console.log("[Earth3D] Target name:", targetName, "featureType:", featureType, "level:", level);
+          console.log("[Earth3D] Target name:", targetName, "featureType:", featureType, "level:", level, "nextLevel:", nextLevel);
 
-          // Fly to clicked location without changing zoom level
+          // Fly to clicked location AND zoom to the next level
           isProgrammaticFlight = true;
-          map3d.flyCameraTo({
-            endCamera: {
-              center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
-              range: map3d.range,
-              tilt: map3d.tilt,
-              heading: 0,
-            },
-            durationMillis: 1500,
-          });
+
+          // If we have a next level, zoom to it
+          if (nextLevel && targetName) {
+            // Update the level first
+            setLevel(nextLevel);
+            currentLevelRef.current = nextLevel;
+
+            // Set flight state
+            flightStateRef.current = {
+              active: true,
+              targetRange: ZOOM_RANGES[nextLevel],
+              targetLevel: nextLevel,
+              startTime: Date.now(),
+              lastRanges: [],
+            };
+
+            map3d.flyCameraTo({
+              endCamera: {
+                center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
+                range: ZOOM_RANGES[nextLevel],
+                tilt: nextLevel === "CITY" || nextLevel === "STATE" ? 65 : 0,
+                heading: 0,
+              },
+              durationMillis: 1500,
+            });
+          } else {
+            // No next level, just recenter at current zoom
+            map3d.flyCameraTo({
+              endCamera: {
+                center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
+                range: map3d.range,
+                tilt: map3d.tilt,
+                heading: 0,
+              },
+              durationMillis: 1500,
+            });
+          }
+
           setTimeout(() => {
             isProgrammaticFlight = false;
           }, 1700);
@@ -1541,7 +1662,7 @@ export default function Earth3DPage() {
                   open: true,
                   region: targetName,
                   regionDisplayName,
-                  scope: featureType,
+                  scope: featureType === "continent" ? "country" : featureType,
                   country: info.country || undefined,
                   state: info.state || undefined,
                   city: featureType === "city" ? targetName : undefined,
@@ -2418,14 +2539,14 @@ export default function Earth3DPage() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/15 to-yellow-500/15 rounded-full blur-2xl" style={{ animationDelay: '1s' }} />
 
-            <div className="relative px-6 py-6 border-b border-amber-100/50">
+            <div className="relative px-6 py-6 border-b border-[#9BC9C3]/50">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-600 flex items-center justify-center shadow-lg shadow-amber-500/30 border border-amber-400/20">
+                    <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3] flex items-center justify-center shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/20">
                       <span className="text-2xl filter drop-shadow-sm">💬</span>
                       {/* Glow effect */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-400/30 to-orange-400/30 blur-sm animate-pulse" />
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#9BC9C3]/30 to-[#7FB5B0]/30 blur-sm animate-pulse" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-gray-900 leading-tight">
@@ -2449,7 +2570,7 @@ export default function Earth3DPage() {
           </div>
 
           {/* Content area with subtle background */}
-          <div className="flex-1 overflow-y-auto relative bg-gradient-to-b from-white via-white to-amber-50/20">
+          <div className="flex-1 overflow-y-auto relative bg-gradient-to-b from-white via-white to-[#9BC9C3]/20">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
             <div className="relative p-6">
               <CommentSection

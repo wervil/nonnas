@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import type { Thread, Post } from '@/db/schema'
-import PostItem from './PostItem'
+import type { Post, Thread } from '@/db/schema'
+import { Loader2, MessageSquare } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import CommentEditor, { Attachment } from '../Comments/CommentEditor'
 import LikeButton from '../LikeButton'
-import { MessageSquare, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
 import AudioPlayer from '../ui/AudioPlayer'
+import PostItem from './PostItem'
 
 interface ThreadViewProps {
   threadId: number
@@ -211,7 +211,7 @@ export default function ThreadView({
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#6BA8A3]" />
       </div>
     )
   }
@@ -243,7 +243,7 @@ export default function ThreadView({
         {/* Meta info - top */}
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
-            <span className="capitalize font-medium text-amber-600">
+            <span className="capitalize font-medium text-[#6BA8A3]">
               {toText(thread.scope, '')}
             </span>
             <span className="text-gray-300">|</span>

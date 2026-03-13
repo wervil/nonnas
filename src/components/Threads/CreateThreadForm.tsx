@@ -5,7 +5,8 @@ import { Loader2, Mic, Paperclip, Send, Video, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Attachment, AttachmentType } from '../Comments/CommentEditor'
+import { Attachment } from '../Comments/CommentEditor'
+import { AttachmentType } from '../messaging/types'
 
 interface CreateThreadFormProps {
     region: string
@@ -163,7 +164,7 @@ export default function CreateThreadForm({
             <div>
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                     Title{' '}
-                    <span className={`${title.length > 100 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    <span className={`${title.length > 100 ? 'text-[#6BA8A3]' : 'text-gray-400'}`}>
                         ({title.length}/120)
                     </span>
                 </label>
@@ -175,7 +176,7 @@ export default function CreateThreadForm({
                     maxLength={120}
                     required
                     placeholder="What's your discussion about?"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all font-[var(--font-bell)]"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#9BC9C3]/50 focus:border-[#9BC9C3]/50 transition-all font-(--font-bell)"
                 />
             </div>
 
@@ -183,7 +184,7 @@ export default function CreateThreadForm({
             <div>
                 <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
                     Content{' '}
-                    <span className={`${content.length > 4500 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    <span className={`${content.length > 4500 ? 'text-[#6BA8A3]' : 'text-gray-400'}`}>
                         ({content.length}/5000)
                     </span>
                 </label>
@@ -195,7 +196,7 @@ export default function CreateThreadForm({
                     required
                     rows={6}
                     placeholder="Share your thoughts, questions, or stories..."
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none font-[var(--font-bell)]"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#9BC9C3]/50 focus:border-[#9BC9C3]/50 transition-all resize-none font-(--font-bell)"
                 />
 
                 {/* Attachments Preview */}
@@ -248,7 +249,7 @@ export default function CreateThreadForm({
             </div>
 
             {/* Region and Scope Info */}
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm font-[var(--font-bell)]">
+            <div className="bg-[#9BC9C3]/20 border border-[#9BC9C3]/40 rounded-xl p-4 text-sm font-(--font-bell)">
                 <div className="flex items-center gap-4 text-gray-600">
                     <span>
                         <strong className="text-gray-900">Region:</strong> {region}
@@ -256,7 +257,7 @@ export default function CreateThreadForm({
                     <span className="text-gray-400">•</span>
                     <span>
                         <strong className="text-gray-900">Scope:</strong>{' '}
-                        <span className={scope === 'country' ? 'text-blue-600' : scope === 'city' ? 'text-indigo-600' : 'text-emerald-600'}>
+                        <span className={scope === 'country' ? 'text-[#6BA8A3]' : scope === 'city' ? 'text-[#4A7C7A]' : 'text-[#7FB5B0]'}>
                             {scope === 'country' ? '🌍 Country' : scope === 'city' ? '🏙️ City' : '📍 State'}
                         </span>
                     </span>
@@ -267,7 +268,7 @@ export default function CreateThreadForm({
             <button
                 type="submit"
                 disabled={isSubmitting || !title || !content}
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 px-4 rounded-xl hover:from-amber-400 hover:to-orange-400 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 disabled:shadow-none flex items-center justify-center gap-2 font-[var(--font-bell)]"
+                className="w-full bg-linear-to-r from-[#9BC9C3] to-[#6BA8A3] text-white py-3 px-4 rounded-xl hover:from-[#7FB5B0] hover:to-[#5A968F] disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-(--font-bell) shadow-lg shadow-[#9BC9C3]/25 hover:shadow-[#9BC9C3]/40 disabled:shadow-none flex items-center justify-center gap-2"
             >
                 {isSubmitting ? (
                     <>

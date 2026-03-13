@@ -61,8 +61,8 @@ export default function ThreadList({
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-12 h-12 rounded-full bg-[#FFCCC866] flex items-center justify-center mb-4">
-                    <Loader2 className="w-6 h-6 text-[#FF7D73] animate-spin" />
+                <div className="w-12 h-12 rounded-full bg-[#9BC9C3]/40 flex items-center justify-center mb-4">
+                    <Loader2 className="w-6 h-6 text-[#6BA8A3] animate-spin" />
                 </div>
                 <p className="text-gray-500 text-sm">Loading discussions...</p>
             </div>
@@ -84,8 +84,8 @@ export default function ThreadList({
     if (threads.length === 0) {
         return (
             <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-50 flex items-center justify-center">
-                    <MessageCircle className="w-10 h-10 text-amber-500/50" />
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[#9BC9C3]/20 flex items-center justify-center">
+                    <MessageCircle className="w-10 h-10 text-[#6BA8A3]/50" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Discussions Yet</h3>
                 <p className="text-gray-500 text-sm max-w-xs mx-auto">

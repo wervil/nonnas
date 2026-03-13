@@ -1,15 +1,15 @@
+import clsx from 'clsx'
+import { X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation, Pagination } from 'swiper/modules'
+import { Dispatch, SetStateAction, useState } from 'react'
+import { createPortal } from 'react-dom'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
-import { Dispatch, SetStateAction, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Navigation, Pagination } from 'swiper/modules'
+import { Swiper, SwiperSlide } from 'swiper/react'
 import Button from '../ui/Button'
-import { useTranslations } from 'next-intl'
-import clsx from 'clsx'
 
 interface Props {
   title: string
@@ -120,9 +120,10 @@ export const RecipeSection = ({
         <div className="corner corner--big lb" />
         <div className="corner corner--big rb" />
         <Button
+          variant="primary"
           size="shrink"
           className={clsx(
-            'absolute bottom-4 right-4 z-20 text-blue-700',
+            'absolute bottom-4 right-4 z-20 text-[#6D2924] font-semibold rounded-lg px-3 py-1.5 text-xs hover:bg-[#FFB5B0] transition-colors',
             showButton ? 'opacity-100' : 'opacity-0'
           )}
         >

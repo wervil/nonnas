@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import { Post } from '@/db/schema'
-import LikeButton from '../LikeButton'
+import { Check, Edit2, Loader2, MessageSquare, Reply, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
-import { Reply, Trash2, Edit2, Loader2, Check, X, MessageSquare } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import CommentEditor, { Attachment } from '../Comments/CommentEditor'
+import LikeButton from '../LikeButton'
 import AudioPlayer from '../ui/AudioPlayer'
 
 interface PostItemProps {
@@ -351,7 +351,6 @@ export default function PostItem({
                             onSubmit={handleInlineReply}
                             onCancel={() => setShowReplyForm(false)}
                             placeholder={isAuthenticated ? "Write your reply..." : "Sign in to reply"}
-                            isReply={true}
                         />
                     </div>
                 )}

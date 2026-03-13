@@ -1,10 +1,10 @@
+import clsx from 'clsx'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { usePathname } from "next/navigation"
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import Button from '../ui/Button'
-import clsx from 'clsx'
-import { usePathname } from "next/navigation";
 
 interface Props {
   title: string
@@ -16,15 +16,12 @@ interface Props {
   type?: 'intro' | 'normal'
 }
 
-const getLineClamp = (height: number) => Math.floor(height / 26) - (window.innerWidth < 1536 ? 1 : 3)
 
 export const Description = ({
   title,
   text,
   imageUrl,
   popupImageUrl,
-  maxWidth,
-  height,
 }: Props) => {
   const [isOpen, setIsOpen] = useState(false)
   const [showButton, setShowButton] = useState(false)
@@ -79,7 +76,7 @@ export const Description = ({
         <div
           className={clsx(
             // 2 lines by default, 4 lines on xl+ (you can adjust breakpoint)
-            'text-description line-clamp-3 xl:line-clamp-5 !text-[12px] xl:!text-[16px]',
+            'text-description line-clamp-3 xl:line-clamp-5 text-[12px]! xl:text-[16px]!',
             showButton ? 'opacity-30' : 'opacity-100'
           )}
           dangerouslySetInnerHTML={{ __html: text }}
@@ -91,9 +88,10 @@ export const Description = ({
         <div className="corner corner--small rb" />
 
         <Button
+          variant="primary"
           size="shrink"
           className={clsx(
-            'absolute bottom-4 right-4 z-20 text-blue-700',
+            'absolute bottom-4 right-4 z-20 text-[#6D2924] font-semibold rounded-lg px-3 py-1.5 text-xs hover:bg-[#FFB5B0] transition-colors',
             showButton ? 'opacity-100' : 'opacity-0'
           )}
         >
@@ -113,7 +111,7 @@ export const Description = ({
             </button>
 
             <div
-              className="description-wrap w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px]"
+              className="description-wrap w-[70vw]! h-[90vh] max-w-[85vw]! max-h-250 min-w-75 min-h-50"
               style={{
                 backgroundImage: popupImageUrl
                   ? `url(${popupImageUrl})`

@@ -1,17 +1,17 @@
 import { Recipe } from '@/db/schema'
 
-import Image from 'next/image'
-import { countriesReverseMap } from './countries'
 import { Description } from '@/components/Book/Description'
 import { RecipeSection } from '@/components/Book/RecipeSection'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation, Pagination } from 'swiper/modules'
+import { ClickableHoverCard } from '@/components/ClickableHoverCard'
+import Image from 'next/image'
+import { Dispatch, SetStateAction } from 'react'
+import { FlagIcon, FlagIconCode } from 'react-flag-kit'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
-import { FlagIcon, FlagIconCode } from 'react-flag-kit'
-import { Dispatch, SetStateAction } from 'react'
-import { ClickableHoverCard } from '@/components/ClickableHoverCard'
+import { Navigation, Pagination } from 'swiper/modules'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { countriesReverseMap } from './countries'
 
 const getLeftSizeDescriptionHeight = (
   hasGeoHistory: boolean,
@@ -48,7 +48,7 @@ export const convertRecipesToPages = (
   recipes?.map((recipe, index) => [
     <div className="page" key={`${index}-1`}>
       <div className="page-content relative">
-        <div className="pokemon-container h-[100%]">
+        <div className="pokemon-container h-full">
           <div className="pokemon-info w-full h-[5%] mb-4">
             <ClickableHoverCard
               trigger={
@@ -59,61 +59,65 @@ export const convertRecipesToPages = (
               content={`${recipe.grandmotherTitle} ${recipe.firstName} ${recipe.lastName}`}
             />
           </div>
-          <div className="flex flex-row gap-3 items-center flex-wrap justify-around w-full h-[35%] min-h-0 min-w-0">
-            <div className="max-w-[38%] min-w-0 flex flex-col items-center gap-1 shrink">
+          <div className="relative w-full h-[35%] min-h-0 overflow-hidden">
+            {recipe.photo && recipe.photo.length > 0 ? (
+              <Swiper
+                modules={[Navigation, Pagination]}
+                navigation
+                pagination={{ clickable: true }}
+                loop={recipe.photo.length > 1}
+                className="w-full h-full cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
+                style={
+                  {
+                    '--swiper-navigation-sides-offset': '0px',
+                  } as React.CSSProperties
+                }
+              >
+                {recipe.photo.map((image, index) => (
+                  <SwiperSlide key={index}>
+                    <Image
+                      src={image}
+                      alt={`${recipe.firstName} ${recipe.lastName} - photo ${index + 1}`}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      className="object-cover"
+                      onClick={() => {
+                        if (!recipe.photo || recipe.photo.length === 0) return
+                        const newImages = [...recipe.photo]
+                        const [clickedImage] = newImages.splice(index, 1)
+                        newImages.unshift(clickedImage)
+                        setImages(newImages)
+                      }}
+                    />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <div className="text-gray-500 text-center">
+                  <p>No photo available</p>
+                </div>
+              </div>
+            )}
+            <div className="corner corner--big lt" />
+            <div className="corner corner--big rt" />
+            <div className="corner corner--big lb" />
+            <div className="corner corner--big rb" />
+
+            {/* Country info tile in bottom right */}
+            <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 bg-[#E9E2D2] rounded-full px-4 py-2 md:px-5 md:py-2 shadow-lg flex items-center gap-2.5 md:gap-3 z-10">
               <FlagIcon
                 code={
                   countriesReverseMap[
                     recipe.country
                   ]?.countryShortCode.toUpperCase() as FlagIconCode
                 }
-                size={window.innerWidth < 768 ? 50 : 70}
+                size={28}
+                className="md:w-8 md:h-8"
               />
-              <h3 className={`text-federant text-yellow-light text-center`}>
+              <span className="text-[#1a1a1a] text-base md:text-lg font-medium whitespace-nowrap">
                 {recipe.country}
-              </h3>
-              <p className={`text-federant text-yellow-light text-center`}>
-                ({recipe.region})
-              </p>
-            </div>
-            <div className="relative w-[57%] min-w-0 h-[100%] overflow-hidden shrink">
-              {recipe.photo && recipe.photo.length > 0 && (
-                <Swiper
-                  modules={[Navigation, Pagination]}
-                  navigation
-                  pagination={{ clickable: true }}
-                  loop={recipe.photo.length > 1}
-                  className="w-full h-full cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
-                  style={
-                    {
-                      '--swiper-navigation-sides-offset': '0px',
-                    } as React.CSSProperties
-                  }
-                >
-                  {recipe.photo.map((image, index) => (
-                    <SwiperSlide key={index}>
-                      <Image
-                        src={image}
-                        alt={`${recipe.firstName} ${recipe.lastName} - photo ${index + 1}`}
-                        fill
-                        style={{ objectFit: 'cover' }}
-                        className="object-cover"
-                        onClick={() => {
-                          if (!recipe.photo || recipe.photo.length === 0) return
-                          const newImages = [...recipe.photo]
-                          const [clickedImage] = newImages.splice(index, 1)
-                          newImages.unshift(clickedImage)
-                          setImages(newImages)
-                        }}
-                      />
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
-              )}
-              <div className="corner corner--big lt" />
-              <div className="corner corner--big rt" />
-              <div className="corner corner--big lb" />
-              <div className="corner corner--big rb" />
+              </span>
             </div>
           </div>
           <div className="page-info flex-1 min-h-0">
@@ -150,7 +154,7 @@ export const convertRecipesToPages = (
     </div>,
     <div className="page" key={`${index}-2`}>
       <div className="page-content relative">
-        <div className="pokemon-container h-[100%]">
+        <div className="pokemon-container h-full">
           {/* <div className='h-[50%]'>  */}
           <RecipeSection
             title={recipe.recipeTitle}

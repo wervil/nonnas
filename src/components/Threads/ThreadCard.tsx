@@ -29,7 +29,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
         <div className="group bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-all duration-200 cursor-pointer">
             <div className="flex items-start gap-3">
                 {/* Category icon */}
-                <div className="shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">
+                <div className="shrink-0 w-10 h-10 rounded-full bg-[#9BC9C3]/20 flex items-center justify-center text-lg">
                     💬
                 </div>
 
@@ -69,7 +69,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
                 {/* Scope Badge */}
                 <div className="flex flex-wrap items-center gap-1.5 mb-2">
                     <span
-                        className={`px-1.5 py-0.5 rounded text-[12px] font-medium border bg-[#FFCCC866] text-black border-[#FFCCC866]`}
+                        className={`px-1.5 py-0.5 rounded text-[12px] font-medium border bg-[#9BC9C3]/20 text-[#4A7C7A] border-[#9BC9C3]/40`}
                     >
                         {thread.scope === 'country' ? '🌍 Country' : thread.scope === 'city' ? '📍 City' : '📍 State'}
                     </span>
