@@ -1589,7 +1589,7 @@ export default function Earth3DPage() {
               endCamera: {
                 center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
                 range: ZOOM_RANGES[nextLevel],
-                tilt: nextLevel === "CITY" || nextLevel === "STATE" ? 65 : 0,
+                tilt: nextLevel as ZoomLevel === "NONNA" ? 65 : 0,
                 heading: 0,
               },
               durationMillis: 1500,
