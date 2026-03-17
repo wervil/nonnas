@@ -237,7 +237,7 @@ export default function ThreadView({
   const threadContent = toText(thread?.content, '')
 
   return (
-    <div className="bg-white min-h-screen font-[var(--font-bell)] pb-32">
+    <div className="bg-white min-h-screen font-[var(--font-bell)] pb-32 p-4 rounded-lg">
       {/* Main Thread Post */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 shadow-sm">
         {/* Meta info - top */}

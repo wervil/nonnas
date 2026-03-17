@@ -123,7 +123,8 @@ function getContinentFromLatLng(lat: number, lng: number): string | null {
   if (lat > 35 && lat < 70 && lng > -10 && lng < 40) return "Europe";
   if (lat > -35 && lat < 37 && lng > -20 && lng < 55) return "Africa";
   if (lat > -10 && lat < 70 && lng > 5 && lng < 180) return "Asia";
-  if (lat > -50 && lat < -10 && lng > 110 && lng < 180) return "Australia";
+  // Oceania region - covers Australia, New Zealand, and Pacific islands
+  if (lat > -50 && lat < 0 && lng > 110 && lng < 180) return "Oceania";
   if (lat > -90 && lat < -60 && lng > -180 && lng < 180) return "Antarctica";
   return null;
 }
@@ -312,95 +313,7 @@ type GlobeNonna = {
   history?: string;
   origin?: string;
 };
-// ─────────────────────────────────────────────────────────────────────────────
-//  LEVEL INDICATOR COMPONENT
-// ─────────────────────────────────────────────────────────────────────────────
-function LevelIndicator({ currentLevel }: { currentLevel: ZoomLevel }) {
-  const levels: ZoomLevel[] = [
-    "EARTH",
-    "CONTINENT",
-    "COUNTRY",
-    "STATE",
-    "CITY",
-    "NONNA",
-  ];
-  const currentIdx = levels.indexOf(currentLevel);
-  const meta = ZOOM_LEVEL_META[currentLevel];
-  return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: "32px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "10px",
-        zIndex: 50,
-        pointerEvents: "none",
-      }}
-    >
-      {/* Current level badge */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          padding: "12px 28px",
-          borderRadius: "999px",
-          background: "rgba(13,148,136,0.85)",
-          border: "1.5px solid rgba(94,234,212,0.6)",
-          backdropFilter: "blur(12px)",
-          boxShadow: "0 4px 24px rgba(13,148,136,0.3)",
-        }}
-      >
-        <span
-          style={{
-            color: "#ccfbf1",
-            fontSize: "15px",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            fontFamily: "ui-sans-serif, system-ui, sans-serif",
-          }}
-        >
-          {meta.label}
-        </span>
-        <span
-          style={{
-            color: "rgba(204,251,241,0.6)",
-            fontSize: "13px",
-            fontWeight: 400,
-          }}
-        >
-          — {meta.description}
-        </span>
-      </div>
-      {/* Progress dots */}
-      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-        {levels.map((lvl, i) => (
-          <div
-            key={lvl}
-            style={{
-              width: i === currentIdx ? "32px" : "10px",
-              height: "10px",
-              borderRadius: "999px",
-              background:
-                i === currentIdx
-                  ? TEAL.light
-                  : i < currentIdx
-                    ? "rgba(94,234,212,0.5)"
-                    : "rgba(255,255,255,0.2)",
-              transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-              boxShadow: i === currentIdx ? `0 0 8px ${TEAL.lighter} ` : "none",
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  ZOOM CONTROL — large, friendly buttons for older users
 // ─────────────────────────────────────────────────────────────────────────────
@@ -625,7 +538,7 @@ export default function Earth3DPage() {
         const res = await fetch("/api/nonnas/clustering?level=ALL");
         if (!res.ok) throw new Error("Failed to fetch all clusters");
         const data = await res.json();
-
+        console.log("data", data);
         if (mounted) {
           allClustersRef.current = {
             continents: data.continents ?? [],
@@ -832,17 +745,16 @@ export default function Earth3DPage() {
             console.log("[Earth3D] Nonna data:", nonna.representativeName);
             console.log("[Earth3D] Nonna count:", nonna.nonnaCount);
 
-            e.stopPropagation();
-            e.preventDefault();
-
-            // Only open CommentSection for individual nonnas at NONNA level only
-            // At higher levels or CITY level, always open DiscussionPanel for location-based discussions
+            // Check current level - only handle marker clicks at NONNA level
             const isNonnaLevel = currentLevelRef.current === "NONNA";
 
             if (isNonnaLevel && nonna.nonnaCount === 1 && nonna.recipeId) {
-              console.log("[Earth3D] Opening comment section for individual nonna at deep level:", nonna.representativeName);
-              console.log("[Earth3D] Nonna recipeId:", nonna.recipeId);
-              console.log("[Earth3D] Current level:", currentLevelRef.current);
+              // At NONNA level, handle the marker click normally
+              console.log("[Earth3D] Handling marker click at NONNA level for individual nonna:", nonna.representativeName);
+
+              e.stopPropagation();
+              e.preventDefault();
+
               if (mounted) {
                 // Check if comment section is already open for this same nonna
                 if (commentSection.open && commentSection.recipeId === parseInt(nonna.recipeId, 10)) {
@@ -859,38 +771,12 @@ export default function Earth3DPage() {
                 }
               }
             } else {
-              // Open DiscussionPanel for clusters or at higher levels
-              console.log("[Earth3D] Opening discussion panel for location:", nonna.representativeName, "count:", nonna.nonnaCount);
-              console.log("[Earth3D] Current level:", currentLevelRef.current, "- opening DiscussionPanel");
-              if (mounted) {
-                // Check if discussion panel is already open for this same location
-                const currentRegion = nonna.countryName || nonna.representativeName;
-                if (panel.open && panel.region === currentRegion) {
-                  // Close the discussion panel if clicking the same location
-                  setPanel({ ...panel, open: false });
-                } else {
-                  // Close comment section if open, then open discussion panel
-                  setCommentSection(prev => ({ ...prev, open: false }));
-                  setPanel({
-                    open: true,
-                    region: nonna.countryName || nonna.representativeName,
-                    regionDisplayName: nonna.countryName ? `${nonna.countryName} • ${nonna.representativeName}` : nonna.representativeName,
-                    scope: "city", // Nonnas are at city level
-                    country: nonna.countryName || undefined,
-                    state: undefined,
-                    city: nonna.representativeName,
-                    nonnas: [{
-                      id: nonna.id,
-                      name: nonna.representativeName,
-                      recipeTitle: nonna.representativeTitle || undefined,
-                      history: nonna.history || undefined,
-                      photo: nonna.representativePhoto ? [nonna.representativePhoto] : null,
-                      origin: nonna.origin || undefined,
-                    }],
-                    initialTab: "discussion", // Always default to Community tab
-                  });
-                }
-              }
+              // At all other levels, ignore marker click and treat as map click
+              console.log("[Earth3D] Ignoring marker click at level:", currentLevelRef.current, "- treating as map click");
+
+              // Don't stop propagation or prevent default - let the map handle it
+              // This will trigger the map click handler instead
+              return;
             }
           });
         }
@@ -908,7 +794,7 @@ export default function Earth3DPage() {
         }
       }
     };
-  }, [nonnaData, mapReady]);
+  }, [nonnaData, mapReady, commentSection, panel, setPanel, setCommentSection]);
   // Zoom button handlers
   const handleZoomIn = useCallback(() => {
     if (!map3dRef.current) return;
@@ -1106,19 +992,27 @@ export default function Earth3DPage() {
               params.set("countrycodes", countryCode.toLowerCase());
           }
 
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-            undefined,
-          );
+          console.log("[Earth3D] Nominatim fetch params:", params.toString());
+          // Use proxy to avoid CORS issues
+          const proxyUrl = `/api/nominatim-proxy?${params.toString()}`;
+          console.log("[Earth3D] Using proxy URL:", proxyUrl);
+
+          const res = await fetch(proxyUrl);
+          console.log("[Earth3D] Proxy fetch response:", res);
           if (!res.ok) {
-            console.error("[Earth3D] Nominatim fetch failed:", res.status, res.statusText);
-            throw new Error(`Nominatim HTTP ${res.status}`);
+            console.error("[Earth3D] Proxy fetch failed:", res.status, res.statusText);
+            throw new Error(`Proxy HTTP ${res.status}`);
           }
           const data = await res.json();
           console.log("[Earth3D] Nominatim response data:", data);
           const geojson = data?.[0]?.geojson;
           if (!geojson) {
             console.warn("[Earth3D] No geojson found for", name, featureType);
+            return;
+          }
+          // Skip boundary drawing for features that only return Points instead of Polygons
+          if (geojson.type === "Point") {
+            console.log("[Earth3D] Skipping boundary drawing for", featureType, name, "- Nominatim only returns Point, not Polygon");
             return;
           }
           console.log("[Earth3D] Got geojson type:", geojson.type);
@@ -1366,8 +1260,10 @@ export default function Earth3DPage() {
           e.currentTarget?.getAttribute('data-marker') === 'nonna'
         );
 
-        if (isMarkerClick) {
-          console.log("[Earth3D] Click originated from marker, ignoring map click");
+        // Only ignore marker clicks at NONNA level (they're handled by the marker click handler)
+        // At all other levels, treat marker clicks as map clicks
+        if (isMarkerClick && currentLevelRef.current === "NONNA") {
+          console.log("[Earth3D] Click originated from marker at NONNA level, ignoring map click");
           return;
         }
 
@@ -1438,6 +1334,40 @@ export default function Earth3DPage() {
                     regionDisplayName = `${info.country || 'Unknown Country'} • ${targetName}`;
                   }
 
+                  // Fetch nonnas based on feature type
+                  const fetchNonnas = async () => {
+                    try {
+                      let url = '/api/recipes?published=true';
+
+                      if (featureType as unknown === "continent") {
+                        // Get continent from country using countryData
+                        const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+                        const continent = getCountryInfoWithFallback(info.country || '').continent;
+                        url += `&continent=${encodeURIComponent(continent)}`;
+                      } else if (featureType === "country") {
+                        url += `&country=${encodeURIComponent(info.country || '')}`;
+                      } else if (featureType === "state") {
+                        url += `&country=${encodeURIComponent(info.country || '')}`;
+                        url += `&region=${encodeURIComponent(targetName)}`;
+                      } else if (featureType === "city") {
+                        url += `&country=${encodeURIComponent(info.country || '')}`;
+                        if (info.state) {
+                          url += `&region=${encodeURIComponent(info.state)}`;
+                        }
+                        url += `&city=${encodeURIComponent(targetName)}`;
+                      }
+
+                      const response = await fetch(url);
+                      const data = await response.json();
+                      return data.recipes || [];
+                    } catch (error) {
+                      console.error("[Earth3D] Error fetching nonnas:", error);
+                      return [];
+                    }
+                  };
+
+                  const nonnas = await fetchNonnas();
+
                   // Open discussion panel
                   setPanel({
                     open: true,
@@ -1447,7 +1377,7 @@ export default function Earth3DPage() {
                     country: info.country || undefined,
                     state: info.state || undefined,
                     city: featureType === "city" ? targetName : undefined,
-                    nonnas: [],
+                    nonnas,
                     initialTab: "discussion",
                   });
 
@@ -1555,8 +1485,16 @@ export default function Earth3DPage() {
             targetName = cityComponent?.long_name || null;
             featureType = "city";
             nextLevel = "CITY";
+          } else if (level === "CITY") {
+            // At CITY level, clicking anywhere takes you to NONNA view
+            const cityComponent = first.address_components?.find((c: any) =>
+              c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+            );
+            targetName = cityComponent?.long_name || null;
+            featureType = "city";
+            nextLevel = "NONNA";
           } else {
-            // At CITY or NONNA level, clicking stays at current level
+            // At NONNA level, clicking stays at current level
             const cityComponent = first.address_components?.find((c: any) =>
               c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
             );
@@ -1645,46 +1583,71 @@ export default function Earth3DPage() {
                     regionDisplayName = `${info.country} • ${targetName}`;
                   }
                 } else if (featureType === "state") {
-                  // For states, show: Country • State
                   regionDisplayName = `${info.country || 'Unknown Country'} • ${targetName}`;
-                } else {
-                  // For countries, just show the country name
-                  regionDisplayName = targetName;
                 }
 
-                console.log("[Earth3D] Opening panel with:", {
-                  region: targetName,
-                  regionDisplayName,
-                  scope: featureType
-                });
+                // Fetch nonnas based on feature type
+                const fetchNonnas = async () => {
+                  try {
+                    let url = '/api/recipes?published=true';
 
+                    if (featureType === "continent") {
+                      // Get continent from country using countryData
+                      const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+                      const continent = getCountryInfoWithFallback(info.country || '').continent;
+                      url += `&continent=${encodeURIComponent(continent)}`;
+                    } else if (featureType === "country") {
+                      url += `&country=${encodeURIComponent(info.country || '')}`;
+                    } else if (featureType === "state") {
+                      url += `&country=${encodeURIComponent(info.country || '')}`;
+                      url += `&region=${encodeURIComponent(targetName)}`;
+                    } else if (featureType === "city") {
+                      url += `&country=${encodeURIComponent(info.country || '')}`;
+                      if (info.state) {
+                        url += `&region=${encodeURIComponent(info.state)}`;
+                      }
+                      url += `&city=${encodeURIComponent(targetName)}`;
+                    }
+
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    return data.recipes || [];
+                  } catch (error) {
+                    console.error("[Earth3D] Error fetching nonnas:", error);
+                    return [];
+                  }
+                };
+
+                const nonnas = await fetchNonnas();
+
+                // Open discussion panel
                 setPanel({
                   open: true,
                   region: targetName,
                   regionDisplayName,
-                  scope: featureType === "continent" ? "country" : featureType,
+                  scope: featureType as any,
                   country: info.country || undefined,
                   state: info.state || undefined,
                   city: featureType === "city" ? targetName : undefined,
-                  nonnas: [],
+                  nonnas,
                   initialTab: "discussion",
                 });
-              }
 
-              // Draw boundary after setting panel state
-              fetchAndDrawBoundary(targetName, featureType, info.countryCode);
+                // Draw boundary for the clicked location
+                fetchAndDrawBoundary(targetName, featureType, info.countryCode);
+              }
             }
           }
-
-          console.log("[Earth3D] handleMapClick completed");
         } catch (err) {
-          console.error("[Earth3D] click error:", err);
+          console.error("[Earth3D] Click handler error:", err);
         }
       };
+
       map3d.addEventListener("gmp-click", handleMapClick);
       listeners.push(() =>
         map3d.removeEventListener("gmp-click", handleMapClick),
       );
+
       // ── Double-click to zoom in ──
       const handleDoubleClick = () => {
         if (!isProgrammaticFlight) {
@@ -1695,6 +1658,7 @@ export default function Earth3DPage() {
       listeners.push(() =>
         map3d.removeEventListener("dblclick", handleDoubleClick),
       );
+
       // ── Single unified zoom level detection ──
       const unifiedZoomCheck = () => {
         if (!mounted || !map3d) return;
@@ -1753,7 +1717,6 @@ export default function Earth3DPage() {
             setClickedLabel(null);
             setHoveredLabel(null);
           }
-        } else if (newLevel !== currentLevelRef.current && flightStateRef.current.active) {
         }
 
         // Continue checking every 100ms
@@ -1830,7 +1793,7 @@ export default function Earth3DPage() {
         }
       }
     };
-  }, [setLevel, handleZoomIn]);
+  }, [setLevel, handleZoomIn,]);
 
   // Search functionality
   const performSearch = useCallback(async (query: string) => {
@@ -2046,12 +2009,6 @@ export default function Earth3DPage() {
     };
   }, []);
 
-  const displayLabel = clickedLabel || hoveredLabel || null;
-  // Show country name labels only at COUNTRY level and deeper (but not at EARTH or CONTINENT levels)
-  // Also check current range directly to be more reliable
-  const currentRange = map3dRef.current ? Number(map3dRef.current.range ?? ZOOM_RANGES.EARTH) : ZOOM_RANGES.EARTH;
-  const isAtEarthOrContinentLevel = currentLevel === "EARTH" || currentLevel === "CONTINENT" || currentRange > ZOOM_RANGES.COUNTRY * 2;
-  const showNameLabel = displayLabel && !isAtEarthOrContinentLevel;
 
   // Mobile-responsive styles
   const mobileStyles = {
@@ -2531,22 +2488,22 @@ export default function Earth3DPage() {
 
       {/* Comment Section for nonna-specific discussions */}
       {commentSection.open && (
-        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-[99999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
+        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-99999 border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
           {/* Enhanced Header with gradient */}
           <div className="relative overflow-hidden">
             {/* Animated background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-50 via-orange-50/40 to-yellow-50/30" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/15 to-yellow-500/15 rounded-full blur-2xl" style={{ animationDelay: '1s' }} />
+            <div className="absolute inset-0 bg-linear-to-r from-amber-50 via-orange-50/40 to-yellow-50/30" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-linear-to-tr from-orange-400/15 to-yellow-500/15 rounded-full blur-2xl" style={{ animationDelay: '1s' }} />
 
             <div className="relative px-6 py-6 border-b border-[#9BC9C3]/50">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3] flex items-center justify-center shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/20">
+                    <div className="relative w-12 h-12 rounded-2xl bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3] flex items-center justify-center shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/20">
                       <span className="text-2xl filter drop-shadow-sm">💬</span>
                       {/* Glow effect */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#9BC9C3]/30 to-[#7FB5B0]/30 blur-sm animate-pulse" />
+                      <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-[#9BC9C3]/30 to-[#7FB5B0]/30 blur-sm animate-pulse" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-gray-900 leading-tight">
@@ -2570,7 +2527,7 @@ export default function Earth3DPage() {
           </div>
 
           {/* Content area with subtle background */}
-          <div className="flex-1 overflow-y-auto relative bg-gradient-to-b from-white via-white to-[#9BC9C3]/20">
+          <div className="flex-1 overflow-y-auto relative bg-linear-to-b from-white via-white to-[#9BC9C3]/20">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
             <div className="relative p-6">
               <CommentSection

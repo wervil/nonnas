@@ -258,7 +258,7 @@ export const AddRecipe = ({
         country:
           allCountries.find((country) => country[1] === data.country)?.[0] ||
           data.country,
-        state: data.state || null,
+        region: data.state || null,
         city: data.city || null,
         coordinates: data.coordinates || null,
         history: sanitizeHtml(data.history),
@@ -606,7 +606,7 @@ export const AddRecipe = ({
                   name="release_signature"
                   control={control}
                   description={d('releaseSignature')}
-                  theme="light"
+                  theme="dark"
                 />
               </div>
             )}

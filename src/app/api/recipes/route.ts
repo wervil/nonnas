@@ -1,4 +1,8 @@
 import { likes, recipes } from "@/db/schema";
+import {
+  getCountriesByContinent,
+  getCountryInfoWithFallback,
+} from "@/lib/countryData";
 import { stackServerApp } from "@/stack";
 import { checkAdminPermission } from "@/utils/checkAdminPermission";
 import { and, eq, ilike, inArray, sql } from "drizzle-orm";
@@ -160,6 +164,9 @@ export async function GET(request: NextRequest) {
     // const langParam = searchParams.get('lang') || 'en-US'
     const search = searchParams.get("search");
     const country = searchParams.get("country");
+    const continent = searchParams.get("continent");
+    const region = searchParams.get("region");
+    const city = searchParams.get("city");
     const userId = searchParams.get("userId");
 
     // Common select fields
@@ -221,6 +228,28 @@ export async function GET(request: NextRequest) {
         whereConditions.push(ilike(recipes.country, `%${country}%`));
       }
 
+      // Handle region filter
+      if (region) {
+        whereConditions.push(ilike(recipes.region, `%${region}%`));
+      }
+
+      // Handle city filter
+      if (city) {
+        whereConditions.push(ilike(recipes.city, `%${city}%`));
+      }
+
+      // Handle continent filter
+      if (continent) {
+        const continentCountries = getCountriesByContinent(continent);
+        const countryNames = continentCountries.map((c) => c.name);
+        if (countryNames.length > 0) {
+          whereConditions.push(inArray(recipes.country, countryNames));
+        } else {
+          // If no countries found for this continent, return empty result
+          whereConditions.push(eq(recipes.id, -1));
+        }
+      }
+
       // Handle userId filter
       if (userId) {
         whereConditions.push(eq(recipes.user_id, userId));
@@ -274,7 +303,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ recipes: result });
+    return NextResponse.json({
+      recipes: result.map((recipe) => ({
+        ...recipe,
+        continent: getCountryInfoWithFallback(recipe.country).continent,
+      })),
+    });
   } catch (error) {
     console.error("Error fetching recipes:", error);
     return NextResponse.json(

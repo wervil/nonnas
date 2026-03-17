@@ -64,7 +64,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
         console.log('States for country:', stateList)
 
         const stateOptions: Option[] = stateList.map((state) => ({
-          value: state.isoCode,
+          value: state.name,  // Store full name instead of ISO code
           label: state.name,
         }))
         setStates(stateOptions)
@@ -87,7 +87,17 @@ const CountryStateCitySelector = <T extends FieldValues>({
     if (selectedCountry && selectedState) {
       console.log('Selected state:', selectedState)
       try {
-        const cityList = City.getCitiesOfState(selectedCountry, selectedState)
+        // Find the state object by name to get its ISO code
+        const stateList = State.getStatesOfCountry(selectedCountry)
+        const stateObj = stateList.find((state) => state.name === selectedState)
+
+        if (!stateObj) {
+          console.error('State not found:', selectedState)
+          setCities([])
+          return
+        }
+
+        const cityList = City.getCitiesOfState(selectedCountry, stateObj.isoCode)
         console.log('Cities for state:', cityList)
 
         const cityOptions: Option[] = cityList.map((city) => ({
@@ -108,7 +118,16 @@ const CountryStateCitySelector = <T extends FieldValues>({
     // Find the city object to get coordinates
     if (selectedCountry && selectedState) {
       try {
-        const cityList = City.getCitiesOfState(selectedCountry, selectedState)
+        // Find the state object by name to get its ISO code
+        const stateList = State.getStatesOfCountry(selectedCountry)
+        const stateObj = stateList.find((state) => state.name === selectedState)
+
+        if (!stateObj) {
+          console.error('State not found:', selectedState)
+          return
+        }
+
+        const cityList = City.getCitiesOfState(selectedCountry, stateObj.isoCode)
         const city = cityList.find((c) => c.name === selectedCity)
 
         if (city) {
