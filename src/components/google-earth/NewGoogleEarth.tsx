@@ -2056,7 +2056,7 @@ export default function Earth3DPage() {
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+    <div style={{ position: "absolute", inset: 0 }}>
       <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
 
       {/* Search Bar - Mobile responsive */}
@@ -2491,10 +2491,7 @@ export default function Earth3DPage() {
         <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-99999 border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
           {/* Enhanced Header with gradient */}
           <div className="relative overflow-hidden">
-            {/* Animated background gradient */}
-            <div className="absolute inset-0 bg-linear-to-r from-amber-50 via-orange-50/40 to-yellow-50/30" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-linear-to-tr from-orange-400/15 to-yellow-500/15 rounded-full blur-2xl" style={{ animationDelay: '1s' }} />
+
 
             <div className="relative px-6 py-6 border-b border-[#9BC9C3]/50">
               <div className="flex items-start justify-between gap-4">
@@ -2529,7 +2526,7 @@ export default function Earth3DPage() {
           {/* Content area with subtle background */}
           <div className="flex-1 overflow-y-auto relative bg-linear-to-b from-white via-white to-[#9BC9C3]/20">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
-            <div className="relative p-6">
+            <div className="relative px-2 p-3">
               <CommentSection
                 recipeId={commentSection.recipeId}
                 userId={user?.id}

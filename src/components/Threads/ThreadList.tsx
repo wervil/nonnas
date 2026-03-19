@@ -8,7 +8,6 @@ import ThreadCard from './ThreadCard'
 interface ThreadListProps {
     region?: string
     scope?: 'country' | 'state' | 'city'
-
     sort?: 'newest' | 'top' | 'relevant'
     userId?: string
     onThreadClick?: (threadId: number) => void
@@ -17,7 +16,6 @@ interface ThreadListProps {
 export default function ThreadList({
     region,
     scope,
-
     sort = 'newest',
     userId,
     onThreadClick,
@@ -35,7 +33,6 @@ export default function ThreadList({
                 const params = new URLSearchParams()
                 if (region) params.append('region', region)
                 if (scope) params.append('scope', scope)
-
                 if (sort) params.append('sort', sort)
                 if (userId) params.append('userId', userId)
 
@@ -60,10 +57,8 @@ export default function ThreadList({
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-12 h-12 rounded-full bg-[#9BC9C3]/40 flex items-center justify-center mb-4">
-                    <Loader2 className="w-6 h-6 text-[#6BA8A3] animate-spin" />
-                </div>
+            <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-gray-400 animate-spin mb-3" />
                 <p className="text-gray-500 text-sm">Loading discussions...</p>
             </div>
         )
@@ -71,10 +66,7 @@ export default function ThreadList({
 
     if (error) {
         return (
-            <div className="text-center py-12 px-4">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
-                    <span className="text-2xl">⚠️</span>
-                </div>
+            <div className="text-center py-12">
                 <p className="text-red-600 font-medium">{error}</p>
                 <p className="text-gray-500 text-sm mt-2">Please try again later</p>
             </div>
@@ -83,12 +75,12 @@ export default function ThreadList({
 
     if (threads.length === 0) {
         return (
-            <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[#9BC9C3]/20 flex items-center justify-center">
-                    <MessageCircle className="w-10 h-10 text-[#6BA8A3]/50" />
+            <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <MessageCircle className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Discussions Yet</h3>
-                <p className="text-gray-500 text-sm max-w-xs mx-auto">
+                <p className="text-gray-500 text-sm">
                     Be the first to start a conversation in this region!
                 </p>
             </div>
@@ -97,14 +89,8 @@ export default function ThreadList({
 
     return (
         <div className="space-y-3 w-full">
-            {threads.map((thread, index) => (
-                <div
-                    key={thread.id}
-                    className="animate-in fade-in slide-in-from-bottom-2"
-                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
-                >
-                    <ThreadCard thread={thread} onClick={onThreadClick} />
-                </div>
+            {threads.map((thread) => (
+                <ThreadCard key={thread.id} thread={thread} onClick={onThreadClick} />
             ))}
         </div>
     )
