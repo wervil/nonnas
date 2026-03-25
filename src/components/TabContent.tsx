@@ -5,8 +5,84 @@ import Button from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { Recipe } from '@/db/schema'
 import { countriesData } from '@/utils/countries'
-import { Copy } from 'lucide-react'
+import { Copy, Download } from 'lucide-react'
 import { useEffect } from 'react'
+
+function stripHtml(html: string): string {
+  if (!html) return ''
+  return html
+    .replace(/<\/?(p|br|div|li|h[1-6])[^>]*>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function addSection(lines: string[], label: string, content: string | null | undefined) {
+  if (!content) return
+  const clean = stripHtml(content)
+  if (!clean) return
+  lines.push(`   ${label}:`)
+  clean.split('\n').forEach((line) => lines.push(`      ${line}`))
+  lines.push('')
+}
+
+function exportRecipesToTxt(recipes: Recipe[], filename: string, countryLabel?: string) {
+  if (!recipes.length) return
+
+  const lines: string[] = []
+
+  const header = countryLabel
+    ? `Nonna's Recipes - ${countryLabel}`
+    : `Nonna's Recipes - All Countries`
+  lines.push(header)
+  lines.push('='.repeat(header.length))
+  lines.push(`Total: ${recipes.length} recipes`)
+  lines.push('')
+  lines.push('')
+
+  const numWidth = String(recipes.length).length
+
+  recipes.forEach((r, i) => {
+    const num = String(i + 1).padStart(numWidth, ' ')
+    const grandmother = r.grandmotherTitle || ''
+    const fullName = [grandmother, r.firstName, r.lastName].filter(Boolean).join(' ')
+    const location = [r.country, r.region, r.city].filter(Boolean).join(', ')
+
+    lines.push(`${num}.  ${fullName}`)
+    lines.push(`    Location: ${location}`)
+    lines.push('')
+
+    addSection(lines, 'Bio', r.history)
+    addSection(lines, 'History', r.geo_history)
+
+    if (r.recipeTitle) {
+      lines.push(`   Recipe: ${r.recipeTitle}`)
+      lines.push('')
+    }
+
+    addSection(lines, 'Ingredients', r.recipe)
+    addSection(lines, 'Directions', r.directions)
+    addSection(lines, 'Traditions', r.traditions)
+    addSection(lines, 'Influences', r.influences)
+
+    lines.push('-'.repeat(60))
+    lines.push('')
+  })
+
+  const txt = lines.join('\n')
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 type StackUserRow = {
   id: string
@@ -228,18 +304,36 @@ export function TabContent({
             </Button>
           )}
 
-          <div className="min-w-50">
-            <SearchableSelect
-              options={countries.map((c) => ({
-                value: countriesData[c as keyof typeof countriesData].name,
-                label: countriesData[c as keyof typeof countriesData].name,
-                flag: countriesData[c as keyof typeof countriesData].flag,
-              }))}
-              value={selectedCountry}
-              onChange={setSelectedCountry}
-              placeholder={l('all')}
-              variant="light"
-            />
+          <div className="flex items-center gap-3">
+            <div className="min-w-50">
+              <SearchableSelect
+                options={countries.map((c) => ({
+                  value: countriesData[c as keyof typeof countriesData].name,
+                  label: countriesData[c as keyof typeof countriesData].name,
+                  flag: countriesData[c as keyof typeof countriesData].flag,
+                }))}
+                value={selectedCountry}
+                onChange={setSelectedCountry}
+                placeholder={l('all')}
+                variant="light"
+              />
+            </div>
+
+            {recipes.length > 0 && (
+              <Button
+                onClick={() => {
+                  const filename = selectedCountry
+                    ? `recipes-${selectedCountry.toLowerCase().replace(/\s+/g, '-')}.txt`
+                    : 'recipes-all.txt'
+                  exportRecipesToTxt(recipes, filename, selectedCountry || undefined)
+                }}
+                className="bg-[#9BC9C3] hover:bg-[#26786E] text-[#26786E] transition-colors flex items-center gap-2 px-4 py-3 h-12 rounded-xl text-sm font-medium whitespace-nowrap"
+                variant="empty"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Export ({recipes.length})</span>
+              </Button>
+            )}
           </div>
         </div>
 
