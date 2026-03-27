@@ -5,8 +5,9 @@ import Button from '@/components/ui/Button'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { Recipe } from '@/db/schema'
 import { countriesData } from '@/utils/countries'
-import { Copy, Download } from 'lucide-react'
-import { useEffect } from 'react'
+import { exportRecipesToPdf } from '@/utils/generatePdf'
+import { Copy, Download, FileText, LoaderCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 function stripHtml(html: string): string {
   if (!html) return ''
@@ -152,6 +153,8 @@ export function TabContent({
   }, [activeTab, loadTabData])
 
   const countries = Object.keys(countriesData)
+  const [pdfExporting, setPdfExporting] = useState(false)
+  const [pdfProgress, setPdfProgress] = useState('')
 
   if (activeTab === 'users') {
     return (
@@ -320,19 +323,58 @@ export function TabContent({
             </div>
 
             {recipes.length > 0 && (
-              <Button
-                onClick={() => {
-                  const filename = selectedCountry
-                    ? `recipes-${selectedCountry.toLowerCase().replace(/\s+/g, '-')}.txt`
-                    : 'recipes-all.txt'
-                  exportRecipesToTxt(recipes, filename, selectedCountry || undefined)
-                }}
-                className="bg-[#9BC9C3] hover:bg-[#26786E] text-[#26786E] hover:text-white transition-colors flex items-center gap-2 px-4 py-3 h-12 rounded-xl text-sm font-medium whitespace-nowrap"
-                variant="empty"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export ({recipes.length})</span>
-              </Button>
+              <>
+                <Button
+                  onClick={() => {
+                    const filename = selectedCountry
+                      ? `recipes-${selectedCountry.toLowerCase().replace(/\s+/g, '-')}.txt`
+                      : 'recipes-all.txt'
+                    exportRecipesToTxt(recipes, filename, selectedCountry || undefined)
+                  }}
+                  className="bg-[#9BC9C3] hover:bg-[#26786E] text-[#26786E] hover:text-white transition-colors flex items-center gap-2 px-4 py-3 h-12 rounded-xl text-sm font-medium whitespace-nowrap"
+                  variant="empty"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">.TXT ({recipes.length})</span>
+                </Button>
+
+                <Button
+                  onClick={async () => {
+                    if (pdfExporting) return
+                    setPdfExporting(true)
+                    setPdfProgress(`0 / ${recipes.length}`)
+                    try {
+                      const filename = selectedCountry
+                        ? `recipes-${selectedCountry.toLowerCase().replace(/\s+/g, '-')}.pdf`
+                        : 'recipes-all.pdf'
+                      await exportRecipesToPdf(
+                        recipes,
+                        filename,
+                        selectedCountry || undefined,
+                        (current, total) => setPdfProgress(`${current} / ${total}`),
+                      )
+                    } finally {
+                      setPdfExporting(false)
+                      setPdfProgress('')
+                    }
+                  }}
+                  disabled={pdfExporting}
+                  className="bg-[#FFCCC8] hover:bg-[#FF7D73] text-[#6D2924] hover:text-white transition-colors flex items-center gap-2 px-4 py-3 h-12 rounded-xl text-sm font-medium whitespace-nowrap disabled:opacity-60"
+                  variant="empty"
+                >
+                  {pdfExporting ? (
+                    <>
+                      <LoaderCircle className="w-4 h-4 animate-spin" />
+                      <span className="hidden sm:inline">{pdfProgress}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4" />
+                      <span className="hidden sm:inline">.PDF ({recipes.length})</span>
+                    </>
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </div>
