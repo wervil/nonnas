@@ -189,7 +189,6 @@ function buildMarkerTemplate(opts: {
   nonnaCount: number;
   expanded?: boolean;
   mode: "avatar" | "bubble-small" | "bubble-large";
-  clusterLevel?: "continent" | "country" | "state" | "nonna";
 }): HTMLTemplateElement {
   const {
     name,
@@ -199,16 +198,9 @@ function buildMarkerTemplate(opts: {
     nonnaCount,
     expanded,
     mode,
-    clusterLevel,
   } = opts;
-  const isContinent = clusterLevel === "continent";
   const flag = countryFlag(countryCode);
   const displayName = (name || `Nonna from ${countryName}`)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-  const safeCountryName = countryName
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -216,11 +208,11 @@ function buildMarkerTemplate(opts: {
   const countLabel = nonnaCount === 1 ? "1 Nonna" : `${nonnaCount} Nonnas`;
   const badge = `${flag} ${countryName}  ·  ${countLabel}`;
   const uid =
-    (isContinent ? countryName : countryCode).toLowerCase().replace(/[^a-z]/g, "") +
+    countryCode.toLowerCase().replace(/[^a-z]/g, "") +
     (expanded ? "e" : "c") +
     mode;
   const isLarge = mode === "bubble-large";
-  const aR = isLarge ? (isContinent ? 140 : 100) : (isContinent ? 52 : 34);
+  const aR = isLarge ? 100 : 34;
   const cardW = Math.max(180, displayName.length * 9 + badge.length * 6.5 + 40);
   const cardH = 56;
   const gap = 8;
@@ -233,33 +225,14 @@ function buildMarkerTemplate(opts: {
   let markerContent = "";
   if (mode === "bubble-large" || mode === "bubble-small") {
     const baseR = isLarge ? 85 : 28;
+    const bubbleRadius = Math.min(baseR + nonnaCount.toString().length * 2, aR);
+    const fontSize = isLarge ? 56 : 22;
+    const yOffset = isLarge ? 18 : 8;
     const strokeW = isLarge ? 8 : 4;
-    if (isContinent) {
-      // For continent markers: show continent name + count below
-      const bubbleRadius = isLarge ? 130 : 48;
-      // Split continent name into words for multi-line if needed
-      const words = safeCountryName.split(" ");
-      const nameFontSize = isLarge ? (words.length > 1 ? 34 : 40) : 15;
-      const countFontSize = isLarge ? 22 : 11;
-      const nameLines = words.length > 1
-        ? `<text x="${cx}" y="${cy - (isLarge ? 12 : 4)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${nameFontSize}" font-weight="900" fill="white">${words.slice(0, Math.ceil(words.length / 2)).join(" ")}</text>
-           <text x="${cx}" y="${cy + (isLarge ? 28 : 14)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${nameFontSize}" font-weight="900" fill="white">${words.slice(Math.ceil(words.length / 2)).join(" ")}</text>
-           <text x="${cx}" y="${cy + (isLarge ? 60 : 28)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${countFontSize}" font-weight="500" fill="rgba(255,255,255,0.85)">${countLabel}</text>`
-        : `<text x="${cx}" y="${cy + (isLarge ? 12 : 4)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${nameFontSize}" font-weight="900" fill="white">${safeCountryName}</text>
-           <text x="${cx}" y="${cy + (isLarge ? 46 : 20)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${countFontSize}" font-weight="500" fill="rgba(255,255,255,0.85)">${countLabel}</text>`;
-      markerContent = `
-        <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
-        ${nameLines}
-      `;
-    } else {
-      const bubbleRadius = Math.min(baseR + nonnaCount.toString().length * 2, aR);
-      const fontSize = isLarge ? 56 : 22;
-      const yOffset = isLarge ? 18 : 8;
-      markerContent = `
-        <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
-        <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
-      `;
-    }
+    markerContent = `
+      <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
+      <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
+    `;
   } else {
     markerContent = `
       <ellipse cx="${cx}" cy="${cy + 5}" rx="${aR + 22}" ry="${aR + 16}" fill="url(#bloom${uid})"/>
@@ -339,7 +312,6 @@ type GlobeNonna = {
   recipeId: string;
   history?: string;
   origin?: string;
-  clusterLevel?: "continent" | "country" | "state" | "nonna";
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -713,7 +685,6 @@ export default function Earth3DPage() {
             nonnaCount: nonna.nonnaCount,
             expanded: showExpanded,
             mode: markerMode,
-            clusterLevel: nonna.clusterLevel,
           });
           const marker = new Marker3DInteractiveElement({
             position: { lat: nonna.lat, lng: nonna.lng, altitude: 50 },
@@ -1729,13 +1700,22 @@ export default function Earth3DPage() {
         }
 
         // Zoom level detection - more gradual thresholds with overlaps for smooth scroll zoom
-        let newLevel: ZoomLevel = "EARTH";
-        if (currentRange <= ZOOM_RANGES.NONNA * 2) newLevel = "NONNA"; // 60000 - lower threshold for easier transition
-        else if (currentRange <= ZOOM_RANGES.CITY * 2.5) newLevel = "CITY"; // 375000
-        else if (currentRange <= ZOOM_RANGES.STATE * 2) newLevel = "STATE"; // 1600000
-        else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) newLevel = "COUNTRY"; // 6000000
+        let rawLevel: ZoomLevel = "EARTH";
+        if (currentRange <= ZOOM_RANGES.NONNA * 2) rawLevel = "NONNA"; // 60000 - lower threshold for easier transition
+        else if (currentRange <= ZOOM_RANGES.CITY * 2.5) rawLevel = "CITY"; // 375000
+        else if (currentRange <= ZOOM_RANGES.STATE * 2) rawLevel = "STATE"; // 1600000
+        else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) rawLevel = "COUNTRY"; // 6000000
         else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5)
-          newLevel = "CONTINENT";
+          rawLevel = "CONTINENT";
+
+        // Enforce strict drill-down: when zooming in (advancing forward), only allow one level at a time.
+        // Going back (zooming out) is always allowed freely.
+        const LEVEL_ORDER_SCROLL: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
+        const rawIndex = LEVEL_ORDER_SCROLL.indexOf(rawLevel);
+        const curIndex = LEVEL_ORDER_SCROLL.indexOf(currentLevelRef.current);
+        // Clamp forward advancement to at most one step ahead
+        const clampedIndex = rawIndex > curIndex ? Math.min(rawIndex, curIndex + 1) : rawIndex;
+        const newLevel = LEVEL_ORDER_SCROLL[clampedIndex];
 
         // Only change level if it's different and not during a programmatic flight
         if (newLevel !== currentLevelRef.current && !flightStateRef.current.active) {
@@ -2243,15 +2223,6 @@ export default function Earth3DPage() {
           </text>
         </svg>
       </div>
-      {/* Zoom controls — right side, large and friendly */}
-      {mapReady && (
-        <ZoomControl
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          currentLevel={currentLevel}
-          isMobile={isMobile}
-        />
-      )}
       {/* 2D/3D Toggle - Mobile responsive */}
       {mapReady && (currentLevel === "CITY" || currentLevel === "NONNA") && (
         <div
@@ -2324,13 +2295,19 @@ export default function Earth3DPage() {
         <div style={mobileStyles.levelNavContainer}>
           {(["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY"] as const).map(
             (lvl) => {
+              const LEVEL_ORDER: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
+              const lvlIndex = LEVEL_ORDER.indexOf(lvl);
+              const currentIndex = LEVEL_ORDER.indexOf(currentLevel);
               const isActive = currentLevel === lvl;
+              // Allow going back to any previous level, or advancing exactly one level forward
+              const isDisabled = lvlIndex > currentIndex + 1;
               const meta = ZOOM_LEVEL_META[lvl];
               return (
                 <button
                   key={lvl}
+                  disabled={isDisabled}
                   onClick={() => {
-                    if (!map3dRef.current) return;
+                    if (!map3dRef.current || isDisabled) return;
 
                     // Set flight state to pause scroll-based detection during animation
                     flightStateRef.current = {
@@ -2354,7 +2331,7 @@ export default function Earth3DPage() {
                       durationMillis: 1500,
                     });
                   }}
-                  title={meta.description}
+                  title={isDisabled ? `Drill down through ${LEVEL_ORDER[currentIndex + 1] ? ZOOM_LEVEL_META[LEVEL_ORDER[currentIndex + 1]].label : ""} first` : meta.description}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -2363,14 +2340,16 @@ export default function Earth3DPage() {
                     borderRadius: "999px",
                     background: isActive
                       ? "rgba(13,148,136,0.85)"
-                      : "rgba(0,0,0,0.5)",
-                    border: `1.5px solid ${isActive ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.12)"}`,
+                      : isDisabled
+                        ? "rgba(0,0,0,0.2)"
+                        : "rgba(0,0,0,0.5)",
+                    border: `1.5px solid ${isActive ? "rgba(94,234,212,0.6)" : isDisabled ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)"}`,
                     backdropFilter: "blur(10px)",
                     boxShadow: isActive ? `0 4px 20px ${TEAL.glow}` : "none",
-                    cursor: "pointer",
+                    cursor: isDisabled ? "not-allowed" : "pointer",
                     transform: isActive ? "scale(1.06)" : "scale(1)",
                     transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-                    color: isActive ? "white" : "rgba(220,220,220,0.8)",
+                    color: isActive ? "white" : isDisabled ? "rgba(220,220,220,0.3)" : "rgba(220,220,220,0.8)",
                     fontSize: isMobile ? "11px" : "13px",
                     fontWeight: 600,
                     letterSpacing: "0.08em",
@@ -2378,20 +2357,21 @@ export default function Earth3DPage() {
                     fontFamily: "ui-sans-serif, system-ui, sans-serif",
                     userSelect: "none",
                     WebkitTapHighlightColor: "transparent",
+                    opacity: isDisabled ? 0.4 : 1,
                   }}
                   onTouchStart={(e) => {
-                    if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
+                    if (!isActive && !isDisabled) (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
                   }}
                   onTouchEnd={(e) => {
-                    if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
+                    if (!isActive && !isDisabled) (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
                   }}
                   onMouseEnter={(e) => {
-                    if (!isMobile && !isActive)
+                    if (!isMobile && !isActive && !isDisabled)
                       (e.currentTarget as HTMLElement).style.background =
                         "rgba(13,148,136,0.4)";
                   }}
                   onMouseLeave={(e) => {
-                    if (!isMobile && !isActive)
+                    if (!isMobile && !isActive && !isDisabled)
                       (e.currentTarget as HTMLElement).style.background =
                         "rgba(0,0,0,0.5)";
                   }}
@@ -2414,92 +2394,140 @@ export default function Earth3DPage() {
               );
             },
           )}
-          {/* NONNA tile */}
-          <button
-            onClick={() => {
-              if (!map3dRef.current) return;
+          {/* NONNA tile — only enabled when at CITY level (one step before) or already at NONNA */}
+          {(() => {
+            const isNonnaActive = currentLevel === "NONNA";
+            const isNonnaDisabled = currentLevel !== "CITY" && currentLevel !== "NONNA";
+            return (
+              <button
+                disabled={isNonnaDisabled}
+                onClick={() => {
+                  if (!map3dRef.current || isNonnaDisabled) return;
 
-              // Set flight state to pause scroll-based detection during animation
-              flightStateRef.current = {
-                active: true,
-                targetRange: ZOOM_RANGES.NONNA,
-                targetLevel: "NONNA",
-                startTime: Date.now(),
-                lastRanges: [],
-              };
+                  // Set flight state to pause scroll-based detection during animation
+                  flightStateRef.current = {
+                    active: true,
+                    targetRange: ZOOM_RANGES.NONNA,
+                    targetLevel: "NONNA",
+                    startTime: Date.now(),
+                    lastRanges: [],
+                  };
 
-              setLevel("NONNA"); // Explicitly set the level for active state
-              const targetTilt = 65; // 3D tilt for NONNA level
+                  setLevel("NONNA"); // Explicitly set the level for active state
+                  const targetTilt = 65; // 3D tilt for NONNA level
 
-              map3dRef.current.flyCameraTo({
-                endCamera: {
-                  center: map3dRef.current.center,
-                  range: ZOOM_RANGES.NONNA,
-                  heading: map3dRef.current.heading,
-                  tilt: targetTilt,
-                },
-                durationMillis: 1500,
-              });
-            }}
-            title="See individual Nonnas in 3D view"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "left",
-              padding: isMobile ? "8px 12px" : "10px 16px",
-              borderRadius: "999px",
-              background: currentLevel === "NONNA"
-                ? "rgba(13,148,136,0.85)"
-                : "rgba(0,0,0,0.5)",
-              border: `1.5px solid ${currentLevel === "NONNA" ? "rgba(94,234,212,0.6)" : "rgba(255,255,255,0.12)"}`,
-              backdropFilter: "blur(10px)",
-              boxShadow: currentLevel === "NONNA" ? `0 4px 20px ${TEAL.glow}` : "none",
-              cursor: "pointer",
-              transform: currentLevel === "NONNA" ? "scale(1.06)" : "scale(1)",
-              transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-              color: currentLevel === "NONNA" ? "white" : "rgba(220,220,220,0.8)",
-              fontSize: isMobile ? "11px" : "13px",
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              fontFamily: "ui-sans-serif, system-ui, sans-serif",
-              userSelect: "none",
-              WebkitTapHighlightColor: "transparent",
-            }}
-            onTouchStart={(e) => {
-              if (currentLevel !== "NONNA") (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
-            }}
-            onTouchEnd={(e) => {
-              if (currentLevel !== "NONNA") (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
-            }}
-            onMouseEnter={(e) => {
-              if (!isMobile && currentLevel !== "NONNA")
-                (e.currentTarget as HTMLElement).style.background =
-                  "rgba(13,148,136,0.4)";
-            }}
-            onMouseLeave={(e) => {
-              if (!isMobile && currentLevel !== "NONNA")
-                (e.currentTarget as HTMLElement).style.background =
-                  "rgba(0,0,0,0.5)";
-            }}
-          >
-            <span>NONNA</span>
-            {currentLevel === "NONNA" && (
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: TEAL.lighter,
-                  boxShadow: `0 0 6px ${TEAL.lighter}`,
-                  marginLeft: "8px",
+                  map3dRef.current.flyCameraTo({
+                    endCamera: {
+                      center: map3dRef.current.center,
+                      range: ZOOM_RANGES.NONNA,
+                      heading: map3dRef.current.heading,
+                      tilt: targetTilt,
+                    },
+                    durationMillis: 1500,
+                  });
                 }}
-              />
-            )}
-          </button>
+                title={isNonnaDisabled ? "Drill down to City level first" : "See individual Nonnas in 3D view"}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "left",
+                  padding: isMobile ? "8px 12px" : "10px 16px",
+                  borderRadius: "999px",
+                  background: isNonnaActive
+                    ? "rgba(13,148,136,0.85)"
+                    : isNonnaDisabled
+                      ? "rgba(0,0,0,0.2)"
+                      : "rgba(0,0,0,0.5)",
+                  border: `1.5px solid ${isNonnaActive ? "rgba(94,234,212,0.6)" : isNonnaDisabled ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)"}`,
+                  backdropFilter: "blur(10px)",
+                  boxShadow: isNonnaActive ? `0 4px 20px ${TEAL.glow}` : "none",
+                  cursor: isNonnaDisabled ? "not-allowed" : "pointer",
+                  transform: isNonnaActive ? "scale(1.06)" : "scale(1)",
+                  transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+                  color: isNonnaActive ? "white" : isNonnaDisabled ? "rgba(220,220,220,0.3)" : "rgba(220,220,220,0.8)",
+                  fontSize: isMobile ? "11px" : "13px",
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                  userSelect: "none",
+                  WebkitTapHighlightColor: "transparent",
+                  opacity: isNonnaDisabled ? 0.4 : 1,
+                }}
+                onTouchStart={(e) => {
+                  if (!isNonnaActive && !isNonnaDisabled) (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
+                }}
+                onTouchEnd={(e) => {
+                  if (!isNonnaActive && !isNonnaDisabled) (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
+                }}
+                onMouseEnter={(e) => {
+                  if (!isMobile && !isNonnaActive && !isNonnaDisabled)
+                    (e.currentTarget as HTMLElement).style.background =
+                      "rgba(13,148,136,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isMobile && !isNonnaActive && !isNonnaDisabled)
+                    (e.currentTarget as HTMLElement).style.background =
+                      "rgba(0,0,0,0.5)";
+                }}
+              >
+                <span>Nonna</span>
+                {isNonnaActive && (
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      background: TEAL.lighter,
+                      boxShadow: `0 0 6px ${TEAL.lighter}`,
+                      marginLeft: "8px",
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })()}
         </div>
       )}
 
+
+      {/* Reopen Discussion Panel button — shown when panel has data but is closed */}
+      {!panel.open && panel.region && (
+        <button
+          onClick={() => setPanel({ ...panel, open: true })}
+          title={`Open discussion: ${panel.regionDisplayName || panel.region}`}
+          style={{
+            position: "absolute",
+            right: isMobile ? "8px" : "24px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: isMobile ? "44px" : "52px",
+            height: isMobile ? "44px" : "52px",
+            borderRadius: "50%",
+            background: "#2DD4BF",
+            border: "2.5px solid rgba(255,255,255,0.35)",
+            boxShadow: "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            transition: "transform 0.15s, box-shadow 0.15s",
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1.08)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 4px rgba(45,212,191,0.5), 0 6px 20px rgba(0,0,0,0.4)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)";
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+      )}
 
       {/* Discussion Panel */}
       <DiscussionPanel
