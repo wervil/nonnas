@@ -189,6 +189,7 @@ function buildMarkerTemplate(opts: {
   nonnaCount: number;
   expanded?: boolean;
   mode: "avatar" | "bubble-small" | "bubble-large";
+  clusterLevel?: "continent" | "country" | "state" | "nonna";
 }): HTMLTemplateElement {
   const {
     name,
@@ -198,9 +199,16 @@ function buildMarkerTemplate(opts: {
     nonnaCount,
     expanded,
     mode,
+    clusterLevel,
   } = opts;
+  const isContinent = clusterLevel === "continent";
   const flag = countryFlag(countryCode);
   const displayName = (name || `Nonna from ${countryName}`)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const safeCountryName = countryName
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -208,11 +216,11 @@ function buildMarkerTemplate(opts: {
   const countLabel = nonnaCount === 1 ? "1 Nonna" : `${nonnaCount} Nonnas`;
   const badge = `${flag} ${countryName}  ·  ${countLabel}`;
   const uid =
-    countryCode.toLowerCase().replace(/[^a-z]/g, "") +
+    (isContinent ? countryName : countryCode).toLowerCase().replace(/[^a-z]/g, "") +
     (expanded ? "e" : "c") +
     mode;
   const isLarge = mode === "bubble-large";
-  const aR = isLarge ? 100 : 34;
+  const aR = isLarge ? (isContinent ? 140 : 100) : (isContinent ? 52 : 34);
   const cardW = Math.max(180, displayName.length * 9 + badge.length * 6.5 + 40);
   const cardH = 56;
   const gap = 8;
@@ -225,14 +233,33 @@ function buildMarkerTemplate(opts: {
   let markerContent = "";
   if (mode === "bubble-large" || mode === "bubble-small") {
     const baseR = isLarge ? 85 : 28;
-    const bubbleRadius = Math.min(baseR + nonnaCount.toString().length * 2, aR);
-    const fontSize = isLarge ? 56 : 22;
-    const yOffset = isLarge ? 18 : 8;
     const strokeW = isLarge ? 8 : 4;
-    markerContent = `
-      <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
-      <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
-    `;
+    if (isContinent) {
+      // For continent markers: show continent name + count below
+      const bubbleRadius = isLarge ? 130 : 48;
+      // Split continent name into words for multi-line if needed
+      const words = safeCountryName.split(" ");
+      const nameFontSize = isLarge ? (words.length > 1 ? 34 : 40) : 15;
+      const countFontSize = isLarge ? 22 : 11;
+      const nameLines = words.length > 1
+        ? `<text x="${cx}" y="${cy - (isLarge ? 12 : 4)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${nameFontSize}" font-weight="900" fill="white">${words.slice(0, Math.ceil(words.length / 2)).join(" ")}</text>
+           <text x="${cx}" y="${cy + (isLarge ? 28 : 14)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${nameFontSize}" font-weight="900" fill="white">${words.slice(Math.ceil(words.length / 2)).join(" ")}</text>
+           <text x="${cx}" y="${cy + (isLarge ? 60 : 28)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${countFontSize}" font-weight="500" fill="rgba(255,255,255,0.85)">${countLabel}</text>`
+        : `<text x="${cx}" y="${cy + (isLarge ? 12 : 4)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${nameFontSize}" font-weight="900" fill="white">${safeCountryName}</text>
+           <text x="${cx}" y="${cy + (isLarge ? 46 : 20)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${countFontSize}" font-weight="500" fill="rgba(255,255,255,0.85)">${countLabel}</text>`;
+      markerContent = `
+        <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
+        ${nameLines}
+      `;
+    } else {
+      const bubbleRadius = Math.min(baseR + nonnaCount.toString().length * 2, aR);
+      const fontSize = isLarge ? 56 : 22;
+      const yOffset = isLarge ? 18 : 8;
+      markerContent = `
+        <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
+        <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
+      `;
+    }
   } else {
     markerContent = `
       <ellipse cx="${cx}" cy="${cy + 5}" rx="${aR + 22}" ry="${aR + 16}" fill="url(#bloom${uid})"/>
@@ -312,6 +339,7 @@ type GlobeNonna = {
   recipeId: string;
   history?: string;
   origin?: string;
+  clusterLevel?: "continent" | "country" | "state" | "nonna";
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,6 +713,7 @@ export default function Earth3DPage() {
             nonnaCount: nonna.nonnaCount,
             expanded: showExpanded,
             mode: markerMode,
+            clusterLevel: nonna.clusterLevel,
           });
           const marker = new Marker3DInteractiveElement({
             position: { lat: nonna.lat, lng: nonna.lng, altitude: 50 },
