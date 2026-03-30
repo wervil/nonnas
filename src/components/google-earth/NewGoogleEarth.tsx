@@ -504,6 +504,8 @@ export default function Earth3DPage() {
     countries: GlobeNonna[];
     states: GlobeNonna[];
   } | null>(null);
+  const viewportCountryRef = useRef<string | null>(null);
+  const viewportContinentRef = useRef<string | null>(null);
   // Flight state for programmatic zooms (buttons/clicks) to temporarily pause scroll-based detection during animations
   const flightStateRef = useRef<{
     active: boolean;
@@ -523,12 +525,34 @@ export default function Earth3DPage() {
     data: typeof allClustersRef.current,
   ) => {
     if (!data) return;
-    if (level === "EARTH" || level === "CONTINENT")
+    const vpCountry = viewportCountryRef.current;
+
+    if (level === "EARTH" || level === "CONTINENT") {
       setNonnaData(data.continents);
-    else if (level === "COUNTRY" || level === "STATE")
-      setNonnaData(data.states);
-    else if (level === "CITY" || level === "NONNA")
-      setNonnaData(data.countries);
+    } else if (level === "COUNTRY" || level === "STATE") {
+      if (vpCountry) {
+        const vpCode = data.countries.find(
+          c => c.countryName?.toLowerCase() === vpCountry.toLowerCase()
+        )?.countryCode;
+        if (vpCode) {
+          const filtered = data.states.filter(s => s.countryCode === vpCode);
+          setNonnaData(filtered.length > 0 ? filtered : data.states);
+        } else {
+          setNonnaData(data.states);
+        }
+      } else {
+        setNonnaData(data.states);
+      }
+    } else if (level === "CITY" || level === "NONNA") {
+      if (vpCountry) {
+        const filtered = data.countries.filter(c =>
+          c.countryName?.toLowerCase() === vpCountry.toLowerCase()
+        );
+        setNonnaData(filtered.length > 0 ? filtered : data.countries);
+      } else {
+        setNonnaData(data.countries);
+      }
+    }
   };
   useEffect(() => {
     if (!mapReady) return;
@@ -558,10 +582,54 @@ export default function Earth3DPage() {
       clearInterval(poll);
     };
   }, [mapReady]);
+  const updateViewportContext = useCallback(async () => {
+    const map3d = map3dRef.current;
+    const geocoder = geocoderRef.current;
+    if (!map3d || !geocoder) return;
+
+    const center = map3d.center;
+    if (!center) return;
+    const lat = Number(center.lat);
+    const lng = Number(center.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const level = currentLevelRef.current;
+    if (level === "EARTH" || level === "CONTINENT") {
+      viewportCountryRef.current = null;
+      viewportContinentRef.current = null;
+      return;
+    }
+
+    viewportContinentRef.current = getContinentFromLatLng(lat, lng);
+
+    try {
+      const response = await geocoder.geocode({ location: { lat, lng } });
+      const first = response?.results?.[0];
+      if (first) {
+        const info = parseAdminLevelsFromGeocodeResult(first);
+        if (info.country) {
+          viewportCountryRef.current = info.country;
+        }
+      }
+    } catch {
+      /* geocode failed, keep existing viewport context */
+    }
+
+    if (allClustersRef.current) {
+      applyClusterLevel(level, allClustersRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     if (!allClustersRef.current) return;
-    applyClusterLevel(currentLevel, allClustersRef.current);
-  }, [currentLevel]);
+    if (currentLevel === "EARTH" || currentLevel === "CONTINENT") {
+      viewportCountryRef.current = null;
+      viewportContinentRef.current = null;
+      applyClusterLevel(currentLevel, allClustersRef.current);
+    } else {
+      updateViewportContext();
+    }
+  }, [currentLevel, updateViewportContext]);
   // 3D tilt on deep zoom
   useEffect(() => {
     if (!mapReady || !map3dRef.current || flightStateRef.current.active) return;
@@ -1455,6 +1523,11 @@ export default function Earth3DPage() {
           const info = parseAdminLevelsFromGeocodeResult(first);
           console.log("[Earth3D] Parsed info:", info);
 
+          viewportContinentRef.current = getContinentFromLatLng(latLng.lat, latLng.lng);
+          if (info.country) {
+            viewportCountryRef.current = info.country;
+          }
+
           // Determine what to show based on zoom level - match the hover logic
           let targetName: string | null = null;
           let featureType: "country" | "state" | "city" | "continent" = "country";
@@ -1720,7 +1793,9 @@ export default function Earth3DPage() {
         // Only change level if it's different and not during a programmatic flight
         if (newLevel !== currentLevelRef.current && !flightStateRef.current.active) {
           setLevel(newLevel);
-          if (newLevel === "EARTH" || newLevel === "CONTINENT") {
+          // Clear city/region highlight whenever zooming out above CITY level
+          const cityLevelIndex = LEVEL_ORDER_SCROLL.indexOf("CITY");
+          if (clampedIndex < cityLevelIndex) {
             clearPolygonOverlays();
             activeHighlightName = null;
             setClickedLabel(null);
@@ -1736,6 +1811,38 @@ export default function Earth3DPage() {
 
       // Start unified zoom detection
       unifiedZoomCheck();
+
+      // ── Debounced center-change detection for viewport filtering ──
+      let lastViewportLat = 0;
+      let lastViewportLng = 0;
+      let viewportUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+      const CENTER_CHANGE_THRESHOLD = 2;
+      const checkCenterChange = () => {
+        if (!mounted || !map3d) return;
+        const level = currentLevelRef.current;
+        if (level === "EARTH") {
+          setTimeout(checkCenterChange, 500);
+          return;
+        }
+        const center = map3d.center;
+        if (!center) {
+          setTimeout(checkCenterChange, 500);
+          return;
+        }
+        const lat = Number(center.lat);
+        const lng = Number(center.lng);
+        const dist = Math.abs(lat - lastViewportLat) + Math.abs(lng - lastViewportLng);
+        if (dist > CENTER_CHANGE_THRESHOLD) {
+          lastViewportLat = lat;
+          lastViewportLng = lng;
+          if (viewportUpdateTimer) clearTimeout(viewportUpdateTimer);
+          viewportUpdateTimer = setTimeout(() => {
+            if (mounted) updateViewportContext();
+          }, 600);
+        }
+        if (mounted) setTimeout(checkCenterChange, 500);
+      };
+      checkCenterChange();
 
       // ── Animated globe ring overlay ──
       let currentSize = 0,
@@ -2545,8 +2652,7 @@ export default function Earth3DPage() {
 
       {/* Comment Section for nonna-specific discussions */}
       {commentSection.open && (
-        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-99999 border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
-          {/* Enhanced Header with gradient */}
+        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-112 bg-white/98 backdrop-blur-2xl shadow-2xl z-99999 border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">          {/* Enhanced Header with gradient */}
           <div className="relative overflow-hidden">
 
 
