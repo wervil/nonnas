@@ -21,11 +21,13 @@ interface Comment {
 interface CommentSectionProps {
     recipeId: number
     userId?: string
+    recipeName?: string
 }
 
 export default function CommentSection({
     recipeId,
     userId,
+    recipeName,
 }: CommentSectionProps) {
     const [comments, setComments] = useState<Comment[]>([])
     const [loading, setLoading] = useState(true)
@@ -124,7 +126,7 @@ export default function CommentSection({
             <div className="flex items-start w-full mb-6 px-6 shrink-0">
                 <div className="flex items-center">
                     <p className="font-['Inter'] font-semibold text-lg leading-7 text-[#4A7C7A]">
-                        Recipe Name
+                        Recipe Name: {recipeName}
                     </p>
                 </div>
             </div>
