@@ -445,6 +445,8 @@ export default function Earth3DPage() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const geocoderRef = useRef<any>(null);
+  const viewportCountryRef = useRef<string | null>(null);
+  const viewportContinentRef = useRef<string | null>(null);
 
   // Detect mobile device
   useEffect(() => {
@@ -1510,7 +1512,7 @@ export default function Earth3DPage() {
             const isSameCity = cityName === activeHighlightName;
 
             if (isSameCity) {
-              // Second click on same city - zoom to CITY level
+              // Second click on same city - zoom to CITY level in COUNTRY VIEW
               targetName = cityName;
               featureType = "city";
               nextLevel = "CITY";
