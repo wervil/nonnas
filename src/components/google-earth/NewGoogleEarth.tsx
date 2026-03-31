@@ -1461,38 +1461,100 @@ export default function Earth3DPage() {
           let nextLevel: ZoomLevel | null = null;
 
           if (level === "EARTH") {
-            // At EARTH level, clicking takes you to CONTINENT view
-            // We detect the continent from coordinates and zoom to continent level
+            // At EARTH level, implement two-step interaction:
+            // 1. First click: center on continent, stay at EARTH level
+            // 2. Second click (same continent): zoom to CONTINENT level
             const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
-            targetName = continent;
-            featureType = "continent";
-            nextLevel = "CONTINENT";
+            const isSameContinent = continent === activeHighlightName;
+
+            if (isSameContinent) {
+              // Second click on same continent - zoom to CONTINENT level
+              targetName = continent;
+              featureType = "continent";
+              nextLevel = "CONTINENT";
+            } else {
+              // First click on continent - center and highlight, but stay at EARTH level
+              targetName = continent;
+              featureType = "continent";
+              nextLevel = "EARTH"; // Stay at same level
+            }
           } else if (level === "CONTINENT") {
-            // At CONTINENT level, clicking a country takes you to COUNTRY view
-            targetName = info.country;
-            featureType = "country";
-            nextLevel = "COUNTRY";
+            // At CONTINENT level, implement two-step interaction:
+            // 1. First click: center on country, stay at CONTINENT level
+            // 2. Second click (same country): zoom to COUNTRY level
+            const isSameCountry = info.country === activeHighlightName;
+
+            if (isSameCountry) {
+              // Second click on same country - zoom to COUNTRY level
+              targetName = info.country;
+              featureType = "country";
+              nextLevel = "COUNTRY";
+            } else {
+              // First click on country - center and highlight, but stay at CONTINENT level
+              targetName = info.country;
+              featureType = "country";
+              nextLevel = "CONTINENT"; // Stay at same level
+            }
           } else if (level === "COUNTRY") {
-            // At COUNTRY level, clicking a state takes you to STATE view
-            targetName = info.state;
-            featureType = "state";
-            nextLevel = "STATE";
+            // At COUNTRY level, implement two-step interaction:
+            // 1. First click: center on country, stay at COUNTRY level
+            // 2. Second click (same country): zoom to STATE level
+            const isSameCountry = info.country === activeHighlightName;
+
+
+            if (isSameCountry) {
+              // Second click on same country - zoom to STATE level
+              targetName = info.state;
+              featureType = "state";
+              nextLevel = "STATE";
+            } else {
+              // First click on country - center and highlight, but stay at COUNTRY level
+              targetName = info.country;
+              featureType = "country";
+              nextLevel = "COUNTRY"; // Stay at same level
+            }
           } else if (level === "STATE") {
-            // At STATE level, clicking a city takes you to CITY view
+            // At STATE level, implement two-step interaction:
+            // 1. First click: center on city, stay at STATE level
+            // 2. Second click (same city): zoom to CITY level
             const cityComponent = first.address_components?.find((c: any) =>
               c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
             );
-            targetName = cityComponent?.long_name || null;
-            featureType = "city";
-            nextLevel = "CITY";
+            const cityName = cityComponent?.long_name || null;
+            const isSameCity = cityName === activeHighlightName;
+
+            if (isSameCity) {
+              // Second click on same city - zoom to CITY level
+              targetName = cityName;
+              featureType = "city";
+              nextLevel = "CITY";
+            } else {
+              // First click on city - center and highlight, but stay at STATE level
+              targetName = cityName;
+              featureType = "city";
+              nextLevel = "STATE"; // Stay at same level
+            }
           } else if (level === "CITY") {
-            // At CITY level, clicking anywhere takes you to NONNA view
+            // At CITY level, implement two-step interaction:
+            // 1. First click: center on city area, stay at CITY level
+            // 2. Second click (same city): zoom to NONNA level
             const cityComponent = first.address_components?.find((c: any) =>
               c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
             );
-            targetName = cityComponent?.long_name || null;
-            featureType = "city";
-            nextLevel = "NONNA";
+            const cityName = cityComponent?.long_name || null;
+            const isSameCity = cityName === activeHighlightName;
+
+            if (isSameCity) {
+              // Second click on same city - zoom to NONNA level
+              targetName = cityName;
+              featureType = "city";
+              nextLevel = "NONNA";
+            } else {
+              // First click on city - center and highlight, but stay at CITY level
+              targetName = cityName;
+              featureType = "city";
+              nextLevel = "CITY"; // Stay at same level
+            }
           } else {
             // At NONNA level, clicking stays at current level
             const cityComponent = first.address_components?.find((c: any) =>
