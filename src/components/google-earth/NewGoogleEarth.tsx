@@ -2697,7 +2697,7 @@ export default function Earth3DPage() {
 
       {/* Comment Section for nonna-specific discussions */}
       {commentSection.open && (
-        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
+        <div className="fixed top-0 right-0 h-screen w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col pt-[63px] sm:pt-[80px]">
           {/* Enhanced Header with gradient */}
           <div className="relative overflow-hidden">
 

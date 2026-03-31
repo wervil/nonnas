@@ -92,7 +92,7 @@ export default function DiscussionPanel({
     const scopeDisplay = getScopeDisplay();
 
     return (
-        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-125 bg-white shadow-lg z-[9999] border-l border-gray-200 flex flex-col">
+        <div className="fixed top-0 right-0 h-screen w-full md:w-125 bg-white shadow-lg z-[9999] border-l border-gray-200 flex flex-col pt-[63px] sm:pt-[80px]">
             {/* Header */}
             <div className="border-b border-gray-200">
                 <div className="px-6 py-4">
