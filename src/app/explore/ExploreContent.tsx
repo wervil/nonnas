@@ -34,7 +34,7 @@ export default function ExploreContent() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-white">
+    <div className="flex flex-col w-full bg-black overflow-hidden" style={{ height: "100dvh" }}>
       {/* Header */}
       <div className="shrink-0">
         <Header
@@ -47,7 +47,7 @@ export default function ExploreContent() {
       </div>
 
       {/* Globe / Map - takes remaining space */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden min-h-0">
         {/* <Globe2D3DShell
           // exploreState={exploreState}
           setExploreState={setExploreState}

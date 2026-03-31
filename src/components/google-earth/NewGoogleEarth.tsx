@@ -457,6 +457,27 @@ export default function Earth3DPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Force map3d to fill its container on every resize — prevents black gaps
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const parent = container.parentElement;
+    if (!parent) return;
+    const observer = new ResizeObserver(() => {
+      const { offsetWidth: w, offsetHeight: h } = parent;
+      if (!w || !h) return;
+      container.style.width = `${w}px`;
+      container.style.height = `${h}px`;
+      const map3d = map3dRef.current;
+      if (map3d) {
+        map3d.style.width = `${w}px`;
+        map3d.style.height = `${h}px`;
+      }
+    });
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, []);
+
   // Discussion Panel state
   const [panel, setPanel] = useState<{
     open: boolean;
@@ -504,8 +525,6 @@ export default function Earth3DPage() {
     countries: GlobeNonna[];
     states: GlobeNonna[];
   } | null>(null);
-  const viewportCountryRef = useRef<string | null>(null);
-  const viewportContinentRef = useRef<string | null>(null);
   // Flight state for programmatic zooms (buttons/clicks) to temporarily pause scroll-based detection during animations
   const flightStateRef = useRef<{
     active: boolean;
@@ -525,34 +544,12 @@ export default function Earth3DPage() {
     data: typeof allClustersRef.current,
   ) => {
     if (!data) return;
-    const vpCountry = viewportCountryRef.current;
-
-    if (level === "EARTH" || level === "CONTINENT") {
+    if (level === "EARTH" || level === "CONTINENT")
       setNonnaData(data.continents);
-    } else if (level === "COUNTRY" || level === "STATE") {
-      if (vpCountry) {
-        const vpCode = data.countries.find(
-          c => c.countryName?.toLowerCase() === vpCountry.toLowerCase()
-        )?.countryCode;
-        if (vpCode) {
-          const filtered = data.states.filter(s => s.countryCode === vpCode);
-          setNonnaData(filtered.length > 0 ? filtered : data.states);
-        } else {
-          setNonnaData(data.states);
-        }
-      } else {
-        setNonnaData(data.states);
-      }
-    } else if (level === "CITY" || level === "NONNA") {
-      if (vpCountry) {
-        const filtered = data.countries.filter(c =>
-          c.countryName?.toLowerCase() === vpCountry.toLowerCase()
-        );
-        setNonnaData(filtered.length > 0 ? filtered : data.countries);
-      } else {
-        setNonnaData(data.countries);
-      }
-    }
+    else if (level === "COUNTRY" || level === "STATE")
+      setNonnaData(data.states);
+    else if (level === "CITY" || level === "NONNA")
+      setNonnaData(data.countries);
   };
   useEffect(() => {
     if (!mapReady) return;
@@ -582,54 +579,10 @@ export default function Earth3DPage() {
       clearInterval(poll);
     };
   }, [mapReady]);
-  const updateViewportContext = useCallback(async () => {
-    const map3d = map3dRef.current;
-    const geocoder = geocoderRef.current;
-    if (!map3d || !geocoder) return;
-
-    const center = map3d.center;
-    if (!center) return;
-    const lat = Number(center.lat);
-    const lng = Number(center.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-    const level = currentLevelRef.current;
-    if (level === "EARTH" || level === "CONTINENT") {
-      viewportCountryRef.current = null;
-      viewportContinentRef.current = null;
-      return;
-    }
-
-    viewportContinentRef.current = getContinentFromLatLng(lat, lng);
-
-    try {
-      const response = await geocoder.geocode({ location: { lat, lng } });
-      const first = response?.results?.[0];
-      if (first) {
-        const info = parseAdminLevelsFromGeocodeResult(first);
-        if (info.country) {
-          viewportCountryRef.current = info.country;
-        }
-      }
-    } catch {
-      /* geocode failed, keep existing viewport context */
-    }
-
-    if (allClustersRef.current) {
-      applyClusterLevel(level, allClustersRef.current);
-    }
-  }, []);
-
   useEffect(() => {
     if (!allClustersRef.current) return;
-    if (currentLevel === "EARTH" || currentLevel === "CONTINENT") {
-      viewportCountryRef.current = null;
-      viewportContinentRef.current = null;
-      applyClusterLevel(currentLevel, allClustersRef.current);
-    } else {
-      updateViewportContext();
-    }
-  }, [currentLevel, updateViewportContext]);
+    applyClusterLevel(currentLevel, allClustersRef.current);
+  }, [currentLevel]);
   // 3D tilt on deep zoom
   useEffect(() => {
     if (!mapReady || !map3dRef.current || flightStateRef.current.active) return;
@@ -1436,9 +1389,9 @@ export default function Earth3DPage() {
 
                   const nonnas = await fetchNonnas();
 
-                  // Open discussion panel
-                  setPanel({
-                    open: true,
+                  // Update discussion panel data (do not auto-open)
+                  setPanel(prev => ({
+                    ...prev,
                     region: targetName,
                     regionDisplayName,
                     scope: featureType,
@@ -1447,9 +1400,9 @@ export default function Earth3DPage() {
                     city: featureType === "city" ? targetName : undefined,
                     nonnas,
                     initialTab: "discussion",
-                  });
+                  }));
 
-                  console.log("[Earth3D] Opened discussion panel for:", targetName);
+                  console.log("[Earth3D] Updated discussion panel data for:", targetName);
                 }
               } catch (err) {
                 console.error("[Earth3D] Error opening discussion panel after returning to CITY level:", err);
@@ -1522,11 +1475,6 @@ export default function Earth3DPage() {
           if (!first || !mounted) return;
           const info = parseAdminLevelsFromGeocodeResult(first);
           console.log("[Earth3D] Parsed info:", info);
-
-          viewportContinentRef.current = getContinentFromLatLng(latLng.lat, latLng.lng);
-          if (info.country) {
-            viewportCountryRef.current = info.country;
-          }
 
           // Determine what to show based on zoom level - match the hover logic
           let targetName: string | null = null;
@@ -1635,8 +1583,8 @@ export default function Earth3DPage() {
                 setPanel(prev => ({ ...prev, open: false }));
               }
             } else {
-              // Clicking on a new region - open panel and draw boundary
-              console.log("[Earth3D] Clicking new region - opening panel for:", targetName);
+              // Clicking on a new region - update panel data and draw boundary
+              console.log("[Earth3D] Clicking new region - updating panel data for:", targetName);
               activeHighlightName = targetName;
 
               if (mounted) {
@@ -1693,9 +1641,9 @@ export default function Earth3DPage() {
 
                 const nonnas = await fetchNonnas();
 
-                // Open discussion panel
-                setPanel({
-                  open: true,
+                // Update discussion panel data (do not auto-open)
+                setPanel(prev => ({
+                  ...prev,
                   region: targetName,
                   regionDisplayName,
                   scope: featureType as any,
@@ -1704,7 +1652,7 @@ export default function Earth3DPage() {
                   city: featureType === "city" ? targetName : undefined,
                   nonnas,
                   initialTab: "discussion",
-                });
+                }));
 
                 // Draw boundary for the clicked location
                 fetchAndDrawBoundary(targetName, featureType, info.countryCode);
@@ -1792,10 +1740,10 @@ export default function Earth3DPage() {
 
         // Only change level if it's different and not during a programmatic flight
         if (newLevel !== currentLevelRef.current && !flightStateRef.current.active) {
+          const prevIndex = LEVEL_ORDER_SCROLL.indexOf(currentLevelRef.current);
           setLevel(newLevel);
-          // Clear city/region highlight whenever zooming out above CITY level
-          const cityLevelIndex = LEVEL_ORDER_SCROLL.indexOf("CITY");
-          if (clampedIndex < cityLevelIndex) {
+          // Clear highlight whenever zooming out (moving to a higher/broader level)
+          if (clampedIndex < prevIndex) {
             clearPolygonOverlays();
             activeHighlightName = null;
             setClickedLabel(null);
@@ -1811,38 +1759,6 @@ export default function Earth3DPage() {
 
       // Start unified zoom detection
       unifiedZoomCheck();
-
-      // ── Debounced center-change detection for viewport filtering ──
-      let lastViewportLat = 0;
-      let lastViewportLng = 0;
-      let viewportUpdateTimer: ReturnType<typeof setTimeout> | null = null;
-      const CENTER_CHANGE_THRESHOLD = 2;
-      const checkCenterChange = () => {
-        if (!mounted || !map3d) return;
-        const level = currentLevelRef.current;
-        if (level === "EARTH") {
-          setTimeout(checkCenterChange, 500);
-          return;
-        }
-        const center = map3d.center;
-        if (!center) {
-          setTimeout(checkCenterChange, 500);
-          return;
-        }
-        const lat = Number(center.lat);
-        const lng = Number(center.lng);
-        const dist = Math.abs(lat - lastViewportLat) + Math.abs(lng - lastViewportLng);
-        if (dist > CENTER_CHANGE_THRESHOLD) {
-          lastViewportLat = lat;
-          lastViewportLng = lng;
-          if (viewportUpdateTimer) clearTimeout(viewportUpdateTimer);
-          viewportUpdateTimer = setTimeout(() => {
-            if (mounted) updateViewportContext();
-          }, 600);
-        }
-        if (mounted) setTimeout(checkCenterChange, 500);
-      };
-      checkCenterChange();
 
       // ── Animated globe ring overlay ──
       let currentSize = 0,
@@ -2172,8 +2088,8 @@ export default function Earth3DPage() {
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0 }}>
-      <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+      <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "hidden" }} />
 
       {/* Search Bar - Mobile responsive */}
       <div style={mobileStyles.searchContainer}>
@@ -2598,43 +2514,41 @@ export default function Earth3DPage() {
       )}
 
 
-      {/* Reopen Discussion Panel button — shown when panel has data but is closed */}
-      {!panel.open && panel.region && (
-        <button
-          onClick={() => setPanel({ ...panel, open: true })}
-          title={`Open discussion: ${panel.regionDisplayName || panel.region}`}
-          style={{
-            position: "absolute",
-            right: isMobile ? "8px" : "24px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: isMobile ? "44px" : "52px",
-            height: isMobile ? "44px" : "52px",
-            borderRadius: "50%",
-            background: "#2DD4BF",
-            border: "2.5px solid rgba(255,255,255,0.35)",
-            boxShadow: "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            transition: "transform 0.15s, box-shadow 0.15s",
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1.08)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 4px rgba(45,212,191,0.5), 0 6px 20px rgba(0,0,0,0.4)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)";
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
-      )}
+      {/* Discussion Panel toggle button — always visible */}
+      <button
+        onClick={() => setPanel(prev => ({ ...prev, open: !prev.open }))}
+        title={panel.open ? "Close discussion panel" : (panel.region ? `Open discussion: ${panel.regionDisplayName || panel.region}` : "Discussion panel")}
+        style={{
+          position: "fixed",
+          right: panel.open && !isMobile ? "calc(500px + 16px)" : "24px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: isMobile ? "44px" : "52px",
+          height: isMobile ? "44px" : "52px",
+          borderRadius: "50%",
+          background: panel.open ? "#0f766e" : "#2DD4BF",
+          border: "2.5px solid rgba(255,255,255,0.35)",
+          boxShadow: "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)",
+          cursor: "pointer",
+          display: isMobile && panel.open ? "none" : "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100000,
+          transition: "right 0.3s ease, transform 0.15s, box-shadow 0.15s, background 0.15s",
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1.08)";
+          (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 4px rgba(45,212,191,0.5), 0 6px 20px rgba(0,0,0,0.4)";
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1)";
+          (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)";
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
 
       {/* Discussion Panel */}
       <DiscussionPanel
@@ -2652,7 +2566,8 @@ export default function Earth3DPage() {
 
       {/* Comment Section for nonna-specific discussions */}
       {commentSection.open && (
-        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-112 bg-white/98 backdrop-blur-2xl shadow-2xl z-99999 border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">          {/* Enhanced Header with gradient */}
+        <div className="fixed top-15.75 sm:top-20 right-0 sm:h-[calc(100vh-80px)] h-[calc(100vh-63px)] w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col">
+          {/* Enhanced Header with gradient */}
           <div className="relative overflow-hidden">
 
 

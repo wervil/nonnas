@@ -125,7 +125,7 @@ export const Header = ({
 
   return (
     <header
-      className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} ${exploreState === "map" ? " fixed top-0 w-full " : ""}`}
+      className={`flex items-center ${headerJustifyClass} px-3 md:px-20 pt-3 gap-4 ${headerBgClass} ${className} z-[10000] relative ${exploreState === "map" ? " fixed top-0 w-full " : ""}`}
     >
       <Link className="shrink-0" href="/">
         {/* For logo on dark background, we might want to apply a filter or use a different asset if available. 
