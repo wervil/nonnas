@@ -35,7 +35,7 @@ export default function ThreadCard({ thread, onClick }: ThreadCardProps) {
 
                 <div className="flex-1 min-w-0">
                     {/* Title */}
-                    <h3 className="text-base font-semibold line-clamp-1 text-gray-900 mb-1">
+                    <h3 className="text-base font-semibold text-gray-900 mb-1 line-clamp-2 break-words">
                         {thread.title}
                     </h3>
 
