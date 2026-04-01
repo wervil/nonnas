@@ -2196,7 +2196,49 @@ export default function Earth3DPage() {
       }
     };
   }, [setLevel, handleZoomIn, updateViewportContext]);
-
+  const mobileStyles = {
+    searchContainer: {
+      position: "absolute" as const,
+      left: isMobile ? "12px" : "24px",
+      top: isMobile ? "12px" : "24px",
+      right: isMobile ? "12px" : "auto",
+      zIndex: 100,
+      width: isMobile ? "auto" : "320px",
+      maxWidth: isMobile ? "calc(100vw - 24px)" : "320px",
+    },
+    searchInput: {
+      width: "100%",
+      padding: isMobile ? "14px 48px 14px 16px" : "16px 52px 16px 20px",
+      border: "none",
+      outline: "none",
+      background: "transparent",
+      fontSize: isMobile ? "16px" : "15px", // 16px prevents zoom on iOS
+      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      color: "#1f2937",
+      borderRadius: "16px",
+      WebkitTapHighlightColor: "transparent", // Remove tap highlight on iOS
+    },
+    levelNavContainer: {
+      position: "absolute" as const,
+      left: isMobile ? "8px" : "24px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: isMobile ? "6px" : "10px",
+      zIndex: 50,
+    },
+    zoomContainer: {
+      position: "absolute" as const,
+      right: isMobile ? "8px" : "24px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: isMobile ? "8px" : "12px",
+      zIndex: 50,
+    },
+  };
   // Search functionality
   const performSearch = useCallback(async (query: string) => {
     if (!query.trim() || !geocoderRef.current) return;
