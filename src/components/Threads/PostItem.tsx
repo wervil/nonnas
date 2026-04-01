@@ -116,22 +116,12 @@ export default function PostItem({
         }
     }
 
-    const handleInlineReply = async (content: string, attachments?: Attachment[]) => {
+    const handleInlineReply = async (content: string, attachments?: Attachment[]): Promise<void> => {
         if ((!content.trim() && (!attachments || attachments.length === 0)) || !onReplySubmit) return
 
-        // setIsReplySubmitting(true) // Handled by CommentEditor loading state mostly
-        try {
-            const newPost = await onReplySubmit(post.id, content, attachments)
-            // Optimistically add the new reply to local state
-            setLocalReplies([...localReplies, newPost])
-            setShowReplyForm(false)
-        } catch (error) {
-            if (error instanceof Error && error.message === 'MODERATION_ERROR') {
-                // Already handled by parent with toast
-                return
-            }
-            console.error('Error posting reply:', error)
-        }
+        const newPost = await onReplySubmit(post.id, content, attachments)
+        setLocalReplies([...localReplies, newPost])
+        setShowReplyForm(false)
     }
 
     const formatDate = (date: Date | null) => {

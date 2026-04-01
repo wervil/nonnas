@@ -2685,8 +2685,8 @@ export default function Earth3DPage() {
                 backdropFilter: "blur(12px)",
                 border: "1px solid rgba(94,234,212,0.18)",
                 borderRadius: "10px",
-                padding: "12px 14px",
-                width: "240px",
+                padding: "16px 18px",
+                width: "300px",
                 zIndex: 70,
                 fontFamily: "ui-sans-serif, system-ui, sans-serif",
               }}
@@ -2697,7 +2697,7 @@ export default function Earth3DPage() {
               ] as { icon: string; text: string }[]).map(({ icon, text }, i) => (
                 <div key={i} style={{ display: "flex", gap: "9px", alignItems: "flex-start", marginBottom: i < 2 ? "9px" : 0 }}>
                   <span style={{ fontSize: "13px", flexShrink: 0, marginTop: "1px" }}>{icon}</span>
-                  <span style={{ fontSize: "12px", color: "rgba(220,220,220,0.8)", lineHeight: 1.5 }}>{text}</span>
+                  <span style={{ fontSize: "14px", color: "rgba(220,220,220,0.8)", lineHeight: 1.5 }}>{text}</span>
                 </div>
               ))}
             </div>
