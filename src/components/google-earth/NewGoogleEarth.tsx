@@ -489,6 +489,7 @@ export default function Earth3DPage() {
           -webkit-tap-highlight-color: transparent !important;
           -webkit-focus-ring-color: transparent !important;
         }
+
       `;
       document.head.appendChild(style);
 
@@ -2641,6 +2642,66 @@ export default function Earth3DPage() {
       {/* Left-side level navigation — Mobile responsive */}
       {mapReady && (
         <div style={mobileStyles.levelNavContainer}>
+          {/* Navigation hint — hover to expand */}
+          <div
+            style={{ position: "relative", marginBottom: isMobile ? "4px" : "6px" }}
+            onMouseEnter={(e) => {
+              const panel = e.currentTarget.querySelector(".nav-hint-panel") as HTMLElement;
+              if (panel) panel.style.display = "block";
+            }}
+            onMouseLeave={(e) => {
+              const panel = e.currentTarget.querySelector(".nav-hint-panel") as HTMLElement;
+              if (panel) panel.style.display = "none";
+            }}
+          >
+            {/* Trigger label */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "rgba(0,0,0,0.45)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(94,234,212,0.15)",
+                borderRadius: "8px",
+                padding: "5px 10px",
+                cursor: "default",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ fontSize: "11px", color: TEAL.lighter, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>How to?</span>
+            </div>
+
+            {/* Hover panel */}
+            <div
+              className="nav-hint-panel"
+              style={{
+                display: "none",
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: "6px",
+                background: "rgba(10,10,10,0.82)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(94,234,212,0.18)",
+                borderRadius: "10px",
+                padding: "12px 14px",
+                width: "240px",
+                zIndex: 70,
+                fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              }}
+            >
+              {([
+                { icon: "📍", text: "Click a level or scroll to zoom." },
+                { icon: "📍", text: "Once a region is centred on screen, double clicking it again descends one level." },
+              ] as { icon: string; text: string }[]).map(({ icon, text }, i) => (
+                <div key={i} style={{ display: "flex", gap: "9px", alignItems: "flex-start", marginBottom: i < 2 ? "9px" : 0 }}>
+                  <span style={{ fontSize: "13px", flexShrink: 0, marginTop: "1px" }}>{icon}</span>
+                  <span style={{ fontSize: "12px", color: "rgba(220,220,220,0.8)", lineHeight: 1.5 }}>{text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
           {(["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY"] as const).map(
             (lvl) => {
               const LEVEL_ORDER: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
