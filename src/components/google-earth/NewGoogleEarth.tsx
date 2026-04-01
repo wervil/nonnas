@@ -97,6 +97,7 @@ function extractLatLng(rawPos: unknown): LatLngLiteral | null {
   if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
   return null;
 }
+
 function parseAdminLevelsFromGeocodeResult(result: any) {
   let country: string | null = null,
     state: string | null = null;
@@ -1219,13 +1220,13 @@ export default function Earth3DPage() {
             console.log("[Earth3D] Drawing", rings.length, "cached polygons for", name);
             clearPolygonOverlays();
             for (const ring of rings) {
-              const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+              const path = ring.map(([lng, lat]: number[]) => ({
                 lat,
                 lng,
                 altitude: 0,
               }));
               const poly = new Polygon3DElement({
-                outerCoordinates,
+                path,
                 fillColor: TEAL.fill,
                 strokeColor: TEAL.stroke,
                 strokeWidth: 2.5,
