@@ -294,8 +294,8 @@ function buildMarkerTemplate(opts: {
     `
       : ""
     }
-  </g >
-</svg > `;
+  </g>
+</svg>`;
   const tpl = document.createElement("template");
   tpl.innerHTML = svg.trim();
   return tpl;
@@ -438,10 +438,14 @@ export default function Earth3DPage() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Continent highlighting state
+  const [highlightedContinent, setHighlightedContinent] = useState<string | null>(null);
+
   // Hide focus outlines for better UI
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const style = document.createElement('style');
+      // ... (rest of the code remains the same)
       style.textContent = `
         /* Hide all focus outlines */
         *:focus {
@@ -628,10 +632,23 @@ export default function Earth3DPage() {
     if (!data) return;
     if (level === "EARTH" || level === "CONTINENT")
       setNonnaData(data.continents);
-    else if (level === "COUNTRY" || level === "STATE")
+    else if (level === "COUNTRY")
       setNonnaData(data.states);
+    else if (level === "STATE") {
+      setNonnaData(data.states)
+    }
     else if (level === "CITY" || level === "NONNA")
       setNonnaData(data.countries);
+  }, []);
+  const fetchIndividualNonnas = useCallback(async (level: "CITY" | "NONNA") => {
+    try {
+      const res = await fetch(`/api/nonnas/clustering?level=${level}`);
+      if (!res.ok) throw new Error("Failed to fetch individual nonnas");
+      const data = await res.json();
+      setNonnaData(data.clusters || []);
+    } catch (err) {
+      console.error("[Earth3D] individual nonnas fetch error:", err);
+    }
   }, []);
   useEffect(() => {
     if (!mapReady) return;
@@ -648,7 +665,13 @@ export default function Earth3DPage() {
             countries: data.countries ?? [],
             states: data.states ?? [],
           };
-          applyClusterLevel(currentLevelRef.current, allClustersRef.current);
+
+          // For CITY and NONNA levels, fetch individual nonnas
+          if (currentLevelRef.current === "CITY" || currentLevelRef.current === "NONNA") {
+            await fetchIndividualNonnas(currentLevelRef.current);
+          } else {
+            applyClusterLevel(currentLevelRef.current, allClustersRef.current);
+          }
         }
       } catch (err) {
         console.error("[Earth3D] cluster fetch error:", err);
@@ -660,7 +683,7 @@ export default function Earth3DPage() {
       mounted = false;
       clearInterval(poll);
     };
-  }, [mapReady]);
+  }, [mapReady, applyClusterLevel, fetchIndividualNonnas]);
   const updateViewportContext = useCallback(async () => {
     const map3d = map3dRef.current;
     const geocoder = geocoderRef.current;
@@ -701,13 +724,19 @@ export default function Earth3DPage() {
 
   useEffect(() => {
     if (!allClustersRef.current) return;
-    applyClusterLevel(currentLevel, allClustersRef.current);
-  }, [currentLevel]);
+
+    // For CITY and NONNA levels, fetch individual nonnas
+    if (currentLevel === "CITY" || currentLevel === "NONNA") {
+      fetchIndividualNonnas(currentLevel);
+    } else {
+      applyClusterLevel(currentLevel, allClustersRef.current);
+    }
+  }, [currentLevel, applyClusterLevel, fetchIndividualNonnas]);
+
   // 3D tilt on deep zoom
   useEffect(() => {
     if (!mapReady || !map3dRef.current || flightStateRef.current.active) return;
     const map3d = map3dRef.current;
-
     if (currentLevel === "CITY" || currentLevel === "NONNA") {
       setIs3DMode(true);
       if (map3d.tilt < 10) {
@@ -789,7 +818,6 @@ export default function Earth3DPage() {
       map3d.setAttribute("country-labels-mode", "none");
     }
   }, [currentLevel, mapReady]);
-  // Place nonna markers
   // Place nonna markers
   useEffect(() => {
     if (!nonnaData.length || !mapReady || !map3dRef.current) return;
@@ -1557,6 +1585,19 @@ export default function Earth3DPage() {
         console.log("[Earth3D] Click event target:", e.target);
         console.log("[Earth3D] Click event currentTarget:", e.currentTarget);
 
+        // Clear continent highlight when clicking on empty space at EARTH level
+        if (currentLevelRef.current === "EARTH" && highlightedContinent) {
+          // Check if this is not a continent polygon click by looking for continent data
+          const isContinentClick = e.target && (
+            e.target.closest('[data-continent]') ||
+            e.target.getAttribute('data-continent')
+          );
+
+          if (!isContinentClick) {
+            setHighlightedContinent(null);
+          }
+        }
+
         // Check if click originated from a marker
         const isMarkerClick = e.target && (
           e.target.closest('[data-marker="nonna"]') ||
@@ -1665,23 +1706,26 @@ export default function Earth3DPage() {
               nextLevel = "EARTH"; // Stay at same level
             }
           } else if (level === "CONTINENT") {
-            // At CONTINENT level, implement two-step interaction:
-            // 1. First click: center on country, stay at CONTINENT level
-            // 2. Second click (same country): zoom to COUNTRY level
-            const isSameCountry = info.country === activeHighlightName;
+            // At CONTINENT level, implement two-step interaction (same as EARTH level):
+            // 1. First click: center on continent, stay at CONTINENT level
+            // 2. Second click (same continent): zoom to COUNTRY level
+            const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
+            const isSameContinent = continent === activeHighlightName;
 
-            if (isSameCountry) {
-              // Second click on same country - zoom to COUNTRY level
+            if (isSameContinent) {
+              // Second click on same continent - zoom to COUNTRY level
               targetName = info.country;
               featureType = "country";
               nextLevel = "COUNTRY";
             } else {
-              // First click on country - center and highlight, but stay at CONTINENT level
-              targetName = info.country;
-              featureType = "country";
+              // First click on continent - center and highlight, but stay at CONTINENT level
+              targetName = continent;
+              featureType = "continent";
               nextLevel = "CONTINENT"; // Stay at same level
             }
-          } else if (level === "COUNTRY") {
+          }
+
+          else if (level === "COUNTRY") {
             // At COUNTRY level, implement two-step interaction:
             // 1. First click: center on country, stay at COUNTRY level
             // 2. Second click (same country): zoom to STATE level
@@ -2150,7 +2194,7 @@ export default function Earth3DPage() {
         }
       }
     };
-  }, [setLevel, handleZoomIn,]);
+  }, [setLevel, handleZoomIn, updateViewportContext]);
 
   // Search functionality
   const performSearch = useCallback(async (query: string) => {
@@ -2366,58 +2410,24 @@ export default function Earth3DPage() {
     };
   }, []);
 
-
-  // Mobile-responsive styles
-  const mobileStyles = {
-    searchContainer: {
-      position: "absolute" as const,
-      left: isMobile ? "12px" : "24px",
-      top: isMobile ? "12px" : "24px",
-      right: isMobile ? "12px" : "auto",
-      zIndex: 100,
-      width: isMobile ? "auto" : "320px",
-      maxWidth: isMobile ? "calc(100vw - 24px)" : "320px",
-    },
-    searchInput: {
-      width: "100%",
-      padding: isMobile ? "14px 48px 14px 16px" : "16px 52px 16px 20px",
-      border: "none",
-      outline: "none",
-      background: "transparent",
-      fontSize: isMobile ? "16px" : "15px", // 16px prevents zoom on iOS
-      fontFamily: "ui-sans-serif, system-ui, sans-serif",
-      color: "#1f2937",
-      borderRadius: "16px",
-      WebkitTapHighlightColor: "transparent", // Remove tap highlight on iOS
-    },
-    levelNavContainer: {
-      position: "absolute" as const,
-      left: isMobile ? "8px" : "24px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      display: "flex",
-      flexDirection: "column" as const,
-      gap: isMobile ? "6px" : "10px",
-      zIndex: 50,
-    },
-    zoomContainer: {
-      position: "absolute" as const,
-      right: isMobile ? "8px" : "24px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      display: "flex",
-      flexDirection: "column" as const,
-      gap: isMobile ? "8px" : "12px",
-      zIndex: 50,
-    },
-  };
-
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <div ref={containerRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "hidden" }} />
 
+
+
       {/* Search Bar - Mobile responsive */}
-      <div style={mobileStyles.searchContainer}>
+      <div
+        style={{
+          position: "absolute",
+          left: isMobile ? "12px" : "24px",
+          top: isMobile ? "12px" : "24px",
+          right: isMobile ? "12px" : "auto",
+          zIndex: 100,
+          width: isMobile ? "auto" : "320px",
+          maxWidth: isMobile ? "calc(100vw - 24px)" : "320px",
+        }}
+      >
         <div
           ref={searchInputRef}
           style={{
@@ -2434,7 +2444,18 @@ export default function Earth3DPage() {
             value={searchQuery}
             onChange={handleSearchInputChange}
             placeholder="Search for a city, country, or region..."
-            style={mobileStyles.searchInput}
+            style={{
+              width: "100%",
+              padding: isMobile ? "14px 48px 14px 16px" : "16px 52px 16px 20px",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: isMobile ? "16px" : "15px", // 16px prevents zoom on iOS
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              color: "#1f2937",
+              borderRadius: "16px",
+              WebkitTapHighlightColor: "transparent",
+            }}
           />
           {/* Search icon */}
           <div
@@ -2530,7 +2551,6 @@ export default function Earth3DPage() {
           transform: "translate(-50%, -50%)",
           opacity: 0,
           willChange: "width, height, opacity",
-
         }}
       >
         <svg
@@ -2571,6 +2591,7 @@ export default function Earth3DPage() {
           </text>
         </svg>
       </div>
+
       {/* 2D/3D Toggle - Mobile responsive */}
       {mapReady && (currentLevel === "CITY" || currentLevel === "NONNA") && (
         <div
@@ -2638,9 +2659,21 @@ export default function Earth3DPage() {
           </button>
         </div>
       )}
+
       {/* Left-side level navigation — Mobile responsive */}
       {mapReady && (
-        <div style={mobileStyles.levelNavContainer}>
+        <div
+          style={{
+            position: "absolute",
+            left: isMobile ? "8px" : "24px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? "6px" : "10px",
+            zIndex: 50,
+          }}
+        >
           {(["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY"] as const).map(
             (lvl) => {
               const LEVEL_ORDER: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
@@ -2728,7 +2761,6 @@ export default function Earth3DPage() {
                         "rgba(0,0,0,0.5)";
                   }}
                 >
-
                   <span>{meta.label}</span>
                   {isActive && (
                     <span
@@ -2859,7 +2891,7 @@ export default function Earth3DPage() {
           border: "2.5px solid rgba(255,255,255,0.35)",
           boxShadow: "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)",
           cursor: "pointer",
-          display: isMobile && panel.open ? "none" : "flex",
+          display: (isMobile && panel.open) || commentSection.open ? "none" : "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 100000,
