@@ -1419,8 +1419,8 @@ export default function Earth3DPage() {
               lastHoverName = hoverName;
               if (mounted) setHoveredLabel(hoverName);
 
-              // Draw hover highlight polygon for the NEXT LEVEL DOWN (skip CITY since it's 3D)
-              if (hoverName && hoverName !== activeHighlightName && featureType !== "city") {
+              // Draw hover highlight polygon for the NEXT LEVEL DOWN
+              if (hoverName && hoverName !== activeHighlightName) {
                 // Cancel previous hover request
                 if (hoverRequestController) {
                   hoverRequestController.abort();
@@ -1745,25 +1745,32 @@ export default function Earth3DPage() {
               nextLevel = "COUNTRY"; // Stay at same level
             }
           } else if (level === "STATE") {
-            // At STATE level, implement two-step interaction:
-            // 1. First click: center on city, stay at STATE level
-            // 2. Second click (same city): zoom to CITY level
-            const cityComponent = first.address_components?.find((c: any) =>
-              c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+            // Get state name
+            const stateComponent = first.address_components?.find((c: any) =>
+              c.types?.includes("administrative_area_level_1")
             );
-            const cityName = cityComponent?.long_name || null;
-            const isSameCity = cityName === activeHighlightName;
 
-            if (isSameCity) {
-              // Second click on same city - zoom to CITY level in COUNTRY VIEW
+            const stateName = stateComponent?.long_name || null;
+
+            const isSameState = stateName === activeHighlightName;
+
+            if (isSameState) {
+              // Second click → go to CITY
+              const cityComponent = first.address_components?.find((c: any) =>
+                c.types?.includes("locality") ||
+                c.types?.includes("administrative_area_level_2")
+              );
+
+              const cityName = cityComponent?.long_name || null;
+
               targetName = cityName;
               featureType = "city";
               nextLevel = "CITY";
             } else {
-              // First click on city - center and highlight, but stay at STATE level
-              targetName = cityName;
-              featureType = "city";
-              nextLevel = "STATE"; // Stay at same level
+              // First click → stay on STATE
+              targetName = stateName;
+              featureType = "state";
+              nextLevel = "STATE";
             }
           } else if (level === "CITY") {
             // At CITY level, implement two-step interaction:
@@ -1926,10 +1933,8 @@ export default function Earth3DPage() {
                   initialTab: "discussion",
                 }));
 
-                // Draw boundary for the clicked location (skip CITY level since it's 3D)
-                if (featureType !== "city") {
-                  fetchAndDrawBoundary(targetName, featureType, info.countryCode);
-                }
+                // Draw boundary for the clicked location
+                fetchAndDrawBoundary(targetName, featureType, info.countryCode);
               }
             }
           }
