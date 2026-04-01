@@ -61,7 +61,7 @@ export default function PostItem({
     }, [post.content])
 
     const isOwner = currentUserId === post.user_id
-    const canReply = (post.depth || 0) < 5
+    const canReply = (post.depth || 0) < 3
 
     const handleEdit = async () => {
         if (!editContent.trim()) return

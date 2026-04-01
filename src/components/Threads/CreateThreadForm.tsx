@@ -1,7 +1,7 @@
 'use client'
 
 import { upload } from '@vercel/blob/client'
-import { Loader2, Mic, Paperclip, Send, Video, X } from 'lucide-react'
+import { Ban, Loader2, Mic, Paperclip, Send, Video, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -274,6 +274,11 @@ export default function CreateThreadForm({
                     <>
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Creating...
+                    </>
+                ) : (!title || !content) ? (
+                    <>
+                        <Ban className="w-5 h-5" />
+                        Create Discussion
                     </>
                 ) : (
                     <>

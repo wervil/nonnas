@@ -1,5 +1,5 @@
 import { upload } from '@vercel/blob/client';
-import { FileAudio, Link as LinkIcon, Paperclip, User, X } from 'lucide-react';
+import { FileAudio, Link as LinkIcon, Loader2, Paperclip, User, X } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import AudioPlayer from '../ui/AudioPlayer';
@@ -222,11 +222,18 @@ export const ChatWindow = ({ messages, currentUserId, onSendMessage, onBack, oth
                 <button
                     disabled={isSending || (!inputText && !attachment)}
                     onClick={handleSend}
-                    className="px-3 py-2 md:px-4 md:py-3 lg:px-6 lg:py-3 bg-[#FFCCC8] text-gray-900 rounded-full hover:bg-[#ffb8b3] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md font-medium text-sm md:text-base"
+                    className="px-3 py-2 md:px-4 md:py-3 lg:px-6 lg:py-3 bg-[#FFCCC8] text-gray-900 rounded-full hover:bg-[#ffb8b3] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md font-medium text-sm md:text-base flex items-center gap-2"
                     aria-label="Send message"
                     title="Send message"
                 >
-                    Send
+                    {isSending ? (
+                        <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Sending...
+                        </>
+                    ) : (
+                        'Send'
+                    )}
                 </button>
             </div>
         </div>
