@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { drizzle } from "drizzle-orm/neon-serverless";
 import { recipes } from "@/db/schema";
-import { eq, and, ilike, or } from "drizzle-orm";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
+import { and, eq, ilike, or } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { NextResponse } from "next/server";
 
-const db = drizzle(process.env.DATABASE_URL_DEV!);
+const db = drizzle(process.env.DATABASE_URL!);
 
 export type NonnaNonnaDetail = {
   id: number;
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     if (!country || !state) {
       return NextResponse.json(
         { success: false, error: "Country and state parameters are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,8 +59,8 @@ export async function GET(request: Request) {
       or(
         ilike(recipes.country, countryInfo.name),
         ilike(recipes.country, `%${countryInfo.name}%`),
-        ilike(recipes.country, country)
-      )!
+        ilike(recipes.country, country),
+      )!,
     );
 
     // Match state/region
@@ -116,8 +116,7 @@ export async function GET(request: Request) {
     console.error("Error fetching state nonnas:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch state data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

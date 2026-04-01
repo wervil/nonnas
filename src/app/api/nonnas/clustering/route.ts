@@ -7,7 +7,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 
-const db = drizzle(process.env.DATABASE_URL_DEV!);
+const db = drizzle(process.env.DATABASE_URL!);
 
 type GlobeNonna = {
   id: string;

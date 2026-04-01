@@ -2,19 +2,19 @@ import { AddRecipe } from '@/components/AddRecipe'
 import { Header } from '@/components/Header'
 import { Recipe, recipes } from '@/db/schema'
 import { stackServerApp } from '@/stack'
-import Image from 'next/image'
-import { drizzle } from 'drizzle-orm/neon-serverless'
 import { eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/neon-serverless'
+import Image from 'next/image'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
 async function fetchRecipe(id: string): Promise<Recipe | undefined> {
-  if (!process.env.DATABASE_URL_DEV) {
+  if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is not defined');
   }
-  const db = drizzle(process.env.DATABASE_URL_DEV)
+  const db = drizzle(process.env.DATABASE_URL)
   const result = await db
     .select()
     .from(recipes)

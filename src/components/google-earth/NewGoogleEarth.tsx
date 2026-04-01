@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CommentSection from "../Comments/CommentSection";
 import DiscussionPanel from "../Map/DiscussionPanel";
+
 // Search result type
 type SearchResult = {
   place_id: string;
@@ -15,7 +16,7 @@ const ZOOM_RANGES = {
   EARTH: 30000000,
   CONTINENT: 10000000,
   COUNTRY: 3000000,
-  STATE: 400000,
+  STATE: 700000,
   CITY: 8000,
   NONNA: 1000,
 };
@@ -437,6 +438,83 @@ export default function Earth3DPage() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Hide focus outlines for better UI
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const style = document.createElement('style');
+      style.textContent = `
+        /* Hide all focus outlines */
+        *:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        
+        /* Hide focus rings specifically */
+        *::-moz-focus-inner {
+          border: 0 !important;
+        }
+        
+        /* Hide focus for buttons and interactive elements */
+        button:focus,
+        input:focus,
+        select:focus,
+        textarea:focus,
+        [tabindex]:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        
+        /* Target Google Maps elements specifically */
+        *:focus-visible,
+        *:focus,
+        gmp-map:focus,
+        gmp-map *:focus,
+        [data-google-map]:focus,
+        [data-google-map] *:focus {
+          outline: none !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+        
+        /* Penetrate Shadow DOM */
+        :host:focus,
+        :host *:focus,
+        ::slotted(:focus) {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        
+        /* Remove all possible focus indicators */
+        * {
+          -webkit-tap-highlight-color: transparent !important;
+          -webkit-focus-ring-color: transparent !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Also try to inject into any Shadow DOMs
+      const injectIntoShadowDOMs = () => {
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+          if (el.shadowRoot) {
+            const shadowStyle = document.createElement('style');
+            shadowStyle.textContent = `
+              *:focus { outline: none !important; box-shadow: none !important; }
+              * { -webkit-tap-highlight-color: transparent !important; }
+            `;
+            el.shadowRoot.appendChild(shadowStyle);
+          }
+        });
+      };
+
+      injectIntoShadowDOMs();
+      // Re-check periodically for dynamically created Shadow DOMs
+      const interval = setInterval(injectIntoShadowDOMs, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, []);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -512,10 +590,12 @@ export default function Earth3DPage() {
     open: boolean;
     recipeId: number;
     nonnaName: string;
+    titleName: string;
   }>({
     open: false,
     recipeId: 0,
     nonnaName: "",
+    titleName: "",
   });
   const { currentLevel, setLevel } = useEarthNavigation();
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
@@ -721,6 +801,7 @@ export default function Earth3DPage() {
         const { Marker3DInteractiveElement } =
           await window.google.maps.importLibrary("maps3d");
         for (const nonna of nonnaData) {
+          console.log(nonna);
 
           const avatarUri = generateAvatarSvgUri(
             nonna.representativeName || nonna.countryName,
@@ -840,6 +921,7 @@ export default function Earth3DPage() {
                     open: true,
                     recipeId: parseInt(nonna.recipeId, 10),
                     nonnaName: nonna.representativeName,
+                    titleName: nonna.representativeTitle,
                   });
 
                   // Zoom to NONNA level (street view) after opening comment section
@@ -1048,6 +1130,31 @@ export default function Earth3DPage() {
       let activeHighlightName: string | null = null;
       let lastHoverName: string | null = null;
       let hoverTimer: NodeJS.Timeout | null = null;
+
+      // Boundary data cache to reduce API calls
+      const boundaryCache = new Map<string, { data: unknown; timestamp: number }>();
+      const CACHE_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+
+      const getCacheKey = (name: string, featureType: string, countryCode?: string | null) => {
+        return `${featureType}:${name}:${countryCode || ''}`;
+      };
+
+      const getCachedBoundary = (name: string, featureType: string, countryCode?: string | null) => {
+        const key = getCacheKey(name, featureType, countryCode);
+        const cached = boundaryCache.get(key);
+        if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_MS) {
+          return cached.data;
+        }
+        return null;
+      };
+
+      const setCachedBoundary = (name: string, featureType: string, data: unknown, countryCode?: string | null) => {
+        const key = getCacheKey(name, featureType, countryCode);
+        boundaryCache.set(key, {
+          data,
+          timestamp: Date.now()
+        });
+      };
       const clearPolygonOverlays = () => {
         for (const p of polygonOverlays) {
           try {
@@ -1073,6 +1180,38 @@ export default function Earth3DPage() {
         countryCode?: string | null,
       ) => {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
+
+        // Check cache first
+        const cachedData = getCachedBoundary(name, featureType, countryCode);
+        if (cachedData && typeof cachedData === 'object' && 'rings' in cachedData) {
+          console.log("[Earth3D] Using cached boundary for", name);
+          try {
+            const { rings } = cachedData as { rings: number[][][] };
+            console.log("[Earth3D] Drawing", rings.length, "cached polygons for", name);
+            clearPolygonOverlays();
+            for (const ring of rings) {
+              const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+                lat,
+                lng,
+                altitude: 0,
+              }));
+              const poly = new Polygon3DElement({
+                outerCoordinates,
+                fillColor: TEAL.fill,
+                strokeColor: TEAL.stroke,
+                strokeWidth: 2.5,
+                altitudeMode: "CLAMP_TO_GROUND",
+              });
+              map3d.append(poly);
+              polygonOverlays.push(poly);
+            }
+            console.log("[Earth3D] Successfully drew cached boundary for", name);
+            return;
+          } catch (err) {
+            console.warn("[Earth3D] Failed to draw cached boundary, fetching fresh:", err);
+          }
+        }
+
         try {
           const params = new URLSearchParams({
             polygon_geojson: "1",
@@ -1130,7 +1269,7 @@ export default function Earth3DPage() {
             console.warn("[Earth3D] Unsupported geojson type:", geojson.type);
             return;
           }
-          const MAX_RING_POINTS = 400;
+          const MAX_RING_POINTS = 300;
           const simplifyRing = (ring: number[][]): number[][] => {
             if (ring.length <= MAX_RING_POINTS) return ring;
             const step = Math.ceil(ring.length / MAX_RING_POINTS);
@@ -1145,6 +1284,10 @@ export default function Earth3DPage() {
             console.warn("[Earth3D] No valid rings after simplification for", name);
             return;
           }
+
+          // Cache the processed boundary data
+          setCachedBoundary(name, featureType, { rings }, countryCode);
+
           console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
           clearPolygonOverlays();
           for (const ring of rings) {
@@ -1170,6 +1313,9 @@ export default function Earth3DPage() {
       };
       let hoverPolygonOverlays: RemovableOverlay[] = [];
       let lastHoverNoLatLngLogAt = 0;
+      let hoverRequestController: AbortController | null = null;
+      let lastHoverRequestKey: string | null = null;
+
       const handleMouseMove = async (e: unknown) => {
         const ev = e && typeof e === "object" ? (e as Record<string, unknown>) : null;
         const latLng = extractLatLng(ev?.position ?? ev?.latLng);
@@ -1246,11 +1392,49 @@ export default function Earth3DPage() {
 
               // Draw hover highlight polygon for the NEXT LEVEL DOWN (skip CITY since it's 3D)
               if (hoverName && hoverName !== activeHighlightName && featureType !== "city") {
+                // Cancel previous hover request
+                if (hoverRequestController) {
+                  hoverRequestController.abort();
+                }
+
+                // Create new request controller
+                hoverRequestController = new AbortController();
+                const requestKey = `${hoverName}:${featureType}:${info.countryCode || ''}`;
+                lastHoverRequestKey = requestKey;
+
                 // Clear previous hover polygons
                 for (const p of hoverPolygonOverlays) {
                   try { p.remove(); } catch { /**/ }
                 }
                 hoverPolygonOverlays = [];
+
+                // Check cache first for hover
+                const cachedHoverData = getCachedBoundary(hoverName, featureType, info.countryCode);
+                if (cachedHoverData && typeof cachedHoverData === 'object' && 'rings' in cachedHoverData) {
+                  console.log("[Earth3D] Using cached hover boundary for", hoverName);
+                  try {
+                    const { rings } = cachedHoverData as { rings: number[][][] };
+                    for (const ring of rings) {
+                      const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+                        lat,
+                        lng,
+                        altitude: 0,
+                      }));
+                      const poly = new Polygon3DElement({
+                        outerCoordinates,
+                        fillColor: "rgba(94,234,212,0.25)", // Lighter fill for hover
+                        strokeColor: "rgba(94,234,212,0.6)", // Lighter stroke for hover
+                        strokeWidth: 2,
+                        altitudeMode: "CLAMP_TO_GROUND",
+                      });
+                      map3d.append(poly);
+                      hoverPolygonOverlays.push(poly);
+                    }
+                    return;
+                  } catch (err) {
+                    console.warn("[Earth3D] Failed to draw cached hover boundary, fetching fresh:", err);
+                  }
+                }
 
                 // Draw new hover polygon with lighter styling
                 try {
@@ -1281,8 +1465,15 @@ export default function Earth3DPage() {
 
                   const res = await fetch(
                     `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-                    undefined,
+                    { signal: hoverRequestController.signal }
                   );
+
+                  // Check if this request is still the latest
+                  if (lastHoverRequestKey !== requestKey) {
+                    console.log("[Earth3D] Hover request outdated, ignoring response");
+                    return;
+                  }
+
                   if (res.ok) {
                     const data = await res.json();
                     const geojson = data?.[0]?.geojson;
@@ -1292,7 +1483,7 @@ export default function Earth3DPage() {
                       else if (geojson.type === "MultiPolygon")
                         rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
 
-                      const MAX_RING_POINTS = 400;
+                      const MAX_RING_POINTS = 300; // Reduced for hover performance
                       const simplifyRing = (ring: number[][]): number[][] => {
                         if (ring.length <= MAX_RING_POINTS) return ring;
                         const step = Math.ceil(ring.length / MAX_RING_POINTS);
@@ -1302,6 +1493,9 @@ export default function Earth3DPage() {
                         return out;
                       };
                       rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
+
+                      // Cache hover data as well
+                      setCachedBoundary(hoverName, featureType, { rings }, info.countryCode);
 
                       for (const ring of rings) {
                         const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
@@ -1321,8 +1515,12 @@ export default function Earth3DPage() {
                       }
                     }
                   }
-                } catch (err) {
-                  console.warn("[Earth3D] hover polygon fetch failed:", err);
+                } catch (err: unknown) {
+                  if (err instanceof Error && err.name === 'AbortError') {
+                    console.log("[Earth3D] Hover request aborted");
+                  } else {
+                    console.warn("[Earth3D] hover polygon fetch failed:", err);
+                  }
                 }
               }
             } else if (!hoverName) {
@@ -1335,7 +1533,7 @@ export default function Earth3DPage() {
           } catch {
             /**/
           }
-        }, 120);
+        }, 200); // Increased debounce delay for better performance
       };
       map3d.addEventListener("gmp-mousemove" as any, handleMouseMove);
       map3d.addEventListener("gmp-pointermove" as any, handleMouseMove);
@@ -2177,8 +2375,8 @@ export default function Earth3DPage() {
       top: isMobile ? "12px" : "24px",
       right: isMobile ? "12px" : "auto",
       zIndex: 100,
-      width: isMobile ? "auto" : "280px",
-      maxWidth: isMobile ? "calc(100vw - 24px)" : "280px",
+      width: isMobile ? "auto" : "320px",
+      maxWidth: isMobile ? "calc(100vw - 24px)" : "320px",
     },
     searchInput: {
       width: "100%",
@@ -2746,7 +2944,7 @@ export default function Earth3DPage() {
               <CommentSection
                 recipeId={commentSection.recipeId}
                 userId={user?.id}
-                recipeName={commentSection.nonnaName}
+                recipeName={commentSection.titleName}
               />
             </div>
           </div>

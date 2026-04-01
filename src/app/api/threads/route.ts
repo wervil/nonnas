@@ -5,7 +5,7 @@ import { and, count, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 
-const db = drizzle(process.env.DATABASE_URL_DEV!);
+const db = drizzle(process.env.DATABASE_URL!);
 
 // GET /api/threads - Fetch threads with filters
 export async function GET(request: NextRequest) {

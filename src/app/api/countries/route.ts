@@ -1,22 +1,22 @@
-import { NextResponse } from 'next/server'
-import { drizzle } from 'drizzle-orm/neon-serverless'
-import { recipes } from '@/db/schema'
+import { recipes } from "@/db/schema";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { NextResponse } from "next/server";
 
-const db = drizzle(process.env.DATABASE_URL_DEV!)
+const db = drizzle(process.env.DATABASE_URL!);
 
 export async function GET() {
   try {
     const uniqueCountries = await db
       .selectDistinct({ country: recipes.country })
       .from(recipes)
-      .orderBy(recipes.country)
+      .orderBy(recipes.country);
 
-    return NextResponse.json({ countries: uniqueCountries })
+    return NextResponse.json({ countries: uniqueCountries });
   } catch (error) {
-    console.error('Error fetching recipes:', error)
+    console.error("Error fetching recipes:", error);
     return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    )
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

@@ -24,7 +24,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { moderateContent } from "@/services/moderation";
 
 // Database connection using Neon
-const db = drizzle(process.env.DATABASE_URL_DEV!);
+const db = drizzle(process.env.DATABASE_URL!);
 
 // const translator = new deepl.Translator(process.env.DEEPL_API_KEY!)
 

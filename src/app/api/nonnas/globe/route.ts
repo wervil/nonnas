@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { drizzle } from "drizzle-orm/neon-serverless";
 import { recipes } from "@/db/schema";
-import { eq, sql, and, isNotNull } from "drizzle-orm";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { NextResponse } from "next/server";
 
-const db = drizzle(process.env.DATABASE_URL_DEV!);
+const db = drizzle(process.env.DATABASE_URL!);
 
 export type NonnaCountByCountry = {
   id: string;
@@ -24,27 +24,73 @@ export type NonnaCountByCountry = {
 // Countries in each sub-region (for filtering)
 const REGION_COUNTRIES: Record<string, string[]> = {
   "Middle East": [
-    "Turkey", "Iran", "Iraq", "Saudi Arabia", "Yemen", "Syria", "Jordan",
-    "United Arab Emirates", "Israel", "Lebanon", "Oman", "Kuwait", "Qatar",
-    "Bahrain", "Cyprus", "Palestine",
+    "Turkey",
+    "Iran",
+    "Iraq",
+    "Saudi Arabia",
+    "Yemen",
+    "Syria",
+    "Jordan",
+    "United Arab Emirates",
+    "Israel",
+    "Lebanon",
+    "Oman",
+    "Kuwait",
+    "Qatar",
+    "Bahrain",
+    "Cyprus",
+    "Palestine",
   ],
   "South Asia": [
-    "India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "Bhutan",
-    "Maldives", "Afghanistan",
+    "India",
+    "Pakistan",
+    "Bangladesh",
+    "Sri Lanka",
+    "Nepal",
+    "Bhutan",
+    "Maldives",
+    "Afghanistan",
   ],
   "East Asia": [
-    "China", "Japan", "South Korea", "North Korea", "Taiwan", "Mongolia",
+    "China",
+    "Japan",
+    "South Korea",
+    "North Korea",
+    "Taiwan",
+    "Mongolia",
   ],
   "Southeast Asia": [
-    "Thailand", "Vietnam", "Indonesia", "Philippines", "Malaysia", "Singapore",
-    "Myanmar", "Cambodia", "Laos", "Brunei", "Timor-Leste",
+    "Thailand",
+    "Vietnam",
+    "Indonesia",
+    "Philippines",
+    "Malaysia",
+    "Singapore",
+    "Myanmar",
+    "Cambodia",
+    "Laos",
+    "Brunei",
+    "Timor-Leste",
   ],
   "Central Asia": [
-    "Kazakhstan", "Uzbekistan", "Turkmenistan", "Kyrgyzstan", "Tajikistan",
+    "Kazakhstan",
+    "Uzbekistan",
+    "Turkmenistan",
+    "Kyrgyzstan",
+    "Tajikistan",
   ],
   "Pacific Islands": [
-    "Fiji", "Papua New Guinea", "Solomon Islands", "Vanuatu", "New Caledonia",
-    "Samoa", "Tonga", "Micronesia", "Marshall Islands", "Palau", "Kiribati",
+    "Fiji",
+    "Papua New Guinea",
+    "Solomon Islands",
+    "Vanuatu",
+    "New Caledonia",
+    "Samoa",
+    "Tonga",
+    "Micronesia",
+    "Marshall Islands",
+    "Palau",
+    "Kiribati",
   ],
 };
 
@@ -132,8 +178,9 @@ export async function GET(request: Request) {
         countryCode: countryInfo.code,
         countryName: countryInfo.name,
         nonnaCount: stat.count,
-        representativeName: `${stat.representativeFirstName ?? ''} ${stat.representativeLastName ?? ''}`.trim(),
-        representativeTitle: stat.representativeTitle ?? 'Nonna',
+        representativeName:
+          `${stat.representativeFirstName ?? ""} ${stat.representativeLastName ?? ""}`.trim(),
+        representativeTitle: stat.representativeTitle ?? "Nonna",
         representativePhoto: stat.representativePhoto ?? null,
       });
     }
@@ -171,8 +218,7 @@ export async function GET(request: Request) {
     console.error("Error fetching globe data:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch globe data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
