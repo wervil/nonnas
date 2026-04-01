@@ -1,6 +1,6 @@
 'use client'
 
-import { Mic, Paperclip, User } from 'lucide-react'
+import { Loader2, Mic, Paperclip, User } from 'lucide-react'
 import { useState } from 'react'
 
 export interface Attachment {
@@ -10,7 +10,7 @@ export interface Attachment {
 }
 
 interface CommentEditorProps {
-    onSubmit: (content: string, attachments?: Attachment[]) => void
+    onSubmit: (content: string, attachments?: Attachment[]) => void | Promise<void>
     onCancel: () => void
     placeholder?: string
 }
@@ -21,12 +21,17 @@ export default function CommentEditor({
 }: CommentEditorProps) {
     const [content, setContent] = useState('')
     const [attachments, setAttachments] = useState<Attachment[]>([])
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const handleSubmit = () => {
-        if (content.trim()) {
-            onSubmit(content, attachments.length > 0 ? attachments : undefined)
+    const handleSubmit = async () => {
+        if (!content.trim() || isSubmitting) return
+        setIsSubmitting(true)
+        try {
+            await onSubmit(content, attachments.length > 0 ? attachments : undefined)
             setContent('')
             setAttachments([])
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
@@ -51,17 +56,19 @@ export default function CommentEditor({
                             type="text"
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
                             placeholder={placeholder}
-                            className="w-full bg-transparent border-none outline-none text-sm text-[#0a0a0a] placeholder:text-[rgba(10,10,10,0.5)] font-['Inter'] font-normal leading-6"
+                            disabled={isSubmitting}
+                            className="w-full bg-transparent border-none outline-none text-sm text-[#0a0a0a] placeholder:text-[rgba(10,10,10,0.5)] font-['Inter'] font-normal leading-6 disabled:opacity-60"
                         />
                     </div>
 
                     {/* Icons */}
                     <div className="flex gap-1 items-center">
-                        <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors" disabled={isSubmitting}>
                             <Paperclip size={16} className="text-[#121212] opacity-70" />
                         </button>
-                        <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors" disabled={isSubmitting}>
                             <Mic size={16} className="text-[#121212] opacity-70" />
                         </button>
                     </div>
@@ -71,16 +78,24 @@ export default function CommentEditor({
                 <div className="flex gap-2 items-center justify-end">
                     <button
                         onClick={handleClear}
-                        className="bg-[#f4f4f4] px-4 py-2 text-[#364153] font-['Inter'] font-medium text-sm leading-6 hover:bg-gray-200 transition-colors rounded-lg"
+                        disabled={isSubmitting}
+                        className="bg-[#f4f4f4] px-4 py-2 text-[#364153] font-['Inter'] font-medium text-sm leading-6 hover:bg-gray-200 transition-colors rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Clear
                     </button>
                     <button
                         onClick={handleSubmit}
-                        disabled={!content.trim()}
-                        className="bg-[#ffccc8] px-4 py-2 text-[#121212] font-['Inter'] font-medium text-sm leading-6 hover:bg-[#ffb8b3] transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+                        disabled={!content.trim() || isSubmitting}
+                        className="bg-[#ffccc8] px-4 py-2 text-[#121212] font-['Inter'] font-medium text-sm leading-6 hover:bg-[#ffb8b3] transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-lg flex items-center gap-2"
                     >
-                        Post Comment
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 size={14} className="animate-spin" />
+                                Posting...
+                            </>
+                        ) : (
+                            'Post Comment'
+                        )}
                     </button>
                 </div>
             </div>
