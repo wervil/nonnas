@@ -442,6 +442,10 @@ export default function Earth3DPage() {
   // Continent highlighting state
   const [highlightedContinent, setHighlightedContinent] = useState<string | null>(null);
 
+  // Zoom-out highlighting state
+  const [previousLevel, setPreviousLevel] = useState<ZoomLevel | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number, lng: number } | null>(null);
+
   // Hide focus outlines for better UI
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -652,6 +656,21 @@ export default function Earth3DPage() {
       console.error("[Earth3D] individual nonnas fetch error:", err);
     }
   }, []);
+
+  // Ref to store fetchAndDrawBoundary function for zoom-out highlighting
+  const fetchAndDrawBoundaryRef = useRef<((name: string, featureType: "continent" | "country" | "state" | "city", countryCode?: string | null) => Promise<void>) | null>(null);
+
+  // Ref to track and cancel ongoing highlighting requests
+  const highlightingRef = useRef<{
+    controller: AbortController | null;
+    timeoutId: NodeJS.Timeout | null;
+    lastRequestTime: number;
+  }>({
+    controller: null,
+    timeoutId: null,
+    lastRequestTime: 0,
+  });
+
   useEffect(() => {
     if (!mapReady) return;
     let mounted = true;
@@ -820,6 +839,295 @@ export default function Earth3DPage() {
       map3d.setAttribute("country-labels-mode", "none");
     }
   }, [currentLevel, mapReady]);
+
+  // Zoom-out highlighting: Detect level changes and highlight boundaries when zooming out
+  // Level change highlighting: Detect level changes and highlight boundaries for both zoom-in and zoom-out
+  useEffect(() => {
+    if (!mapReady || !map3dRef.current || !geocoderRef.current) return;
+
+    const levels: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
+    const currentIdx = levels.indexOf(currentLevel);
+    const prevIdx = previousLevel ? levels.indexOf(previousLevel) : -1;
+
+    // Function to handle highlighting for any level change (zoom in or out)
+    const highlightBoundaryForLevelChange = async (direction: "zoom-in" | "zoom-out") => {
+      // Cancel any previous highlighting request
+      if (highlightingRef.current.controller) {
+        highlightingRef.current.controller.abort();
+      }
+      if (highlightingRef.current.timeoutId) {
+        clearTimeout(highlightingRef.current.timeoutId);
+      }
+
+      // Create new abort controller for this request
+      const controller = new AbortController();
+      highlightingRef.current.controller = controller;
+
+      // Debounce the highlighting request
+      const now = Date.now();
+      const timeSinceLastRequest = now - highlightingRef.current.lastRequestTime;
+      const DEBOUNCE_DELAY = 300; // 300ms debounce
+
+
+
+      // Get current map center location with better accuracy
+      const map3d = map3dRef.current;
+      if (!map3d) return;
+
+      // Wait a brief moment for map to settle after zoom change
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // Check if this request was cancelled
+      if (controller.signal.aborted) return;
+
+      const center = map3d.center;
+      if (!center) return;
+
+      const lat = Number(center.lat);
+      const lng = Number(center.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      console.log(`[Earth3D] ${direction} - Using center coordinates:`, lat, lng);
+      setCurrentLocation({ lat, lng });
+      highlightingRef.current.lastRequestTime = Date.now();
+
+      try {
+        const response = await geocoderRef.current.geocode({ location: { lat, lng } });
+
+        // Check if this request was cancelled during geocoding
+        if (controller.signal.aborted) return;
+
+        const first = response?.results?.[0];
+
+        if (!first) return;
+
+        const info = parseAdminLevelsFromGeocodeResult(first);
+        let targetName: string | null = null;
+        let featureType: "continent" | "country" | "state" | "city" | null = null;
+
+        if (direction === "zoom-out") {
+          // Zoom-out logic: highlight the current level's boundary (regardless of how many levels were skipped)
+          console.log(`[Earth3D] ${direction} - Highlighting for current level:`, currentLevel);
+
+          // Always highlight the current level's boundary when zooming out
+          if (currentLevel === "STATE") {
+            targetName = info.state;
+            featureType = "state";
+          }
+          else if (currentLevel === "COUNTRY") {
+            targetName = info.country;
+            featureType = "country";
+          }
+          else if (currentLevel === "CONTINENT") {
+            targetName = getContinentFromLatLng(lat, lng);
+            featureType = "continent";
+          }
+          // Don't highlight for CITY or EARTH levels when zooming out
+        } else {
+          // Zoom-in logic: highlight the current level's boundary (regardless of how many levels were skipped)
+          console.log(`[Earth3D] ${direction} - Highlighting for current level:`, currentLevel);
+
+          // Always highlight the current level's boundary when zooming in
+          if (currentLevel === "CONTINENT") {
+            targetName = getContinentFromLatLng(lat, lng);
+            featureType = "continent";
+          }
+          else if (currentLevel === "COUNTRY") {
+            targetName = info.country;
+            featureType = "country";
+          }
+          else if (currentLevel === "STATE") {
+            targetName = info.state;
+            featureType = "state";
+          }
+          else if (currentLevel === "CITY") {
+            console.log(`[Earth3D] ${direction} - Processing CITY level highlighting`);
+            const cityComponent = first.address_components?.find((c: any) =>
+              c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+            );
+            targetName = cityComponent?.long_name || null;
+            featureType = "city";
+
+            // Enhanced logging for debugging
+            console.log(`[Earth3D] CITY level - Address components:`, first.address_components);
+            console.log(`[Earth3D] CITY level - Found city component:`, cityComponent);
+            console.log(`[Earth3D] CITY level - Target name:`, targetName);
+
+            // Fallback: if no city found, try to use the most specific administrative level
+            if (!targetName && first.address_components) {
+              const adminLevels = ["administrative_area_level_3", "administrative_area_level_2", "administrative_area_level_1"];
+              for (const level of adminLevels) {
+                const component = first.address_components.find((c: any) =>
+                  c.types?.includes(level)
+                );
+                if (component?.long_name) {
+                  targetName = component.long_name;
+                  console.log(`[Earth3D] CITY level - Fallback to ${level}:`, targetName);
+                  break;
+                }
+              }
+            }
+
+            // Final fallback: If geocoder only returned plus_code or no address, use reverse geocoding with broader search
+            if (!targetName && (!first.address_components || first.address_components.length === 1)) {
+              console.log(`[Earth3D] CITY level - Geocoder returned insufficient data, trying reverse geocoding fallback`);
+
+              try {
+                // Try reverse geocoding with administrative area focus
+                const fallbackResponse = await geocoderRef.current.geocode({
+                  location: { lat, lng },
+                  types: ['administrative_area_level_2', 'administrative_area_level_3', 'locality']
+                });
+
+                if (fallbackResponse?.results?.[0]) {
+                  const fallbackResult = fallbackResponse.results[0];
+                  const fallbackCityComponent = fallbackResult.address_components?.find((c: any) =>
+                    c.types?.includes("locality") || c.types?.includes("administrative_area_level_2") || c.types?.includes("administrative_area_level_3")
+                  );
+
+                  if (fallbackCityComponent?.long_name) {
+                    targetName = fallbackCityComponent.long_name;
+                    console.log(`[Earth3D] CITY level - Fallback geocoding found:`, targetName);
+                  } else {
+                    // Last resort: use the formatted address or place name
+                    targetName = fallbackResult.formatted_address?.split(',')[0] || fallbackResult.name || null;
+                    console.log(`[Earth3D] CITY level - Last resort fallback:`, targetName);
+                  }
+                }
+              } catch (fallbackError) {
+                console.warn(`[Earth3D] CITY level - Fallback geocoding failed:`, fallbackError);
+              }
+            }
+          }
+          // Don't highlight for EARTH or NONNA levels when zooming in
+        }
+
+        // Final check before making the API call
+        if (controller.signal.aborted) return;
+
+        if (targetName && featureType && fetchAndDrawBoundaryRef.current) {
+          console.log(`[Earth3D] ${direction} highlighting:`, targetName, featureType);
+          fetchAndDrawBoundaryRef.current(targetName, featureType,
+            featureType === "state" || featureType === "city" ? info.countryCode : undefined
+          );
+
+          // Also open discussion panel with latest data for zoom highlighting
+          const fetchAndOpenDiscussionPanel = async () => {
+            try {
+              let regionDisplayName = targetName;
+
+              if (featureType === "city") {
+                // For cities, show: City, State, Country or City, Country
+                if (info.state && info.country) {
+                  regionDisplayName = `${info.country} • ${info.state} • ${targetName}`;
+                } else if (info.country) {
+                  regionDisplayName = `${info.country} • ${targetName}`;
+                }
+              } else if (featureType === "state") {
+                regionDisplayName = `${info.country || 'Unknown Country'} • ${targetName}`;
+              } else if (featureType === "country") {
+                regionDisplayName = targetName;
+              } else if (featureType === "continent") {
+                regionDisplayName = targetName;
+              }
+
+              // Fetch nonnas based on feature type
+              let url = '/api/recipes?published=true';
+
+              if (featureType === "continent") {
+                // Get continent from country using countryData
+                const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+                const continent = getCountryInfoWithFallback(info.country || '').continent;
+                url += `&continent=${encodeURIComponent(continent)}`;
+              } else if (featureType === "country") {
+                url += `&country=${encodeURIComponent(info.country || '')}`;
+              } else if (featureType === "state") {
+                url += `&country=${encodeURIComponent(info.country || '')}`;
+                url += `&region=${encodeURIComponent(targetName)}`;
+              } else if (featureType === "city") {
+                url += `&country=${encodeURIComponent(info.country || '')}`;
+                if (info.state) {
+                  url += `&region=${encodeURIComponent(info.state)}`;
+                }
+                url += `&city=${encodeURIComponent(targetName)}`;
+              }
+
+              const response = await fetch(url);
+              const data = await response.json();
+              const nonnas = data.recipes || [];
+
+              console.log(`[Earth3D] ${direction} - Opening discussion panel for:`, targetName, 'with', nonnas.length, 'nonnas');
+
+              // Update discussion panel data and auto-open
+              setPanel(prev => ({
+                ...prev,
+                region: targetName,
+                regionDisplayName,
+                scope: featureType as any,
+                country: info.country || undefined,
+                state: info.state || undefined,
+                city: featureType === "city" ? targetName : undefined,
+                nonnas,
+                initialTab: "discussion",
+                open: false, // Auto-open the panel
+              }));
+
+              // Update active place info
+              setActivePlaceName(targetName);
+              setActiveCountry(info.country || null);
+              setClickedLabel(targetName);
+
+            } catch (error) {
+              console.error(`[Earth3D] ${direction} - Error fetching discussion data:`, error);
+            }
+          };
+
+          // Fetch discussion data in parallel with boundary drawing
+          fetchAndOpenDiscussionPanel();
+        }
+      } catch (err) {
+        // Don't log errors for aborted requests
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.log(`[Earth3D] ${direction} highlighting request cancelled`);
+        } else {
+          console.error(`[Earth3D] ${direction} highlighting error:`, err);
+        }
+      } finally {
+        // Clean up the controller reference
+        if (highlightingRef.current.controller === controller) {
+          highlightingRef.current.controller = null;
+        }
+      }
+    };
+
+    // Check if we're zooming out (moving to a higher level index)
+    if (prevIdx !== -1 && currentIdx < prevIdx) {
+      console.log("[Earth3D] Zoom out detected:", previousLevel, "→", currentLevel);
+      highlightBoundaryForLevelChange("zoom-out");
+    }
+    // Check if we're zooming in (moving to a deeper level index)
+    else if (prevIdx !== -1 && currentIdx > prevIdx) {
+      console.log("[Earth3D] Zoom in detected:", previousLevel, "→", currentLevel);
+      highlightBoundaryForLevelChange("zoom-in");
+    }
+    // Also handle direct level changes (when prevIdx is -1 or levels jump significantly)
+    else if (prevIdx === -1 || Math.abs(currentIdx - prevIdx) > 1) {
+      console.log("[Earth3D] Level change detected:", previousLevel, "→", currentLevel);
+      // Determine direction based on level indices
+      if (prevIdx === -1) {
+        // First time setting level, don't trigger highlighting
+        console.log("[Earth3D] Initial level set, no highlighting");
+      } else if (currentIdx < prevIdx) {
+        highlightBoundaryForLevelChange("zoom-out");
+      } else if (currentIdx > prevIdx) {
+        highlightBoundaryForLevelChange("zoom-in");
+      }
+    }
+
+    // Update previous level for next change detection
+    setPreviousLevel(currentLevel);
+  }, [currentLevel, mapReady, previousLevel]);
+
   // Place nonna markers
   useEffect(() => {
     if (!nonnaData.length || !mapReady || !map3dRef.current) return;
@@ -1161,30 +1469,6 @@ export default function Earth3DPage() {
       let lastHoverName: string | null = null;
       let hoverTimer: NodeJS.Timeout | null = null;
 
-      // Boundary data cache to reduce API calls
-      const boundaryCache = new Map<string, { data: unknown; timestamp: number }>();
-      const CACHE_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
-
-      const getCacheKey = (name: string, featureType: string, countryCode?: string | null) => {
-        return `${featureType}:${name}:${countryCode || ''}`;
-      };
-
-      const getCachedBoundary = (name: string, featureType: string, countryCode?: string | null) => {
-        const key = getCacheKey(name, featureType, countryCode);
-        const cached = boundaryCache.get(key);
-        if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_MS) {
-          return cached.data;
-        }
-        return null;
-      };
-
-      const setCachedBoundary = (name: string, featureType: string, data: unknown, countryCode?: string | null) => {
-        const key = getCacheKey(name, featureType, countryCode);
-        boundaryCache.set(key, {
-          data,
-          timestamp: Date.now()
-        });
-      };
       const clearPolygonOverlays = () => {
         for (const p of polygonOverlays) {
           try {
@@ -1204,43 +1488,13 @@ export default function Earth3DPage() {
         }
         hoverPolygonOverlays.length = 0;
       };
+
       const fetchAndDrawBoundary = async (
         name: string,
         featureType: "continent" | "country" | "state" | "city",
         countryCode?: string | null,
       ) => {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
-
-        // Check cache first
-        const cachedData = getCachedBoundary(name, featureType, countryCode);
-        if (cachedData && typeof cachedData === 'object' && 'rings' in cachedData) {
-          console.log("[Earth3D] Using cached boundary for", name);
-          try {
-            const { rings } = cachedData as { rings: number[][][] };
-            console.log("[Earth3D] Drawing", rings.length, "cached polygons for", name);
-            clearPolygonOverlays();
-            for (const ring of rings) {
-              const path = ring.map(([lng, lat]: number[]) => ({
-                lat,
-                lng,
-                altitude: 0,
-              }));
-              const poly = new Polygon3DElement({
-                path,
-                fillColor: TEAL.fill,
-                strokeColor: TEAL.stroke,
-                strokeWidth: 2.5,
-                altitudeMode: "CLAMP_TO_GROUND",
-              });
-              map3d.append(poly);
-              polygonOverlays.push(poly);
-            }
-            console.log("[Earth3D] Successfully drew cached boundary for", name);
-            return;
-          } catch (err) {
-            console.warn("[Earth3D] Failed to draw cached boundary, fetching fresh:", err);
-          }
-        }
 
         try {
           const params = new URLSearchParams({
@@ -1315,9 +1569,6 @@ export default function Earth3DPage() {
             return;
           }
 
-          // Cache the processed boundary data
-          setCachedBoundary(name, featureType, { rings }, countryCode);
-
           console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
           clearPolygonOverlays();
           for (const ring of rings) {
@@ -1341,6 +1592,10 @@ export default function Earth3DPage() {
           console.error("[Earth3D] Boundary fetch/draw error for", name, ":", err);
         }
       };
+
+      // Store fetchAndDrawBoundary in ref for zoom-out highlighting
+      fetchAndDrawBoundaryRef.current = fetchAndDrawBoundary;
+
       let hoverPolygonOverlays: RemovableOverlay[] = [];
       let lastHoverNoLatLngLogAt = 0;
       let hoverRequestController: AbortController | null = null;
@@ -1438,35 +1693,6 @@ export default function Earth3DPage() {
                 }
                 hoverPolygonOverlays = [];
 
-                // Check cache first for hover
-                const cachedHoverData = getCachedBoundary(hoverName, featureType, info.countryCode);
-                if (cachedHoverData && typeof cachedHoverData === 'object' && 'rings' in cachedHoverData) {
-                  console.log("[Earth3D] Using cached hover boundary for", hoverName);
-                  try {
-                    const { rings } = cachedHoverData as { rings: number[][][] };
-                    for (const ring of rings) {
-                      const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
-                        lat,
-                        lng,
-                        altitude: 0,
-                      }));
-                      const poly = new Polygon3DElement({
-                        outerCoordinates,
-                        fillColor: "rgba(94,234,212,0.25)", // Lighter fill for hover
-                        strokeColor: "rgba(94,234,212,0.6)", // Lighter stroke for hover
-                        strokeWidth: 2,
-                        altitudeMode: "CLAMP_TO_GROUND",
-                      });
-                      map3d.append(poly);
-                      hoverPolygonOverlays.push(poly);
-                    }
-                    return;
-                  } catch (err) {
-                    console.warn("[Earth3D] Failed to draw cached hover boundary, fetching fresh:", err);
-                  }
-                }
-
-                // Draw new hover polygon with lighter styling
                 try {
                   const params = new URLSearchParams({
                     polygon_geojson: "1",
@@ -1523,9 +1749,6 @@ export default function Earth3DPage() {
                         return out;
                       };
                       rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
-
-                      // Cache hover data as well
-                      setCachedBoundary(hoverName, featureType, { rings }, info.countryCode);
 
                       for (const ring of rings) {
                         const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
