@@ -78,6 +78,7 @@ export default function CommentItem({
     }
 
     const canDelete = userId === comment.user_id
+    const canReply = (comment.depth || 0) < 3
 
     return (
         <div className="w-full">
@@ -124,12 +125,14 @@ export default function CommentItem({
 
                     {/* Actions */}
                     <div className="flex gap-4 items-start opacity-80">
-                        <button
-                            onClick={() => setShowReplyEditor(!showReplyEditor)}
-                            className="flex gap-2.5 items-start hover:opacity-60 transition-opacity"
-                        >
-                            <Reply size={16} className="text-black" />
-                        </button>
+                        {canReply && (
+                            <button
+                                onClick={() => setShowReplyEditor(!showReplyEditor)}
+                                className="flex gap-2.5 items-start hover:opacity-60 transition-opacity"
+                            >
+                                <Reply size={16} className="text-black" />
+                            </button>
+                        )}
                         {canDelete && (
                             <button
                                 onClick={handleDelete}
@@ -144,7 +147,7 @@ export default function CommentItem({
             </div>
 
             {/* Reply Editor */}
-            {showReplyEditor && userId && (
+            {showReplyEditor && userId && canReply && (
                 <div className="mt-3 ml-8">
                     <CommentEditor
                         onSubmit={handleReply}

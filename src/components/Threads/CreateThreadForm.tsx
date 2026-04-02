@@ -89,6 +89,11 @@ export default function CreateThreadForm({
         setError(null)
 
         // Validation
+        if (!region || !scope) {
+            setError('No location selected. Please click a region on the map first.')
+            return
+        }
+
         if (title.length > 120) {
             setError('Title must be 120 characters or less')
             return
@@ -249,25 +254,31 @@ export default function CreateThreadForm({
             </div>
 
             {/* Region and Scope Info */}
-            <div className="bg-[#9BC9C3]/20 border border-[#9BC9C3]/40 rounded-xl p-4 text-sm font-(--font-bell)">
-                <div className="flex items-center gap-4 text-gray-600">
-                    <span>
-                        <strong className="text-gray-900">Region:</strong> {region}
-                    </span>
-                    <span className="text-gray-400">•</span>
-                    <span>
-                        <strong className="text-gray-900">Scope:</strong>{' '}
-                        <span className={scope === 'country' ? 'text-[#6BA8A3]' : scope === 'city' ? 'text-[#4A7C7A]' : 'text-[#7FB5B0]'}>
-                            {scope === 'country' ? '🌍 Country' : scope === 'city' ? '🏙️ City' : '📍 State'}
+            {region && scope ? (
+                <div className="bg-[#9BC9C3]/20 border border-[#9BC9C3]/40 rounded-xl p-4 text-sm font-(--font-bell)">
+                    <div className="flex items-center gap-4 text-gray-600">
+                        <span>
+                            <strong className="text-gray-900">Region:</strong> {region}
                         </span>
-                    </span>
+                        <span className="text-gray-400">•</span>
+                        <span>
+                            <strong className="text-gray-900">Scope:</strong>{' '}
+                            <span className={scope === 'country' ? 'text-[#6BA8A3]' : scope === 'city' ? 'text-[#4A7C7A]' : 'text-[#7FB5B0]'}>
+                                {scope === 'country' ? '🌍 Country' : scope === 'city' ? '🏙️ City' : '📍 State'}
+                            </span>
+                        </span>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm font-(--font-bell) text-yellow-700">
+                    ⚠️ No location selected. Click a country, state, or city on the map first.
+                </div>
+            )}
 
             {/* Submit Button */}
             <button
                 type="submit"
-                disabled={isSubmitting || !title || !content}
+                disabled={isSubmitting || !title || !content || !region || !scope}
                 className="w-full bg-linear-to-r from-[#9BC9C3] to-[#6BA8A3] text-white py-3 px-4 rounded-xl hover:from-[#7FB5B0] hover:to-[#5A968F] disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed transition-all font-(--font-bell) shadow-lg shadow-[#9BC9C3]/25 hover:shadow-[#9BC9C3]/40 disabled:shadow-none flex items-center justify-center gap-2"
             >
                 {isSubmitting ? (

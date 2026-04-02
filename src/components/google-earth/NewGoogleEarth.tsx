@@ -3199,37 +3199,59 @@ export default function Earth3DPage() {
       {/* Discussion Panel toggle button — always visible */}
       <button
         onClick={() => setPanel(prev => ({ ...prev, open: !prev.open }))}
-        title={panel.open ? "Close discussion panel" : (panel.region ? `Open discussion: ${panel.regionDisplayName || panel.region}` : "Discussion panel")}
         style={{
           position: "fixed",
-          right: panel.open && !isMobile ? "calc(500px + 16px)" : "24px",
+          right: panel.open && !isMobile ? "calc(500px + 16px)" : "16px",
           top: "50%",
           transform: "translateY(-50%)",
-          width: isMobile ? "44px" : "52px",
-          height: isMobile ? "44px" : "52px",
-          borderRadius: "50%",
-          background: panel.open ? "#0f766e" : "#2DD4BF",
-          border: "2.5px solid rgba(255,255,255,0.35)",
-          boxShadow: "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)",
+          borderRadius: "999px",
+          background: panel.open ? "rgba(15,118,110,0.9)" : "rgba(13,148,136,0.85)",
+          border: `1.5px solid ${panel.open ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.6)"}`,
+          backdropFilter: "blur(10px)",
+          boxShadow: `0 4px 20px ${TEAL.glow}`,
           cursor: "pointer",
           display: (isMobile && panel.open) || commentSection.open ? "none" : "flex",
           alignItems: "center",
-          justifyContent: "center",
+          gap: isMobile ? "6px" : "10px",
+          padding: isMobile ? "8px 12px" : "10px 16px",
           zIndex: 100000,
-          transition: "right 0.3s ease, transform 0.15s, box-shadow 0.15s, background 0.15s",
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1.08)";
-          (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 4px rgba(45,212,191,0.5), 0 6px 20px rgba(0,0,0,0.4)";
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLElement).style.transform = "translateY(-50%) scale(1)";
-          (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px rgba(45,212,191,0.35), 0 4px 16px rgba(0,0,0,0.35)";
+          transition: "right 0.3s ease, all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+          maxWidth: isMobile ? "180px" : "240px",
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          color: "white",
+          fontSize: isMobile ? "11px" : "13px",
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          userSelect: "none",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width={isMobile ? "14" : "15"} height={isMobile ? "14" : "15"} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.9 }}>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
+        <span style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          maxWidth: isMobile ? "110px" : "160px",
+        }}>
+          {panel.open
+            ? "Close"
+            : (panel.regionDisplayName || panel.region || "Discussions")}
+        </span>
+        {!panel.open && (
+          <span style={{
+            width: "6px",
+            height: "6px",
+            borderRadius: "50%",
+            background: TEAL.lighter,
+            boxShadow: `0 0 6px ${TEAL.lighter}`,
+            flexShrink: 0,
+          }} />
+        )}
       </button>
 
       {/* Discussion Panel */}
