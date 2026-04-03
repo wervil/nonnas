@@ -47,6 +47,41 @@ const TEAL = {
   badge: "rgba(13,148,136,0.85)",
   badgeBorder: "#14b8a6",
 };
+
+type PanelNonna = {
+  id: string | number;
+  name: string;
+  recipeTitle?: string;
+  history?: string;
+  photo?: string[] | null;
+  origin?: string;
+};
+
+/** Map GET /api/recipes rows to DiscussionPanel nonna card shape. */
+function mapRecipesToPanelNonnas(recipes: unknown[]): PanelNonna[] {
+  return recipes.map((raw) => {
+    const r = raw as Record<string, unknown>;
+    const first = String(r.firstName ?? "").trim();
+    const last = String(r.lastName ?? "").trim();
+    const title = String(r.grandmotherTitle ?? "").trim();
+    const fullName = [first, last].filter(Boolean).join(" ");
+    const name =
+      [title, fullName].filter(Boolean).join(" · ") || fullName || title || "Nonna";
+    const origin = [r.city, r.region, r.country]
+      .map((x) => (x ? String(x).trim() : ""))
+      .filter(Boolean)
+      .join(", ");
+    return {
+      id: r.id as string | number,
+      name,
+      recipeTitle: r.recipeTitle as string | undefined,
+      history: r.history as string | undefined,
+      photo: (r.photo as string[] | null | undefined) ?? null,
+      ...(origin ? { origin } : {}),
+    };
+  });
+}
+
 function useEarthNavigation() {
   const [currentLevel, setCurrentLevel] = useState<ZoomLevel>("EARTH");
   return { currentLevel, setLevel: setCurrentLevel };
@@ -577,14 +612,7 @@ export default function Earth3DPage() {
     country?: string;
     state?: string;
     city?: string;
-    nonnas: Array<{
-      id: string | number;
-      name: string;
-      recipeTitle?: string;
-      history?: string;
-      photo?: string[] | null;
-      origin?: string;
-    }>;
+    nonnas: Array<PanelNonna>;
     initialTab: "discussion" | "nonnas";
   }>({
     open: false,
@@ -612,6 +640,41 @@ export default function Earth3DPage() {
   useEffect(() => {
     currentLevelRef.current = currentLevel;
   }, [currentLevel]);
+
+  // World view + no map selection: load all published nonnas for the Nonnas tab
+  useEffect(() => {
+    if (!panel.open || currentLevel !== "EARTH" || panel.region.trim() !== "") {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/recipes?published=true");
+        if (!res.ok) throw new Error("Failed to fetch recipes");
+        const data = await res.json();
+        const list = mapRecipesToPanelNonnas(data.recipes || []);
+        if (cancelled) return;
+        setPanel((prev) => {
+          if (
+            !prev.open ||
+            currentLevelRef.current !== "EARTH" ||
+            prev.region.trim() !== ""
+          ) {
+            return prev;
+          }
+          return { ...prev, nonnas: list };
+        });
+      } catch (e) {
+        console.error("[Earth3D] World-level nonnas fetch:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [panel.open, panel.region, currentLevel]);
+
   const allClustersRef = useRef<{
     continents: GlobeNonna[];
     countries: GlobeNonna[];
@@ -1222,7 +1285,7 @@ export default function Earth3DPage() {
 
               const response = await fetch(url);
               const data = await response.json();
-              const nonnas = data.recipes || [];
+              const nonnas = mapRecipesToPanelNonnas(data.recipes || []);
 
               console.log(`[Earth3D] ${direction} - Opening discussion panel for:`, targetName, 'with', nonnas.length, 'nonnas');
 
@@ -2317,7 +2380,7 @@ export default function Earth3DPage() {
 
                     const response = await fetch(url);
                     const data = await response.json();
-                    return data.recipes || [];
+                    return mapRecipesToPanelNonnas(data.recipes || []);
                   } catch (error) {
                     console.error("[Earth3D] Error fetching nonnas:", error);
                     return [];
@@ -3443,6 +3506,7 @@ export default function Earth3DPage() {
         region={panel.region}
         regionDisplayName={panel.regionDisplayName}
         scope={panel.scope}
+        mapZoomLevel={currentLevel}
         country={panel.country}
         state={panel.state}
         city={panel.city}
