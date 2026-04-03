@@ -10,12 +10,26 @@ import ThreadList from "../Threads/ThreadList";
 import ThreadView from "../Threads/ThreadView";
 import Button from "../ui/Button";
 
+type MapZoomLevel = "EARTH" | "CONTINENT" | "COUNTRY" | "STATE" | "CITY" | "NONNA";
+
+/** Subtitle under the region title aligned with zoom pills on the map (World → … → City). */
+const MAP_ZOOM_SCOPE_LABEL: Record<MapZoomLevel, string> = {
+    EARTH: "World",
+    CONTINENT: "Continent",
+    COUNTRY: "Country",
+    STATE: "Region",
+    CITY: "City",
+    NONNA: "Nonna",
+};
+
 interface DiscussionPanelProps {
     isOpen: boolean;
     onClose: () => void;
     region: string;
     regionDisplayName: string;
     scope: "country" | "state" | "city";
+    /** When set, the scope line matches the active map zoom tier (left nav). */
+    mapZoomLevel?: MapZoomLevel;
     country?: string;
     state?: string;
     city?: string;
@@ -36,6 +50,7 @@ export default function DiscussionPanel({
     region,
     regionDisplayName,
     scope,
+    mapZoomLevel,
     country,
     state,
     city,
@@ -77,6 +92,9 @@ export default function DiscussionPanel({
     if (!isOpen) return null;
 
     const getScopeDisplay = () => {
+        if (mapZoomLevel) {
+            return { label: MAP_ZOOM_SCOPE_LABEL[mapZoomLevel] };
+        }
         switch (scope) {
             case "country":
                 return { label: "Country" };
@@ -251,7 +269,12 @@ export default function DiscussionPanel({
                                 {/* Stats header */}
                                 <div className="mb-6">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        {nonnas.length} {nonnas.length === 1 ? "Nonna" : "Nonnas"} in {regionDisplayName}
+                                        {nonnas.length} {nonnas.length === 1 ? "Nonna" : "Nonnas"}
+                                        {regionDisplayName.trim()
+                                            ? ` in ${regionDisplayName}`
+                                            : mapZoomLevel === "EARTH"
+                                                ? " worldwide"
+                                                : ""}
                                     </h3>
                                 </div>
 
