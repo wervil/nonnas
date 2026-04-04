@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
 // }
 
 import { moderateContent } from "@/services/moderation";
+import { geocodeRecipeLocation } from "@/lib/geocode";
 
 // Database connection using Neon
 const db = drizzle(process.env.DATABASE_URL!);
@@ -78,6 +79,20 @@ export async function POST(request: NextRequest) {
     const user = await stackServerApp.getUser();
     const isAdmin = user ? await checkAdminPermission(user) : false;
 
+    // Auto-geocode if coordinates not provided but location fields exist
+    let coordinates = body.coordinates || null;
+    if (!coordinates && (body.country || body.region || body.city)) {
+      const geocoded = await geocodeRecipeLocation({
+        city: body.city,
+        region: body.region,
+        country: body.country,
+      });
+      if (geocoded) {
+        coordinates = geocoded;
+        console.log("[recipes] Auto-geocoded coordinates:", coordinates, "for", body.city, body.region, body.country);
+      }
+    }
+
     // Insert the recipe into the database
     const newRecipe = await db
       .insert(recipes)
@@ -90,7 +105,7 @@ export async function POST(request: NextRequest) {
         country: body.country || null,
         region: body.region || null,
         city: body.city || null,
-        coordinates: body.coordinates || null,
+        coordinates,
         history: body.history || null,
         geo_history: body.geo_history || null,
         recipe: body.recipe,
@@ -355,6 +370,20 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Auto-geocode if location changed but coordinates not provided
+    let patchCoordinates = body.coordinates || undefined;
+    if (!patchCoordinates && (body.country || body.region || body.city)) {
+      const geocoded = await geocodeRecipeLocation({
+        city: body.city,
+        region: body.region,
+        country: body.country,
+      });
+      if (geocoded) {
+        patchCoordinates = geocoded;
+        console.log("[recipes] Auto-geocoded on update:", patchCoordinates);
+      }
+    }
+
     const updatedRecipe = {
       published,
       ...(body.grandmotherTitle && { grandmotherTitle: body.grandmotherTitle }),
@@ -364,7 +393,7 @@ export async function PATCH(request: NextRequest) {
       ...(body.country && { country: body.country }),
       ...(body.region && { region: body.region }),
       ...(body.city && { city: body.city }),
-      ...(body.coordinates && { coordinates: body.coordinates }),
+      ...(patchCoordinates && { coordinates: patchCoordinates }),
       ...(body.history && { history: body.history }),
       ...(body.geo_history && { geo_history: body.geo_history }),
       ...(body.recipe && { recipe: body.recipe }),

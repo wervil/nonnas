@@ -169,9 +169,42 @@ export async function GET(req: NextRequest) {
         });
       });
 
+      // Fix country markers: for single-nonna countries, use the actual nonna coords
+      const countries = Object.values(countryMap);
+      for (const c of countries) {
+        if (c.nonnaCount === 1) {
+          const match = stateClusters.find(
+            (s) => s.countryCode === c.countryCode && s.nonnaCount === 1,
+          );
+          if (match) {
+            c.lat = match.lat;
+            c.lng = match.lng;
+          }
+        }
+      }
+
+      // Fix continent markers: for single-nonna continents, use the actual nonna coords
+      // (otherwise the fixed continent center, e.g. Europe at 54°N 15°E, looks like Sweden)
+      const continents = Object.values(continentMap);
+      for (const cont of continents) {
+        if (cont.nonnaCount === 1) {
+          // Find the single country in this continent and use its coords
+          const matchCountry = countries.find(
+            (c) => {
+              const info = getCountryInfoWithFallback(c.countryName);
+              return info.continent === cont.countryName;
+            },
+          );
+          if (matchCountry) {
+            cont.lat = matchCountry.lat;
+            cont.lng = matchCountry.lng;
+          }
+        }
+      }
+
       return NextResponse.json({
-        continents: Object.values(continentMap),
-        countries: Object.values(countryMap),
+        continents,
+        countries,
         states: stateClusters,
       });
     }
@@ -363,7 +396,8 @@ export async function GET(req: NextRequest) {
           representativeName: nonnaName,
           representativeTitle: r.grandmotherTitle,
           representativePhoto: r.avatar_image || r.photo?.[0] || null,
-          recipeId: r.id, // Add recipe ID (this is the actual recipe ID)
+          recipeId: r.id,
+          recipeTitle: r.recipeTitle || undefined,
           region: r.region || undefined,
         };
       });

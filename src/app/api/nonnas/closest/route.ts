@@ -124,6 +124,7 @@ export async function GET(req: NextRequest) {
           representativeTitle: nonna.grandmotherTitle,
           representativePhoto: nonna.avatar_image || nonna.photo?.[0] || null,
           recipeId: nonna.id,
+          recipeTitle: nonna.recipeTitle || undefined,
           region: nonna.region || undefined,
         },
       });
@@ -248,6 +249,7 @@ export async function GET(req: NextRequest) {
         representativePhoto:
           closestNonna.avatar_image || closestNonna.photo?.[0] || null,
         recipeId: closestNonna.id,
+        recipeTitle: closestNonna.recipeTitle || undefined,
         region: closestNonna.region || undefined,
       },
     });

@@ -347,6 +347,8 @@ type GlobeNonna = {
   representativeTitle: string;
   representativePhoto: string | null;
   recipeId: string;
+  recipeTitle?: string;
+  region?: string;
   history?: string;
   origin?: string;
 };
@@ -467,8 +469,15 @@ export default function Earth3DPage() {
   const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
   const streetViewPanoramaRef = useRef<any>(null);
   const geoJsonCacheRef = useRef<any>(null);
+  const stateGeoJsonCacheRef = useRef<any>(null);
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
+  const [boundaryLoading, setBoundaryLoading] = useState(false);
+  const [boundaryFailed, setBoundaryFailed] = useState(false);
+  const setBoundaryLoadingRef = useRef(setBoundaryLoading);
+  const setBoundaryFailedRef = useRef(setBoundaryFailed);
+  setBoundaryLoadingRef.current = setBoundaryLoading;
+  setBoundaryFailedRef.current = setBoundaryFailed;
   const user = useUser();
   const [activePlaceName, setActivePlaceName] = useState<string | null>(null);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
@@ -634,11 +643,13 @@ export default function Earth3DPage() {
     recipeId: number;
     nonnaName: string;
     titleName: string;
+    nonnaPhoto?: string | null;
   }>({
     open: false,
     recipeId: 0,
     nonnaName: "",
     titleName: "",
+    nonnaPhoto: null,
   });
   const { currentLevel, setLevel } = useEarthNavigation();
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
@@ -848,6 +859,8 @@ export default function Earth3DPage() {
 
   // Ref to store fetchAndDrawBoundary function for zoom-out highlighting
   const fetchAndDrawBoundaryRef = useRef<((name: string, featureType: "continent" | "country" | "state" | "city", countryCode?: string | null) => Promise<void>) | null>(null);
+  // Ref to track active highlight name (mirrors closure variable for use in marker handlers)
+  const activeHighlightNameRef = useRef<string | null>(null);
 
   // Ref to track and cancel ongoing highlighting requests
   const highlightingRef = useRef<{
@@ -995,15 +1008,22 @@ export default function Earth3DPage() {
 
         console.log("[Earth3D] Found single nonna:", actualNonna.representativeName);
 
-        // Close discussion panel if open
-        setPanel(prev => ({ ...prev, open: false }));
+        // Close discussion panel and reset region to nonna's actual location
+        setPanel(prev => ({
+          ...prev,
+          open: false,
+          region: actualNonna.countryName || "",
+          regionDisplayName: [actualNonna.countryName, actualNonna.region]
+            .filter(Boolean).join(" • ") || actualNonna.countryName || "",
+        }));
 
         // Open comment section
         setCommentSection({
           open: true,
           recipeId: actualNonna.recipeId,
           nonnaName: actualNonna.representativeName,
-          titleName: actualNonna.representativeTitle,
+          titleName: actualNonna.recipeTitle || actualNonna.representativeName,
+          nonnaPhoto: actualNonna.representativePhoto,
         });
 
         // Zoom to NONNA level using actual coordinates
@@ -1561,8 +1581,9 @@ export default function Earth3DPage() {
                 const svgY = clickEvent.clientY - rect.top;
 
                 // Get SVG viewBox to calculate actual coordinates
+                // Skip hit-test if rect has no dimensions (element not yet painted on first load)
                 const viewBox = svgElement.getAttribute('viewBox')?.split(' ').map(Number);
-                if (viewBox) {
+                if (viewBox && rect.width > 0 && rect.height > 0) {
                   const [vbX, vbY, vbW, vbH] = viewBox;
                   const actualX = (svgX / rect.width) * vbW + vbX;
                   const actualY = (svgY / rect.height) * vbH + vbY;
@@ -1606,13 +1627,20 @@ export default function Earth3DPage() {
                   // Close the comment section if clicking the same nonna
                   setCommentSection({ ...commentSection, open: false });
                 } else {
-                  // Close discussion panel if open, then open comment section
-                  setPanel(prev => ({ ...prev, open: false }));
+                  // Close discussion panel and reset region to nonna's actual location
+                  setPanel(prev => ({
+                    ...prev,
+                    open: false,
+                    region: nonna.countryName || "",
+                    regionDisplayName: [nonna.countryName, nonna.region]
+                      .filter(Boolean).join(" • ") || nonna.countryName || "",
+                  }));
                   setCommentSection({
                     open: true,
                     recipeId: parseInt(nonna.recipeId, 10),
                     nonnaName: nonna.representativeName,
-                    titleName: nonna.representativeTitle,
+                    titleName: nonna.recipeTitle || nonna.representativeName,
+                    nonnaPhoto: nonna.representativePhoto,
                   });
 
                   // Zoom to NONNA level (street view) after opening comment section
@@ -1637,6 +1665,16 @@ export default function Earth3DPage() {
                             targetLat = parts[0];
                             targetLng = parts[1];
                           }
+                        }
+                        // Update panel with authoritative recipe data (title + photo).
+                        // No `mounted` guard — setCommentSection is a safe functional update.
+                        if (recipe) {
+                          const photo = recipe.photo?.[0] || null;
+                          setCommentSection(prev => ({
+                            ...prev,
+                            titleName: recipe.recipeTitle || prev.titleName,
+                            nonnaPhoto: photo || prev.nonnaPhoto,
+                          }));
                         }
                       } catch (err) {
                         console.warn("[Earth3D] Failed to fetch nonna coords, using cluster coords", err);
@@ -1673,11 +1711,88 @@ export default function Earth3DPage() {
                 }
               }
             } else {
-              // At all other levels, ignore marker click and treat as map click
-              console.log("[Earth3D] Ignoring marker click at level:", currentLevelRef.current, "- treating as map click");
+              // Multi-nonna cluster marker clicked
+              const level = currentLevelRef.current;
+              console.log("[Earth3D] Multi-nonna marker click at level:", level, "country:", nonna.countryName);
 
-              // Don't stop propagation or prevent default - let the map handle it
-              // This will trigger the map click handler instead
+              // At COUNTRY level: clicking a cluster marker should select that marker's country
+              // This avoids geocoding issues where the click position might land in a neighboring country
+              if (level === "COUNTRY" && nonna.countryName) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const markerCountry = nonna.countryName;
+                const isSame = markerCountry === activeHighlightNameRef.current;
+
+                if (isSame) {
+                  // Second click on same country's marker → drill to STATE
+                  const map3d = map3dRef.current;
+                  if (map3d) {
+                    const nextLevel = "STATE" as ZoomLevel;
+                    setLevel(nextLevel);
+                    currentLevelRef.current = nextLevel;
+                    viewportCountryRef.current = markerCountry;
+                    flightStateRef.current = {
+                      active: true,
+                      targetRange: ZOOM_RANGES[nextLevel],
+                      targetLevel: nextLevel,
+                      startTime: Date.now(),
+                      lastRanges: [],
+                    };
+                    map3d.flyCameraTo({
+                      endCamera: {
+                        center: { lat: nonna.lat, lng: nonna.lng, altitude: 0 },
+                        range: ZOOM_RANGES[nextLevel],
+                        tilt: 0,
+                        heading: map3d.heading,
+                      },
+                      durationMillis: 1500,
+                    });
+                  }
+                } else {
+                  // Switch to different country — highlight it, stay at COUNTRY
+                  activeHighlightNameRef.current = markerCountry;
+                  // Note: can't call syncHighlightRef here (closure scope), but ref is synced
+                  const map3d = map3dRef.current;
+                  if (map3d) {
+                    flightStateRef.current = {
+                      active: true,
+                      targetRange: ZOOM_RANGES.COUNTRY,
+                      targetLevel: "COUNTRY",
+                      startTime: Date.now(),
+                      lastRanges: [],
+                    };
+                    map3d.flyCameraTo({
+                      endCamera: {
+                        center: { lat: nonna.lat, lng: nonna.lng, altitude: 0 },
+                        range: ZOOM_RANGES.COUNTRY,
+                        tilt: 0,
+                        heading: map3d.heading,
+                      },
+                      durationMillis: 1500,
+                    });
+                  }
+                  if (mounted) {
+                    setClickedLabel(markerCountry);
+                    setActiveCountry(markerCountry);
+                    setActivePlaceName(markerCountry);
+                    setPanel(prev => ({
+                      ...prev,
+                      open: true,
+                      region: nonna.countryCode || markerCountry,
+                      regionDisplayName: markerCountry,
+                      scope: "country",
+                      initialTab: "discussion",
+                    }));
+                  }
+                  if (fetchAndDrawBoundaryRef.current) {
+                    fetchAndDrawBoundaryRef.current(markerCountry, "country", nonna.countryCode);
+                  }
+                }
+                return;
+              }
+
+              // At other levels, let the map handle it
               return;
             }
           });
@@ -1842,6 +1957,7 @@ export default function Earth3DPage() {
       // Boundary polygon helpers (teal)
       const polygonOverlays: RemovableOverlay[] = [];
       let activeHighlightName: string | null = null;
+      const syncHighlightRef = (name: string | null) => { activeHighlightName = name; activeHighlightNameRef.current = name; };
       let lastHoverName: string | null = null;
       let hoverTimer: NodeJS.Timeout | null = null;
 
@@ -1865,152 +1981,177 @@ export default function Earth3DPage() {
         hoverPolygonOverlays.length = 0;
       };
 
+      // ── Local GeoJSON boundary helpers ──
+      const loadCountryGeoJson = async () => {
+        if (!geoJsonCacheRef.current) {
+          const res = await fetch("/geo/ne_admin0_countries.geojson");
+          geoJsonCacheRef.current = await res.json();
+        }
+        return geoJsonCacheRef.current;
+      };
+
+      const loadStateGeoJson = async () => {
+        if (!stateGeoJsonCacheRef.current) {
+          const res = await fetch("/geo/ne_10m_admin_1_states_provinces.geojson");
+          stateGeoJsonCacheRef.current = await res.json();
+        }
+        return stateGeoJsonCacheRef.current;
+      };
+
+      const findCountryFeature = (fc: any, name: string, code?: string | null) => {
+        const lName = name.toLowerCase();
+        const lCode = (code || "").toLowerCase();
+        return fc.features.find((f: any) => {
+          const p = f.properties || {};
+          return (
+            (lCode && p.ISO_A2?.toLowerCase() === lCode) ||
+            p.ADMIN?.toLowerCase() === lName ||
+            p.NAME?.toLowerCase() === lName ||
+            p.NAME_LONG?.toLowerCase() === lName
+          );
+        });
+      };
+
+      const findStateFeature = (fc: any, stateName: string, countryCode?: string | null) => {
+        const lName = stateName.toLowerCase();
+        const lCode = (countryCode || "").toLowerCase();
+        // Strip common suffixes Google adds (e.g. "Cairo Governorate" → "Cairo")
+        const lNameClean = lName
+          .replace(/\s+(governorate|province|region|prefecture|oblast|state|department|district)$/i, "")
+          .trim();
+        return fc.features.find((f: any) => {
+          const p = f.properties || {};
+          if (lCode && p.iso_a2?.toLowerCase() !== lCode) return false;
+          const nameEn = (p.name_en || "").toLowerCase();
+          const name = (p.name || "").toLowerCase();
+          const gnName = (p.gn_name || "").toLowerCase();
+          return (
+            nameEn === lName || nameEn === lNameClean ||
+            name === lName || name === lNameClean ||
+            gnName === lName || gnName === lNameClean ||
+            lName.includes(nameEn) || nameEn.includes(lNameClean)
+          );
+        });
+      };
+
+      const extractAndDrawRings = (geojson: any, name: string) => {
+        let rings: number[][][] = [];
+        if (geojson.type === "Polygon") rings = [geojson.coordinates[0]];
+        else if (geojson.type === "MultiPolygon")
+          rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
+        else return;
+
+        // Simplify large polygons for performance
+        const MAX_RING_POINTS = 300;
+        rings = rings
+          .map((ring) => {
+            if (ring.length <= MAX_RING_POINTS) return ring;
+            const step = Math.ceil(ring.length / MAX_RING_POINTS);
+            const out = ring.filter((_, i) => i % step === 0);
+            if (out[0][0] !== out[out.length - 1][0] || out[0][1] !== out[out.length - 1][1])
+              out.push(out[0]);
+            return out;
+          })
+          .filter((r) => r.length >= 4);
+        if (!rings.length) return;
+
+        clearPolygonOverlays();
+        for (const ring of rings) {
+          const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+            lat,
+            lng,
+            altitude: 0,
+          }));
+          const poly = new Polygon3DElement({
+            outerCoordinates,
+            fillColor: TEAL.fill,
+            strokeColor: rings.length > 1 ? "rgba(0,0,0,0)" : TEAL.stroke,
+            strokeWidth: rings.length > 1 ? 0 : 2.5,
+            altitudeMode: "CLAMP_TO_GROUND",
+          });
+          map3d.append(poly);
+          polygonOverlays.push(poly);
+        }
+        console.log("[Earth3D] Drew", rings.length, "polygons for", name);
+      };
+
+      // ── Fetch city boundary via Nominatim (only used for cities) ──
+      const fetchCityBoundaryViaNominatim = async (
+        name: string,
+        countryCode?: string | null,
+      ): Promise<any | null> => {
+        try {
+          const params = new URLSearchParams({
+            polygon_geojson: "1",
+            format: "json",
+            limit: "1",
+            featuretype: "city",
+            city: name,
+          });
+          if (countryCode) params.set("countrycodes", countryCode.toLowerCase());
+
+          const res = await fetch(`/api/nominatim-proxy?${params.toString()}`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          const geojson = data?.[0]?.geojson;
+          if (!geojson || geojson.type === "Point") return null;
+          return geojson;
+        } catch {
+          return null;
+        }
+      };
+
       const fetchAndDrawBoundary = async (
         name: string,
         featureType: "continent" | "country" | "state" | "city",
         countryCode?: string | null,
       ) => {
-        console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
+        console.log("[Earth3D] Drawing boundary for", name, featureType, countryCode);
+
+        // Skip continents and world — no boundary to draw
+        if (featureType === "continent") return;
+
+        // Clear previous boundary immediately so old selection doesn't linger
+        clearPolygonOverlays();
+
+        setBoundaryLoadingRef.current(true);
+        setBoundaryFailedRef.current(false);
+        const loadStart = Date.now();
 
         try {
-          // Skip boundary drawing for continents — composite polygons look bad
-          if (featureType === "continent") {
-            console.log("[Earth3D] Skipping boundary for continent:", name);
-            return;
-          }
+          let geojson: any = null;
 
-          const params = new URLSearchParams({
-            polygon_geojson: "1",
-            format: "json",
-            limit: "1",
-          });
-          if (featureType === "continent") {
-            params.set("q", name);
-          } else if (featureType === "country") {
-            params.set("q", name);
-            params.set("featuretype", "country");
+          if (featureType === "country") {
+            const fc = await loadCountryGeoJson();
+            const feature = findCountryFeature(fc, name, countryCode);
+            if (feature?.geometry) geojson = feature.geometry;
           } else if (featureType === "state") {
-            params.set("featuretype", "state");
-            params.set("state", name);
-            if (countryCode)
-              params.set("countrycodes", countryCode.toLowerCase());
-          } else {
-            params.set("featuretype", "city");
-            params.set("city", name);
-            if (countryCode)
-              params.set("countrycodes", countryCode.toLowerCase());
+            const fc = await loadStateGeoJson();
+            const feature = findStateFeature(fc, name, countryCode);
+            if (feature?.geometry) geojson = feature.geometry;
+          } else if (featureType === "city") {
+            geojson = await fetchCityBoundaryViaNominatim(name, countryCode);
           }
 
-          console.log("[Earth3D] Nominatim fetch params:", params.toString());
-          // Use proxy to avoid CORS issues
-          const proxyUrl = `/api/nominatim-proxy?${params.toString()}`;
-          console.log("[Earth3D] Using proxy URL:", proxyUrl);
-
-          const res = await fetch(proxyUrl);
-          console.log("[Earth3D] Proxy fetch response:", res);
-          if (!res.ok) {
-            console.error("[Earth3D] Proxy fetch failed:", res.status, res.statusText);
-            throw new Error(`Proxy HTTP ${res.status}`);
-          }
-          const data = await res.json();
-          console.log("[Earth3D] Nominatim response data:", data);
-          let geojson = data?.[0]?.geojson;
-
-          // If Nominatim returns nothing or a Point, try local GeoJSON for countries
-          if ((!geojson || geojson.type === "Point") && (featureType === "country" || featureType === "continent")) {
-            console.log("[Earth3D] Nominatim failed for", name, "- trying local GeoJSON fallback");
-            try {
-              if (!geoJsonCacheRef.current) {
-                const geoRes = await fetch("/geo/ne_admin0_countries.geojson");
-                geoJsonCacheRef.current = await geoRes.json();
-              }
-              const fc = geoJsonCacheRef.current;
-              if (featureType === "country") {
-                const feature = fc.features.find((f: any) =>
-                  f.properties?.ADMIN?.toLowerCase() === name.toLowerCase() ||
-                  f.properties?.NAME?.toLowerCase() === name.toLowerCase() ||
-                  f.properties?.ISO_A2?.toLowerCase() === (countryCode || "").toLowerCase()
-                );
-                if (feature?.geometry) {
-                  geojson = feature.geometry;
-                  console.log("[Earth3D] Found country in local GeoJSON:", name);
-                }
-              } else if (featureType === "continent") {
-                // For continents: combine all country polygons in that continent
-                const continentFeatures = fc.features.filter((f: any) => {
-                  const centroid = f.properties?.LABEL_Y && f.properties?.LABEL_X
-                    ? { lat: f.properties.LABEL_Y, lng: f.properties.LABEL_X }
-                    : null;
-                  if (!centroid) return false;
-                  return getContinentFromLatLng(centroid.lat, centroid.lng) === name;
-                });
-                if (continentFeatures.length > 0) {
-                  // Create a MultiPolygon from all country polygons
-                  const allCoords: number[][][][] = [];
-                  for (const f of continentFeatures) {
-                    if (f.geometry.type === "Polygon") allCoords.push(f.geometry.coordinates);
-                    else if (f.geometry.type === "MultiPolygon") allCoords.push(...f.geometry.coordinates);
-                  }
-                  geojson = { type: "MultiPolygon", coordinates: allCoords };
-                  console.log("[Earth3D] Built continent boundary from", continentFeatures.length, "countries");
-                }
-              }
-            } catch (geoErr) {
-              console.warn("[Earth3D] GeoJSON fallback failed:", geoErr);
-            }
+          // Ensure loader shows for at least 400ms so user sees it
+          const elapsed = Date.now() - loadStart;
+          if (elapsed < 400) {
+            await new Promise((r) => setTimeout(r, 400 - elapsed));
           }
 
-          if (!geojson || geojson.type === "Point") {
-            console.warn("[Earth3D] No polygon boundary available for", name, featureType);
+          setBoundaryLoadingRef.current(false);
+
+          if (!geojson) {
+            setBoundaryFailedRef.current(true);
+            setTimeout(() => setBoundaryFailedRef.current(false), 1500);
             return;
           }
-          console.log("[Earth3D] Got geojson type:", geojson.type);
-          let rings: number[][][] = [];
-          if (geojson.type === "Polygon") rings = [geojson.coordinates[0]];
-          else if (geojson.type === "MultiPolygon")
-            rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
-          else {
-            console.warn("[Earth3D] Unsupported geojson type:", geojson.type);
-            return;
-          }
-          const MAX_RING_POINTS = 300;
-          const simplifyRing = (ring: number[][]): number[][] => {
-            if (ring.length <= MAX_RING_POINTS) return ring;
-            const step = Math.ceil(ring.length / MAX_RING_POINTS);
-            const out = ring.filter((_, i) => i % step === 0);
-            const first = out[0],
-              last = out[out.length - 1];
-            if (first[0] !== last[0] || first[1] !== last[1]) out.push(first);
-            return out;
-          };
-          rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
-          if (!rings.length) {
-            console.warn("[Earth3D] No valid rings after simplification for", name);
-            return;
-          }
-
-          console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
-          clearPolygonOverlays();
-          const isContinent = featureType === "continent";
-          for (const ring of rings) {
-            const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
-              lat,
-              lng,
-              altitude: 0,
-            }));
-            const poly = new Polygon3DElement({
-              outerCoordinates,
-              fillColor: TEAL.fill,
-              strokeColor: rings.length > 1 ? "rgba(0,0,0,0)" : TEAL.stroke,
-              strokeWidth: rings.length > 1 ? 0 : 2.5,
-              altitudeMode: "CLAMP_TO_GROUND",
-            });
-            map3d.append(poly);
-            polygonOverlays.push(poly);
-          }
-          console.log("[Earth3D] Successfully drew boundary for", name);
+          extractAndDrawRings(geojson, name);
         } catch (err) {
-          console.error("[Earth3D] Boundary fetch/draw error for", name, ":", err);
+          console.error("[Earth3D] Boundary draw error for", name, ":", err);
+          setBoundaryLoadingRef.current(false);
+          setBoundaryFailedRef.current(true);
+          setTimeout(() => setBoundaryFailedRef.current(false), 1500);
         }
       };
 
@@ -2373,60 +2514,75 @@ export default function Earth3DPage() {
           }
 
           else if (level === "COUNTRY") {
-            // At COUNTRY level, implement two-step interaction:
-            // 1. First click: center on country, stay at COUNTRY level
-            // 2. Second click (same country): zoom to STATE level
-            const isSameCountry = info.country === activeHighlightName;
-
+            // At COUNTRY level:
+            // - Click same country as highlighted → drill to STATE
+            // - Click different country → switch highlight to new country, stay at COUNTRY
+            const clickedCountry = info.country;
+            const isSameCountry = clickedCountry === activeHighlightName;
 
             if (isSameCountry) {
               // Second click on same country - zoom to STATE level
               targetName = info.state;
               featureType = "state";
               nextLevel = "STATE";
+              // Update viewport to track which country we're drilling into
+              viewportCountryRef.current = clickedCountry;
             } else {
-              // First click on country - center and highlight, but stay at COUNTRY level
-              targetName = info.country;
+              // First click on country or switching to different country
+              targetName = clickedCountry;
               featureType = "country";
-              nextLevel = "COUNTRY"; // Stay at same level
+              nextLevel = "COUNTRY";
             }
           } else if (level === "STATE") {
-            // Get state name
-            const stateComponent = first.address_components?.find((c: any) =>
-              c.types?.includes("administrative_area_level_1")
-            );
-
-            const stateName = stateComponent?.long_name || null;
-
-            const isSameState = stateName === activeHighlightName;
-
-            if (isSameState) {
-              // Second click → go to CITY
-              const cityComponent = first.address_components?.find((c: any) =>
-                c.types?.includes("locality") ||
-                c.types?.includes("administrative_area_level_2")
+            // Check if clicked a different country — navigate back to COUNTRY level
+            const clickedCountry = info.country;
+            const currentCountry = viewportCountryRef.current;
+            if (clickedCountry && currentCountry && clickedCountry !== currentCountry) {
+              targetName = clickedCountry;
+              featureType = "country";
+              nextLevel = "COUNTRY";
+            } else {
+              const stateComponent = first.address_components?.find((c: any) =>
+                c.types?.includes("administrative_area_level_1")
               );
+              const stateName = stateComponent?.long_name || null;
+              const isSameState = stateName === activeHighlightName;
 
+              if (isSameState) {
+                // Second click → go to CITY
+                const cityComponent = first.address_components?.find((c: any) =>
+                  c.types?.includes("locality") ||
+                  c.types?.includes("administrative_area_level_2")
+                );
+                const cityName = cityComponent?.long_name || null;
+                targetName = cityName;
+                featureType = "city";
+                nextLevel = "CITY";
+              } else {
+                // First click → stay on STATE
+                targetName = stateName;
+                featureType = "state";
+                nextLevel = "STATE";
+              }
+            }
+          } else if (level === "CITY") {
+            // Check if clicked a different country — navigate back to COUNTRY level
+            const clickedCountry = info.country;
+            const currentCountry = viewportCountryRef.current;
+            if (clickedCountry && currentCountry && clickedCountry !== currentCountry) {
+              targetName = clickedCountry;
+              featureType = "country";
+              nextLevel = "COUNTRY";
+            } else {
+              // Stay at CITY — no auto-zoom to NONNA
+              const cityComponent = first.address_components?.find((c: any) =>
+                c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
+              );
               const cityName = cityComponent?.long_name || null;
-
               targetName = cityName;
               featureType = "city";
               nextLevel = "CITY";
-            } else {
-              // First click → stay on STATE
-              targetName = stateName;
-              featureType = "state";
-              nextLevel = "STATE";
             }
-          } else if (level === "CITY") {
-            // At CITY level, stay at CITY — no auto-zoom to NONNA
-            const cityComponent = first.address_components?.find((c: any) =>
-              c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
-            );
-            const cityName = cityComponent?.long_name || null;
-            targetName = cityName;
-            featureType = "city";
-            nextLevel = "CITY";
           } else {
             // At NONNA level, clicking stays at current level
             const cityComponent = first.address_components?.find((c: any) =>
@@ -2488,7 +2644,7 @@ export default function Earth3DPage() {
             if (targetName === activeHighlightName && !isDrillDown) {
               console.log("[Earth3D] Clicking same region at same level - closing panel");
               clearPolygonOverlays();
-              activeHighlightName = null;
+              syncHighlightRef(null);
               if (mounted) {
                 setClickedLabel(null);
                 setHoveredLabel(null);
@@ -2497,7 +2653,7 @@ export default function Earth3DPage() {
             } else {
               // Clicking on a new region - update panel data and draw boundary
               console.log("[Earth3D] Clicking new region - updating panel data for:", targetName);
-              activeHighlightName = targetName;
+              syncHighlightRef(targetName);
 
               if (mounted) {
                 setClickedLabel(targetName);
@@ -2657,7 +2813,7 @@ export default function Earth3DPage() {
           // Clear highlight whenever zooming out (moving to a higher/broader level)
           if (clampedIndex < prevIndex) {
             clearPolygonOverlays();
-            activeHighlightName = null;
+            syncHighlightRef(null);
             setClickedLabel(null);
             setHoveredLabel(null);
           }
@@ -3328,6 +3484,7 @@ export default function Earth3DPage() {
           <style>{`
             @keyframes spin-reverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
             @keyframes fadeInLabel { from { opacity: 0; transform: translateX(-50%) translateY(-6px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+            @keyframes boundary-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
           `}</style>
           <defs>
             <path
@@ -3653,7 +3810,15 @@ export default function Earth3DPage() {
                       : isDisabled
                         ? "rgba(0,0,0,0.2)"
                         : "rgba(0,0,0,0.5)",
-                    border: `1.5px solid ${isActive ? "rgba(94,234,212,0.6)" : isDisabled ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)"}`,
+                    border: `1.5px solid ${
+                      isActive && boundaryFailed && (lvl === "COUNTRY" || lvl === "STATE" || lvl === "CITY")
+                        ? "rgba(239,68,68,0.7)"
+                        : isActive
+                          ? "rgba(94,234,212,0.6)"
+                          : isDisabled
+                            ? "rgba(255,255,255,0.05)"
+                            : "rgba(255,255,255,0.12)"
+                    }`,
                     backdropFilter: "blur(10px)",
                     boxShadow: isActive ? `0 4px 20px ${TEAL.glow}` : "none",
                     cursor: isDisabled ? "not-allowed" : "pointer",
@@ -3687,18 +3852,54 @@ export default function Earth3DPage() {
                   }}
                 >
                   <span>{meta.label}</span>
-                  {isActive && (
-                    <span
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        borderRadius: "50%",
-                        background: TEAL.lighter,
-                        boxShadow: `0 0 6px ${TEAL.lighter}`,
-                        marginLeft: "2px",
-                      }}
-                    />
-                  )}
+                  {isActive && (() => {
+                    const isBoundaryLevel = lvl === "COUNTRY" || lvl === "STATE" || lvl === "CITY";
+                    if (isBoundaryLevel && boundaryLoading) {
+                      // Spinning loader — small teal ring
+                      return (
+                        <span
+                          style={{
+                            width: "10px",
+                            height: "10px",
+                            borderRadius: "50%",
+                            border: `2px solid rgba(94,234,212,0.25)`,
+                            borderTopColor: TEAL.lighter,
+                            marginLeft: "2px",
+                            animation: "boundary-spin 0.6s linear infinite",
+                          }}
+                        />
+                      );
+                    }
+                    if (isBoundaryLevel && boundaryFailed) {
+                      // Red dot — boundary not found
+                      return (
+                        <span
+                          style={{
+                            width: "6px",
+                            height: "6px",
+                            borderRadius: "50%",
+                            background: "#ef4444",
+                            boxShadow: "0 0 8px rgba(239,68,68,0.7)",
+                            marginLeft: "2px",
+                            transition: "all 0.3s ease",
+                          }}
+                        />
+                      );
+                    }
+                    // Default teal dot
+                    return (
+                      <span
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: TEAL.lighter,
+                          boxShadow: `0 0 6px ${TEAL.lighter}`,
+                          marginLeft: "2px",
+                        }}
+                      />
+                    );
+                  })()}
                 </button>
               );
             },
@@ -3884,23 +4085,33 @@ export default function Earth3DPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="relative w-12 h-12 rounded-2xl bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3] flex items-center justify-center shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/20">
-                      <span className="text-2xl filter drop-shadow-sm">💬</span>
-                      {/* Glow effect */}
-                      <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-[#9BC9C3]/30 to-[#7FB5B0]/30 blur-sm animate-pulse" />
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3] flex items-center justify-center shadow-lg shadow-[#9BC9C3]/30 border-2 border-[#9BC9C3]/40 shrink-0">
+                      {commentSection.nonnaPhoto ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={commentSection.nonnaPhoto}
+                          alt={commentSection.nonnaName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        />
+                      ) : (
+                        <span className="text-2xl filter drop-shadow-sm">👵</span>
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                        Discussion with {commentSection.nonnaName}
+                        {commentSection.nonnaName}
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Share memories and stories about this Nonna&apos;s recipes
-                      </p>
+                      {commentSection.titleName && (
+                        <p className="text-sm font-medium text-[#4A7C7A] mt-0.5">
+                          {commentSection.titleName}
+                        </p>
+                      )}
                       <button
                         onClick={() => window.location.href = `/profile/${commentSection.recipeId}`}
                       >
-                        <p className="font-['Inter'] font-semibold text-lg mt-2 text-[#4A7C7A]">
-                          View Nonna →
+                        <p className="font-['Inter'] font-semibold text-sm mt-2 text-[#4A7C7A] hover:underline">
+                          View Profile →
                         </p>
                       </button>
                     </div>
