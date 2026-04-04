@@ -643,9 +643,6 @@ export default function GoogleContinentCountryMap({
             bounds.toJSON(),
           );
 
-          // ✅ FIX: Add small delay before fitBounds to ensure layer is ready
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
           map.fitBounds(bounds, {
             top: 100,
             bottom: 80,
@@ -752,8 +749,6 @@ export default function GoogleContinentCountryMap({
       // (tweak these per taste)
       const minZoom = 3;
 
-      // fit + clamp zoom after idle
-      await new Promise((r) => setTimeout(r, 80));
       await fitBoundsWithMinZoom(map, padded, opts, minZoom);
 
       return true;
@@ -944,9 +939,6 @@ export default function GoogleContinentCountryMap({
               // Prevent zoom listener from interfering
               ignoreZoomChangeRef.current = true;
 
-              // IMPROVED: Zoom to the clicked state - wait a tiny bit for state updates
-              await new Promise((resolve) => setTimeout(resolve, 150));
-
               const zoomSuccess = await zoomToState(
                 map,
                 stateLayer,
@@ -960,11 +952,10 @@ export default function GoogleContinentCountryMap({
                 console.warn(`Failed to zoom to state: ${stateName}`);
               }
 
-              // Re-enable zoom listener and end transition after zoom completes
-              setTimeout(() => {
+              google.maps.event.addListenerOnce(map, "idle", () => {
                 ignoreZoomChangeRef.current = false;
                 setIsTransitioning(false);
-              }, 1000);
+              });
 
               // Open panel for this state
               setPanel({
@@ -1023,9 +1014,6 @@ export default function GoogleContinentCountryMap({
         // If a target state was specified, zoom to it now
         if (targetStateName) {
           console.log(`🎯 Zooming to target state: ${targetStateName}`);
-
-          // Wait a tiny bit for the layer to fully render
-          await new Promise((resolve) => setTimeout(resolve, 100));
 
           // Find state data for coordinates
           const currentStateData = stateDataRef.current;
@@ -1164,15 +1152,12 @@ export default function GoogleContinentCountryMap({
               console.log(
                 `🔍 Zooming to country ${countryName} with panel padding`,
               );
-              // Short delay to ensure panel state is processed
-              setTimeout(() => {
-                mapRef.current?.fitBounds(countryBounds, {
-                  top: 100,
-                  bottom: 80,
-                  left: 40,
-                  right: 500, // Padding for open panel
-                });
-              }, 100);
+              mapRef.current?.fitBounds(countryBounds, {
+                top: 100,
+                bottom: 80,
+                left: 40,
+                right: 500, // Padding for open panel
+              });
             }
           }
         };
@@ -1242,21 +1227,48 @@ export default function GoogleContinentCountryMap({
         setDrill("country");
         dataLayerRef.current?.revertStyle();
 
-        // Load state boundaries GeoJSON
-        await loadStateBoundaries(map, countryCode, countryName);
+        // Highlight the clicked country's GeoJSON boundary
+        const dataLayer = dataLayerRef.current;
+        if (dataLayer) {
+          dataLayer.forEach((feature) => {
+            const iso2 =
+              (feature.getProperty("ISO_A2") as string | undefined) ?? "";
+            if (iso2 === countryCode) {
+              dataLayer.overrideStyle(feature, {
+                fillColor: MARKER_COLOR,
+                fillOpacity: 0.3,
+                strokeColor: MARKER_COLOR,
+                strokeWeight: 4,
+                strokeOpacity: 1.0,
+                zIndex: 1000,
+              });
+            }
+          });
+        }
 
-        // Fetch state data for the country
-        try {
-          const data = await fetchStateData(countryCode, countryName);
+        // Open panel immediately with country name (before async fetch)
+        setPanel({
+          open: true,
+          region: countryCode,
+          regionDisplayName: countryName,
+          scope: "country",
+          nonnas: [],
+          initialTab: "nonnas",
+        });
 
-          // Aggregate all nonnas for the country level view
-          const allNonnas = data?.states.flatMap((s) => s.nonnas) || [];
+        // Load state boundaries and fetch state data in parallel
+        const [, data] = await Promise.all([
+          loadStateBoundaries(map, countryCode, countryName),
+          fetchStateData(countryCode, countryName).catch((error) => {
+            console.error("Failed to fetch state data for", countryName, error);
+            return null;
+          }),
+        ]);
 
-          // Create markers immediately with the fresh data
-          if (data && geojsonLoaded === countryCode) {
-            console.log(
-              `✓ Creating markers with ${data.states.length} states immediately after fetch`,
-            );
+        if (data) {
+          const allNonnas = data.states.flatMap((s) => s.nonnas) || [];
+
+          if (geojsonLoaded === countryCode) {
             createStateMarkers(
               map,
               { code: countryCode, name: countryName },
@@ -1272,27 +1284,15 @@ export default function GoogleContinentCountryMap({
             nonnas: allNonnas,
             initialTab: "nonnas",
           });
-        } catch (error) {
-          console.error("Failed to fetch state data for", countryName, error);
-
-          // Still open panel even if state data fails
-          setPanel({
-            open: true,
-            region: countryCode,
-            regionDisplayName: countryName,
-            scope: "country",
-            nonnas: [],
-            initialTab: "nonnas",
-          });
         }
 
         // Find the country bounds from the data layer and zoom to it
-        const dataLayer = dataLayerRef.current;
-        if (dataLayer) {
+        const zoomDataLayer = dataLayerRef.current;
+        if (zoomDataLayer) {
           const countryBounds = new google.maps.LatLngBounds();
           let found = false;
 
-          dataLayer.forEach((feature) => {
+          zoomDataLayer.forEach((feature) => {
             const iso2 =
               (feature.getProperty("ISO_A2") as string | undefined) ?? "";
             if (iso2 === countryCode) {
@@ -1304,52 +1304,34 @@ export default function GoogleContinentCountryMap({
           });
 
           if (found) {
-            // Ignore zoom changes during this transition
             ignoreZoomChangeRef.current = true;
 
-            // Clear any pending zoom timeout
             if (pendingZoomTimeoutRef.current) {
               clearTimeout(pendingZoomTimeoutRef.current);
+              pendingZoomTimeoutRef.current = null;
             }
 
-            pendingZoomTimeoutRef.current = setTimeout(() => {
-              // Check if we're still in country view (user might have clicked state already)
-              if (drillRef.current !== "country") {
-                console.log(
-                  "Skipping country fitBounds - drill changed to",
-                  drillRef.current,
-                );
-                return;
-              }
+            if (drillRef.current !== "country") return;
 
-              map.fitBounds(countryBounds, {
-                top: 100,
-                bottom: 80,
-                left: 40,
-                right: 500, // Add padding for discussion panel on the right
-              });
+            map.fitBounds(countryBounds, {
+              top: 100,
+              bottom: 80,
+              left: 40,
+              right: 500,
+            });
 
-              // Re-enable zoom listener and end transition after completes
-              setTimeout(() => {
-                ignoreZoomChangeRef.current = false;
-                setIsTransitioning(false);
-              }, 1000);
-            }, 50);
+            // Use map idle event to know when zoom animation is done
+            google.maps.event.addListenerOnce(map, "idle", () => {
+              ignoreZoomChangeRef.current = false;
+              setIsTransitioning(false);
+            });
           } else {
-            // Fallback: zoom to marker position
             map.setCenter({ lat: country.lat, lng: country.lng });
             map.setZoom(6);
-
-            // End transition after a short delay
-            setTimeout(() => {
-              setIsTransitioning(false);
-            }, 500);
+            setIsTransitioning(false);
           }
         } else {
-          // No data layer, end transition immediately
-          setTimeout(() => {
-            setIsTransitioning(false);
-          }, 500);
+          setIsTransitioning(false);
         }
       }
     },
@@ -1404,9 +1386,6 @@ export default function GoogleContinentCountryMap({
         if (stateLayer) {
           console.log(`Using state layer for zoom`);
 
-          // ✅ FIX: Longer delay for first-time state clicks to ensure layer is ready
-          await new Promise((resolve) => setTimeout(resolve, 150));
-
           const zoomSuccess = await zoomToState(map, stateLayer, stateName, {
             lat: state.lat,
             lng: state.lng,
@@ -1418,17 +1397,15 @@ export default function GoogleContinentCountryMap({
             map.setZoom(9);
           }
         } else {
-          // Fallback if no state layer
           console.log(`No state layer, using fallback zoom`);
           map.setCenter({ lat: state.lat, lng: state.lng });
           map.setZoom(9);
         }
 
-        // Re-enable zoom listener and end transition after zoom completes
-        setTimeout(() => {
+        google.maps.event.addListenerOnce(map, "idle", () => {
           ignoreZoomChangeRef.current = false;
           setIsTransitioning(false);
-        }, 1000);
+        });
 
         // Update panel
         setPanel({
@@ -2145,18 +2122,16 @@ export default function GoogleContinentCountryMap({
                 }
 
                 ignoreZoomChangeRef.current = true;
-                setTimeout(() => {
-                  map.fitBounds(countryBounds, {
-                    top: 100,
-                    bottom: 80,
-                    left: 40,
-                    right: 500,
-                  });
-                  setTimeout(() => {
-                    ignoreZoomChangeRef.current = false;
-                    setIsTransitioning(false);
-                  }, 1000);
-                }, 50);
+                map.fitBounds(countryBounds, {
+                  top: 100,
+                  bottom: 80,
+                  left: 40,
+                  right: 500,
+                });
+                google.maps.event.addListenerOnce(map, "idle", () => {
+                  ignoreZoomChangeRef.current = false;
+                  setIsTransitioning(false);
+                });
 
                 // Update panel to country level
                 const allNonnas = stateData.flatMap((s) => s.nonnas);
@@ -2190,39 +2165,38 @@ export default function GoogleContinentCountryMap({
               setDrill("country");
               dataLayerRef.current?.revertStyle();
 
-              // Load state boundaries GeoJSON
-              await loadStateBoundaries(map, iso2, countryName);
+              // Open panel immediately
+              setPanel({
+                open: true,
+                region: iso2,
+                regionDisplayName: countryName,
+                scope: "country",
+                nonnas: [],
+                initialTab: "nonnas",
+              });
 
-              // Fetch state data for the country
-              try {
-                const data = await fetchStateData(iso2, countryName);
+              // Load boundaries and fetch data in parallel
+              const [, switchData] = await Promise.all([
+                loadStateBoundaries(map, iso2, countryName),
+                fetchStateData(iso2, countryName).catch((error) => {
+                  console.error(
+                    "Failed to fetch state data for",
+                    countryName,
+                    error,
+                  );
+                  return null;
+                }),
+              ]);
 
-                // Aggregate all nonnas for the country level view
-                const allNonnas = data?.states.flatMap((s) => s.nonnas) || [];
-
-                // Open panel for country level discussion immediately
-                setPanel({
-                  open: true,
-                  region: iso2, // Use country code or name as region identifier for threads
-                  regionDisplayName: countryName,
-                  scope: "country",
-                  nonnas: allNonnas,
-                  initialTab: "nonnas",
-                });
-              } catch (error) {
-                console.error(
-                  "Failed to fetch state data for",
-                  countryName,
-                  error,
-                );
-
-                // Still open panel even if state data fails - show country-level discussion
+              if (switchData) {
+                const allNonnas =
+                  switchData.states.flatMap((s) => s.nonnas) || [];
                 setPanel({
                   open: true,
                   region: iso2,
                   regionDisplayName: countryName,
                   scope: "country",
-                  nonnas: [], // Empty nonnas array if data fetch fails
+                  nonnas: allNonnas,
                   initialTab: "nonnas",
                 });
               }
@@ -2251,21 +2225,17 @@ export default function GoogleContinentCountryMap({
 
               ignoreZoomChangeRef.current = true;
 
-              // Smooth zoom and center animation
-              setTimeout(() => {
-                map.fitBounds(countryBounds, {
-                  top: 80,
-                  bottom: 80,
-                  left: 60,
-                  right: panel.open ? 520 : 100,
-                });
+              map.fitBounds(countryBounds, {
+                top: 80,
+                bottom: 80,
+                left: 60,
+                right: panel.open ? 520 : 100,
+              });
 
-                // Re-enable zoom listener after transition
-                setTimeout(() => {
-                  ignoreZoomChangeRef.current = false;
-                  setIsTransitioning(false);
-                }, 1000);
-              }, 50);
+              google.maps.event.addListenerOnce(map, "idle", () => {
+                ignoreZoomChangeRef.current = false;
+                setIsTransitioning(false);
+              });
             },
           ),
         );
@@ -2356,10 +2326,10 @@ export default function GoogleContinentCountryMap({
             }
           }
 
-          // Mark map as initialized after initial zoom
-          setTimeout(() => {
+          // Mark map as initialized after idle
+          google.maps.event.addListenerOnce(map, "idle", () => {
             mapInitializedRef.current = true;
-          }, 500);
+          });
         } else if (hasInitialCountry) {
           console.log(`🗺️ Initializing with country view: ${urlCountryName}`);
 
@@ -2377,41 +2347,26 @@ export default function GoogleContinentCountryMap({
           });
 
           if (countryBounds) {
-            setTimeout(() => {
-              map.fitBounds(countryBounds!, {
-                top: 100,
-                bottom: 80,
-                left: 40,
-                right: 40,
-              });
-
-              // Mark map as initialized after bounds are fitted (allow zoom listener to work)
-              setTimeout(() => {
-                mapInitializedRef.current = true;
-              }, 500);
-            }, 100);
-          } else {
-            // Country bounds not found, still mark as initialized
-            setTimeout(() => {
-              mapInitializedRef.current = true;
-            }, 500);
+            map.fitBounds(countryBounds!, {
+              top: 100,
+              bottom: 80,
+              left: 40,
+              right: 40,
+            });
           }
+
+          google.maps.event.addListenerOnce(map, "idle", () => {
+            mapInitializedRef.current = true;
+          });
         } else {
           // Fit to continent bounds with padding
           if (hasFeatures) {
-            // ✅ Use async zoom helper
             await zoomToContinent(map, continentBounds);
-
-            // Mark map as initialized after bounds are fitted (allow zoom listener to work)
-            setTimeout(() => {
-              mapInitializedRef.current = true;
-            }, 500);
-          } else {
-            // No features found, but still mark as initialized
-            setTimeout(() => {
-              mapInitializedRef.current = true;
-            }, 500);
           }
+
+          google.maps.event.addListenerOnce(map, "idle", () => {
+            mapInitializedRef.current = true;
+          });
         }
 
         setMapReady(true);
@@ -2706,31 +2661,23 @@ export default function GoogleContinentCountryMap({
         });
 
         if (found) {
-          setTimeout(() => {
-            map.fitBounds(countryBounds, {
-              top: 100,
-              bottom: 80,
-              left: 40,
-              right: 40,
-            });
-
-            // End transition after bounds are fitted
-            setTimeout(() => {
-              ignoreZoomChangeRef.current = false;
-              setIsTransitioning(false);
-            }, 800);
-          }, 50);
+          map.fitBounds(countryBounds, {
+            top: 100,
+            bottom: 80,
+            left: 40,
+            right: 40,
+          });
+          google.maps.event.addListenerOnce(map, "idle", () => {
+            ignoreZoomChangeRef.current = false;
+            setIsTransitioning(false);
+          });
         } else {
-          // Fallback
           map.setZoom(5);
         }
 
-        // Recreate state markers after clearing
-        setTimeout(() => {
-          if (stateData.length > 0) {
-            createStateMarkers(map, selectedCountry);
-          }
-        }, 100);
+        if (stateData.length > 0) {
+          createStateMarkers(map, selectedCountry);
+        }
 
         // Ensure panel is open for country
         const allNonnas = stateData.flatMap((s) => s.nonnas);
@@ -2752,6 +2699,7 @@ export default function GoogleContinentCountryMap({
       // Clear all state markers and state boundary layer
       clearMarkers();
       clearStateLayer();
+      dataLayerRef.current?.revertStyle();
 
       setDrill("continent");
       setSelectedCountry(null);
@@ -2783,18 +2731,15 @@ export default function GoogleContinentCountryMap({
           right: 0,
         });
 
-        // Re-enable zoom listener after transition completes
-        setTimeout(() => {
+        google.maps.event.addListenerOnce(map, "idle", () => {
           ignoreZoomChangeRef.current = false;
           setIsTransitioning(false);
-        }, 1000);
+        });
       }
 
       // Recreate country markers after clearing state markers
       if (map && countryData.length > 0) {
-        setTimeout(() => {
-          createCountryMarkers(map);
-        }, 100); // Small delay to ensure state is updated
+        createCountryMarkers(map);
       }
       return;
     }
@@ -2956,42 +2901,43 @@ export default function GoogleContinentCountryMap({
       setDrill("country");
       dataLayerRef.current?.revertStyle();
 
-      try {
-        // 1. Load state boundaries (visual)
-        await loadStateBoundaries(map, countryCode, countryName);
+      // Open panel immediately with country name
+      setPanel({
+        open: true,
+        region: countryCode,
+        regionDisplayName: countryName,
+        scope: "country",
+        nonnas: [],
+        initialTab: "discussion",
+      });
 
-        // 2. Fetch data
-        const data = await fetchStateData(countryCode, countryName);
+      // Load boundaries and fetch data in parallel
+      const [, data] = await Promise.all([
+        loadStateBoundaries(map, countryCode, countryName),
+        fetchStateData(countryCode, countryName).catch((err) => {
+          console.error("Error in dropdown selection:", err);
+          return null;
+        }),
+      ]);
 
-        // 3. Open Panel with Discussion Tab
-        const allNonnas = data?.states.flatMap((s) => s.nonnas) || [];
+      if (data) {
+        const allNonnas = data.states.flatMap((s) => s.nonnas) || [];
         setPanel({
           open: true,
           region: countryCode,
           regionDisplayName: countryName,
           scope: "country",
           nonnas: allNonnas,
-          initialTab: "discussion", // ✅ User requested discussion tab
+          initialTab: "discussion",
         });
 
-        // 4. Create markers if needed
-        if (data && geojsonLoaded === countryCode) {
+        if (geojsonLoaded === countryCode) {
           createStateMarkers(
             map,
             { code: countryCode, name: countryName },
             data.states,
           );
         }
-      } catch (err) {
-        console.error("Error in dropdown selection:", err);
-        setPanel({
-          open: true,
-          region: countryCode,
-          regionDisplayName: countryName,
-          scope: "country",
-          nonnas: [],
-          initialTab: "discussion",
-        });
       }
 
       // Zoom logic
@@ -3018,10 +2964,10 @@ export default function GoogleContinentCountryMap({
             left: 40,
             right: 500,
           });
-          setTimeout(() => {
+          google.maps.event.addListenerOnce(map, "idle", () => {
             ignoreZoomChangeRef.current = false;
             setIsTransitioning(false);
-          }, 1000);
+          });
         } else {
           setIsTransitioning(false);
         }
@@ -3058,17 +3004,14 @@ export default function GoogleContinentCountryMap({
       const map = mapRef.current;
       if (map && stateLayer) {
         zoomToState(map, stateLayer, stateName).then(() => {
-          setTimeout(() => {
+          google.maps.event.addListenerOnce(map, "idle", () => {
             ignoreZoomChangeRef.current = false;
             setIsTransitioning(false);
-          }, 1000);
+          });
         });
       } else {
-        // Fallback timeout if no zoom happens
-        setTimeout(() => {
-          ignoreZoomChangeRef.current = false;
-          setIsTransitioning(false);
-        }, 1000);
+        ignoreZoomChangeRef.current = false;
+        setIsTransitioning(false);
       }
 
       const matchedState = stateData.find(
