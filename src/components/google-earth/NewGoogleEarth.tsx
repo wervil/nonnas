@@ -3281,8 +3281,8 @@ export default function Earth3DPage() {
         </svg>
       </div>
 
-      {/* Street View button — pegman icon */}
-      {mapReady && !streetViewActive && (
+      {/* Street View button — pegman icon, city level and below */}
+      {mapReady && !streetViewActive && (currentLevel === "CITY" || currentLevel === "NONNA") && (
         <button
           onClick={handleStreetViewButtonClick}
           title={streetViewPickMode ? "Cancel Street View" : "Street View"}
