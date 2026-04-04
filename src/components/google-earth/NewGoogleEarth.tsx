@@ -1853,14 +1853,18 @@ export default function Earth3DPage() {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
 
         try {
+          // Skip boundary drawing for continents — composite polygons look bad
+          if (featureType === "continent") {
+            console.log("[Earth3D] Skipping boundary for continent:", name);
+            return;
+          }
+
           const params = new URLSearchParams({
             polygon_geojson: "1",
             format: "json",
             limit: "1",
           });
           if (featureType === "continent") {
-            // Nominatim doesn't have a reliable continent featuretype, but a plain q search
-            // often returns a polygon for well-known continents.
             params.set("q", name);
           } else if (featureType === "country") {
             params.set("q", name);
@@ -1977,8 +1981,8 @@ export default function Earth3DPage() {
             const poly = new Polygon3DElement({
               outerCoordinates,
               fillColor: TEAL.fill,
-              strokeColor: isContinent ? "rgba(0,0,0,0)" : TEAL.stroke,
-              strokeWidth: isContinent ? 0 : 2.5,
+              strokeColor: rings.length > 1 ? "rgba(0,0,0,0)" : TEAL.stroke,
+              strokeWidth: rings.length > 1 ? 0 : 2.5,
               altitudeMode: "CLAMP_TO_GROUND",
             });
             map3d.append(poly);
