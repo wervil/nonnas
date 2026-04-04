@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
           count: sql<number>`count(*)`,
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
-          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[2]))`,
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add sample recipe ID
         })
         .from(recipes)
@@ -188,7 +188,7 @@ export async function GET(req: NextRequest) {
           count: sql<number>`count(*)`,
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
-          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[2]))`,
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
@@ -225,7 +225,7 @@ export async function GET(req: NextRequest) {
           count: sql<number>`count(*)`,
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
-          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[2]))`,
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
@@ -265,7 +265,7 @@ export async function GET(req: NextRequest) {
           count: sql<number>`count(*)`,
           repName: sql<string>`MAX(${recipes.firstName} || ' ' || ${recipes.lastName})`,
           repTitle: sql<string>`MAX(${recipes.grandmotherTitle})`,
-          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[1]))`,
+          repPhoto: sql<string>`MAX(coalesce(${recipes.avatar_image}, ${recipes.photo}[2]))`,
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)

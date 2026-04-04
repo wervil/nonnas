@@ -18,7 +18,7 @@ const ZOOM_RANGES = {
   COUNTRY: 3000000,
   STATE: 700000,
   CITY: 8000,
-  NONNA: 1000,
+  NONNA: 3000,
 };
 type ZoomLevel = "EARTH" | "CONTINENT" | "COUNTRY" | "STATE" | "CITY" | "NONNA";
 const ZOOM_LEVEL_META: Record<
@@ -923,6 +923,174 @@ export default function Earth3DPage() {
     }
   }, [currentLevel, applyClusterLevel, fetchIndividualNonnas]);
 
+  // Handle cluster clicks - zoom to next level and open comment panel for single nonnas
+  const handleClusterClick = useCallback(async (
+    nonna: GlobeNonna,
+    currentLevel: ZoomLevel
+  ) => {
+    console.log(`[Earth3D] handleClusterClick called for ${currentLevel}:`, nonna.representativeName, nonna.nonnaCount);
+
+    try {
+      // Determine the cluster level for API
+      let clusterLevel: "continent" | "country" | "state";
+      let clusterName: string;
+      let countryCode: string | undefined;
+
+      if (currentLevel === "CONTINENT") {
+        clusterLevel = "continent";
+        clusterName = nonna.countryName; // For continent, countryName contains the continent name
+      } else if (currentLevel === "COUNTRY") {
+        clusterLevel = "country";
+        clusterName = nonna.countryName;
+      } else if (currentLevel === "STATE") {
+        clusterLevel = "state";
+        clusterName = nonna.countryName; // For state, countryName contains the region name
+        countryCode = nonna.countryCode;
+      } else {
+        console.error("[Earth3D] Invalid cluster level for click handling:", currentLevel);
+        return;
+      }
+
+      // If only one nonna, fetch its actual data and zoom directly to it
+      if (nonna.nonnaCount === 1 && nonna.recipeId) {
+        console.log("[Earth3D] Single nonna in cluster - fetching actual data and zooming directly");
+
+        // Fetch the actual nonna data to get precise coordinates
+        const response = await fetch(
+          `/api/nonnas/closest?level=${clusterLevel}&name=${encodeURIComponent(clusterName)}${countryCode ? `&countryCode=${countryCode}` : ''}`
+        );
+
+        if (!response.ok) {
+          console.error("[Earth3D] Failed to fetch single nonna data");
+          return;
+        }
+
+        const data = await response.json();
+        const actualNonna = data.closestNonna;
+
+        if (!actualNonna) {
+          console.log("[Earth3D] No nonna data found");
+          return;
+        }
+
+        console.log("[Earth3D] Found single nonna:", actualNonna.representativeName);
+
+        // Close discussion panel if open
+        setPanel(prev => ({ ...prev, open: false }));
+
+        // Open comment section
+        setCommentSection({
+          open: true,
+          recipeId: actualNonna.recipeId,
+          nonnaName: actualNonna.representativeName,
+          titleName: actualNonna.representativeTitle,
+        });
+
+        // Zoom to NONNA level using actual coordinates
+        const map3d = map3dRef.current;
+        if (map3d) {
+          const nextLevel = "NONNA";
+
+          // Update level immediately
+          setLevel(nextLevel);
+          currentLevelRef.current = nextLevel;
+
+          // Set flight state
+          flightStateRef.current = {
+            active: true,
+            targetRange: ZOOM_RANGES[nextLevel],
+            targetLevel: nextLevel,
+            startTime: Date.now(),
+            lastRanges: [],
+          };
+
+          map3d.flyCameraTo({
+            endCamera: {
+              center: { lat: actualNonna.lat, lng: actualNonna.lng, altitude: 0 },
+              range: ZOOM_RANGES[nextLevel],
+              tilt: 65,
+              heading: map3d.heading,
+            },
+            durationMillis: 1500,
+          });
+
+          setTimeout(() => {
+            flightStateRef.current.active = false;
+          }, 1700);
+        }
+      } else {
+        // Multiple nonnas - get the closest one and zoom to next level
+        console.log("[Earth3D] Multiple nonnas in cluster - finding closest and zooming to next level");
+
+        const response = await fetch(
+          `/api/nonnas/closest?level=${clusterLevel}&name=${encodeURIComponent(clusterName)}${countryCode ? `&countryCode=${countryCode}` : ''}`
+        );
+
+        if (!response.ok) {
+          console.error("[Earth3D] Failed to fetch closest nonna");
+          return;
+        }
+
+        const data = await response.json();
+        const closestNonna = data.closestNonna;
+
+        if (!closestNonna) {
+          console.log("[Earth3D] No closest nonna found");
+          return;
+        }
+
+        console.log("[Earth3D] Found closest nonna:", closestNonna.representativeName);
+
+        // Determine next level to zoom to
+        let nextLevel: ZoomLevel;
+        if (currentLevel === "CONTINENT") {
+          nextLevel = "COUNTRY";
+        } else if (currentLevel === "COUNTRY") {
+          nextLevel = "STATE";
+        } else if (currentLevel === "STATE") {
+          nextLevel = "CITY";
+        } else {
+          nextLevel = "CITY"; // fallback
+        }
+
+        // Update level immediately
+        setLevel(nextLevel);
+        currentLevelRef.current = nextLevel;
+
+        // Set flight state
+        flightStateRef.current = {
+          active: true,
+          targetRange: ZOOM_RANGES[nextLevel],
+          targetLevel: nextLevel,
+          startTime: Date.now(),
+          lastRanges: [],
+        };
+
+        // Zoom to the closest nonna's location
+        const map3d = map3dRef.current;
+        if (map3d) {
+          map3d.flyCameraTo({
+            endCamera: {
+              center: { lat: closestNonna.lat, lng: closestNonna.lng, altitude: 0 },
+              range: ZOOM_RANGES[nextLevel],
+              tilt: (nextLevel === "CITY") ? 65 : 0,
+              heading: map3d.heading,
+            },
+            durationMillis: 1500,
+          });
+
+          setTimeout(() => {
+            flightStateRef.current.active = false;
+          }, 1700);
+        }
+
+        console.log("[Earth3D] Zoomed to next level without opening comment panel");
+      }
+    } catch (error) {
+      console.error("[Earth3D] Error handling cluster click:", error);
+    }
+  }, [setLevel, setPanel, setCommentSection]);
+
   // 3D tilt on deep zoom
   useEffect(() => {
     if (!mapReady || !map3dRef.current || flightStateRef.current.active) return;
@@ -1336,7 +1504,7 @@ export default function Earth3DPage() {
             mode: markerMode,
           });
           const marker = new Marker3DInteractiveElement({
-            position: { lat: nonna.lat, lng: nonna.lng, altitude: 50 },
+            position: { lat: nonna.lat, lng: nonna.lng, altitude: 0 },
             altitudeMode: "RELATIVE_TO_GROUND",
           } as any);
           marker.setAttribute('data-marker', 'nonna');
@@ -1408,7 +1576,6 @@ export default function Earth3DPage() {
 
             // Handle clicks on single-nonna markers at any level
             if (nonna.nonnaCount === 1 && nonna.recipeId) {
-              console.log("[Earth3D] Handling marker click for individual nonna:", nonna.representativeName, "at level:", currentLevelRef.current);
 
               e.stopPropagation();
               e.preventDefault();
@@ -1509,7 +1676,7 @@ export default function Earth3DPage() {
         }
       }
     };
-  }, [nonnaData, mapReady, commentSection, panel, setPanel, setCommentSection, setLevel]);
+  }, [nonnaData, mapReady, commentSection, panel, setPanel, setCommentSection, setLevel, handleClusterClick]);
   // Zoom button handlers
   const handleZoomIn = useCallback(() => {
     if (!map3dRef.current) return;
