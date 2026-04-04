@@ -1300,12 +1300,9 @@ export default function Earth3DPage() {
             console.log("[Earth3D] Nonna data:", nonna.representativeName);
             console.log("[Earth3D] Nonna count:", nonna.nonnaCount);
 
-            // Check current level - only handle marker clicks at CITY level
-            const isCityLevel = currentLevelRef.current === "CITY";
-
-            if (isCityLevel && nonna.nonnaCount === 1 && nonna.recipeId) {
-              // At CITY level, handle the marker click normally
-              console.log("[Earth3D] Handling marker click at CITY level for individual nonna:", nonna.representativeName);
+            // Handle clicks on single-nonna markers at any level
+            if (nonna.nonnaCount === 1 && nonna.recipeId) {
+              console.log("[Earth3D] Handling marker click for individual nonna:", nonna.representativeName, "at level:", currentLevelRef.current);
 
               e.stopPropagation();
               e.preventDefault();
