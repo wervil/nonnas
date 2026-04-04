@@ -707,11 +707,11 @@ export default function Earth3DPage() {
       map3d.flyCameraTo({
         endCamera: {
           center: { lat, lng, altitude: 0 },
-          range: ZOOM_RANGES.NONNA,
-          tilt: 65,
+          range: 50,
+          tilt: 75,
           heading: map3d.heading,
         },
-        durationMillis: 2000,
+        durationMillis: 2500,
       });
 
       // After flight completes, open Street View
@@ -736,7 +736,7 @@ export default function Earth3DPage() {
           streetViewPanoramaRef.current = null;
           setStreetViewActive(false);
         });
-      }, 2200);
+      }, 2700);
 
     } catch {
       setStreetViewToast("No Street View data is available here.");
@@ -2959,6 +2959,12 @@ export default function Earth3DPage() {
             type="text"
             value={searchQuery}
             onChange={handleSearchInputChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && searchQuery.trim()) {
+                e.preventDefault();
+                performSearch(searchQuery);
+              }
+            }}
             placeholder="Search for a city, country, or region..."
             style={{
               width: "100%",
@@ -2966,7 +2972,7 @@ export default function Earth3DPage() {
               border: "none",
               outline: "none",
               background: "transparent",
-              fontSize: isMobile ? "16px" : "15px", // 16px prevents zoom on iOS
+              fontSize: isMobile ? "16px" : "15px",
               fontFamily: "ui-sans-serif, system-ui, sans-serif",
               color: "#1f2937",
               borderRadius: "16px",
