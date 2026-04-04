@@ -654,6 +654,26 @@ export default function Earth3DPage() {
     }
   }, [currentLevel, streetViewActive]);
 
+  // Keep discussion panel in sync when level changes (e.g. via scroll or nav pills)
+  useEffect(() => {
+    if (!panel.open) return;
+
+    const levelOrder: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
+    const scopeToLevel: Record<string, ZoomLevel> = {
+      country: "COUNTRY",
+      state: "STATE",
+      city: "CITY",
+    };
+    const panelLevel = scopeToLevel[panel.scope] || "COUNTRY";
+    const panelIdx = levelOrder.indexOf(panelLevel);
+    const currentIdx = levelOrder.indexOf(currentLevel);
+
+    // If user zoomed out past the panel's scope, close the panel
+    if (currentIdx < panelIdx) {
+      setPanel(prev => ({ ...prev, open: false }));
+    }
+  }, [currentLevel, panel.open, panel.scope]);
+
   const [streetViewToast, setStreetViewToast] = useState<string | null>(null);
   const streetViewPickModeRef = useRef(false);
 
@@ -2399,26 +2419,14 @@ export default function Earth3DPage() {
               nextLevel = "STATE";
             }
           } else if (level === "CITY") {
-            // At CITY level, implement two-step interaction:
-            // 1. First click: center on city area, stay at CITY level
-            // 2. Second click (same city): zoom to NONNA level
+            // At CITY level, stay at CITY — no auto-zoom to NONNA
             const cityComponent = first.address_components?.find((c: any) =>
               c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
             );
             const cityName = cityComponent?.long_name || null;
-            const isSameCity = cityName === activeHighlightName;
-
-            if (isSameCity) {
-              // Second click on same city - zoom to NONNA level
-              targetName = cityName;
-              featureType = "city";
-              nextLevel = "NONNA";
-            } else {
-              // First click on city - center and highlight, but stay at CITY level
-              targetName = cityName;
-              featureType = "city";
-              nextLevel = "CITY"; // Stay at same level
-            }
+            targetName = cityName;
+            featureType = "city";
+            nextLevel = "CITY";
           } else {
             // At NONNA level, clicking stays at current level
             const cityComponent = first.address_components?.find((c: any) =>
