@@ -152,10 +152,11 @@ export async function GET(req: NextRequest) {
           useCoords.lat,
           useCoords.lng,
         );
+        const stateCoords = count === 1 && dbCoords ? useCoords : regionCoords;
         stateClusters.push({
           id: `region-${i}`,
-          lat: regionCoords.lat,
-          lng: regionCoords.lng,
+          lat: stateCoords.lat,
+          lng: stateCoords.lng,
           countryCode: countryInfo.code,
           countryName: regionName,
           nonnaCount: count,
