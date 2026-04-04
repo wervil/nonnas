@@ -1853,14 +1853,18 @@ export default function Earth3DPage() {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
 
         try {
+          // Skip boundary drawing for continents — composite polygons look bad
+          if (featureType === "continent") {
+            console.log("[Earth3D] Skipping boundary for continent:", name);
+            return;
+          }
+
           const params = new URLSearchParams({
             polygon_geojson: "1",
             format: "json",
             limit: "1",
           });
           if (featureType === "continent") {
-            // Nominatim doesn't have a reliable continent featuretype, but a plain q search
-            // often returns a polygon for well-known continents.
             params.set("q", name);
           } else if (featureType === "country") {
             params.set("q", name);
@@ -1967,6 +1971,7 @@ export default function Earth3DPage() {
 
           console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
           clearPolygonOverlays();
+          const isContinent = featureType === "continent";
           for (const ring of rings) {
             const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
               lat,
@@ -1976,8 +1981,8 @@ export default function Earth3DPage() {
             const poly = new Polygon3DElement({
               outerCoordinates,
               fillColor: TEAL.fill,
-              strokeColor: TEAL.stroke,
-              strokeWidth: 2.5,
+              strokeColor: rings.length > 1 ? "rgba(0,0,0,0)" : TEAL.stroke,
+              strokeWidth: rings.length > 1 ? 0 : 2.5,
               altitudeMode: "CLAMP_TO_GROUND",
             });
             map3d.append(poly);
@@ -2984,17 +2989,52 @@ export default function Earth3DPage() {
             const approxSize = Math.max(latDiff, lngDiff) * 111000; // Convert to meters
             console.log('[Earth3D] Calculated viewport size:', approxSize, 'meters');
 
-            if (approxSize < 10000) targetRange = ZOOM_RANGES.NONNA; // Very small area (< 10km)
-            else if (approxSize < 50000) targetRange = ZOOM_RANGES.CITY; // City size (< 50km)
-            else if (approxSize < 500000) targetRange = ZOOM_RANGES.STATE; // Region size (< 500km)
-            else targetRange = ZOOM_RANGES.COUNTRY; // Large area (> 500km)
+            // Use place types to override viewport-based range for large areas
+            const types: string[] = place.types || [];
+            if (types.includes('continent')) {
+              targetRange = ZOOM_RANGES.CONTINENT;
+            } else if (types.includes('country')) {
+              targetRange = ZOOM_RANGES.COUNTRY;
+            } else if (types.includes('administrative_area_level_1')) {
+              targetRange = ZOOM_RANGES.STATE;
+            } else if (types.includes('locality') || types.includes('administrative_area_level_2')) {
+              targetRange = ZOOM_RANGES.CITY;
+            } else if (types.includes('airport') || types.includes('establishment')) {
+              targetRange = ZOOM_RANGES.NONNA;
+            } else {
+              // Fall back to viewport size
+              if (approxSize < 10000) targetRange = ZOOM_RANGES.NONNA;
+              else if (approxSize < 50000) targetRange = ZOOM_RANGES.CITY;
+              else if (approxSize < 500000) targetRange = ZOOM_RANGES.STATE;
+              else if (approxSize < 5000000) targetRange = ZOOM_RANGES.COUNTRY;
+              else targetRange = ZOOM_RANGES.CONTINENT;
+            }
           } else if (place.types?.includes('airport')) {
-            targetRange = ZOOM_RANGES.NONNA; // Very close zoom for airports
+            targetRange = ZOOM_RANGES.NONNA;
           } else if (place.types?.includes('establishment')) {
-            targetRange = ZOOM_RANGES.NONNA; // Close zoom for specific places
+            targetRange = ZOOM_RANGES.NONNA;
           }
 
           console.log('[Earth3D] Using target range:', targetRange, 'meters');
+
+          // Determine zoom level from range
+          let targetLevel: ZoomLevel = "CITY";
+          if (targetRange >= ZOOM_RANGES.EARTH) targetLevel = "EARTH";
+          else if (targetRange >= ZOOM_RANGES.CONTINENT) targetLevel = "CONTINENT";
+          else if (targetRange >= ZOOM_RANGES.COUNTRY) targetLevel = "COUNTRY";
+          else if (targetRange >= ZOOM_RANGES.STATE) targetLevel = "STATE";
+          else if (targetRange >= ZOOM_RANGES.CITY) targetLevel = "CITY";
+          else targetLevel = "NONNA";
+
+          flightStateRef.current = {
+            active: true,
+            targetRange,
+            targetLevel,
+            startTime: Date.now(),
+            lastRanges: [],
+          };
+          setLevel(targetLevel);
+          currentLevelRef.current = targetLevel;
 
           // Fly to the location
           map3dRef.current.flyCameraTo({
@@ -3002,16 +3042,43 @@ export default function Earth3DPage() {
               center: { lat: latLng.lat, lng: latLng.lng, altitude: 0 },
               range: targetRange,
               heading: 0,
-              tilt: 0,
+              tilt: targetLevel === "CITY" || targetLevel === "NONNA" ? 65 : 0,
             },
             durationMillis: 2000,
           });
 
-          // Update active place info
-          setActivePlaceName(result.main_text || result.description);
+          // Update active place info and highlight boundary
+          const searchName = result.main_text || result.description;
+          setActivePlaceName(searchName);
           if (place.address_components) {
             const info = parseAdminLevelsFromGeocodeResult(place);
             if (info.country) setActiveCountry(info.country);
+          }
+
+          // Highlight the searched region
+          if (fetchAndDrawBoundaryRef.current) {
+            const info = parseAdminLevelsFromGeocodeResult(place);
+            let featureType: "continent" | "country" | "state" | "city" = "country";
+            let highlightName = searchName;
+            let countryCode: string | null = info.countryCode || null;
+
+            if (targetLevel === "CONTINENT") {
+              const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
+              if (continent) {
+                featureType = "continent";
+                highlightName = continent;
+              }
+            } else if (targetLevel === "COUNTRY") {
+              featureType = "country";
+              highlightName = info.country || searchName;
+            } else if (targetLevel === "STATE") {
+              featureType = "state";
+              highlightName = info.state || searchName;
+            } else if (targetLevel === "CITY" || targetLevel === "NONNA") {
+              featureType = "city";
+            }
+
+            fetchAndDrawBoundaryRef.current(highlightName, featureType, countryCode);
           }
         }
       }
