@@ -1991,7 +1991,26 @@ export default function Earth3DPage() {
           console.error("[Earth3D] Boundary fetch/draw error for", name, ":", err);
         }
       };
-
+      const loadCountryGeoJson = async () => {
+        if (!geoJsonCacheRef.current) {
+          const res = await fetch("/geo/ne_admin0_countries.geojson");
+          geoJsonCacheRef.current = await res.json();
+        }
+        return geoJsonCacheRef.current;
+      };
+      const findCountryFeature = (fc: any, name: string, code?: string | null) => {
+        const lName = name.toLowerCase();
+        const lCode = (code || "").toLowerCase();
+        return fc.features.find((f: any) => {
+          const p = f.properties || {};
+          return (
+            (lCode && p.ISO_A2?.toLowerCase() === lCode) ||
+            p.ADMIN?.toLowerCase() === lName ||
+            p.NAME?.toLowerCase() === lName ||
+            p.NAME_LONG?.toLowerCase() === lName
+          );
+        });
+      };
       // Store fetchAndDrawBoundary in ref for zoom-out highlighting
       fetchAndDrawBoundaryRef.current = fetchAndDrawBoundary;
 
