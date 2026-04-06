@@ -1874,10 +1874,7 @@ export default function Earth3DPage() {
 
         try {
           // Skip boundary drawing for continents — composite polygons look bad
-          if (featureType === "continent") {
-            console.log("[Earth3D] Skipping boundary for continent:", name);
-            return;
-          }
+
 
           const params = new URLSearchParams({
             polygon_geojson: "1",
@@ -2001,8 +1998,8 @@ export default function Earth3DPage() {
             const poly = new Polygon3DElement({
               outerCoordinates,
               fillColor: TEAL.fill,
-              strokeColor: rings.length > 1 ? "rgba(0,0,0,0)" : TEAL.stroke,
-              strokeWidth: rings.length > 1 ? 0 : 2.5,
+              strokeColor: isContinent ? "rgba(0,0,0,0)" : TEAL.stroke,
+              strokeWidth: isContinent ? 0 : 2.5,
               altitudeMode: "CLAMP_TO_GROUND",
             });
             map3d.append(poly);
@@ -3385,8 +3382,8 @@ export default function Earth3DPage() {
         >
           {/* Pegman / person icon */}
           <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
-            <circle cx="12" cy="4" r="2.5"/>
-            <path d="M12 7c-1.5 0-2.7.8-3.4 2L6 13l1.8 1 2.2-3v9h2v-4h0v4h2v-9l2.2 3 1.8-1-2.6-4c-.7-1.2-1.9-2-3.4-2z"/>
+            <circle cx="12" cy="4" r="2.5" />
+            <path d="M12 7c-1.5 0-2.7.8-3.4 2L6 13l1.8 1 2.2-3v9h2v-4h0v4h2v-9l2.2 3 1.8-1-2.6-4c-.7-1.2-1.9-2-3.4-2z" />
           </svg>
         </button>
       )}
