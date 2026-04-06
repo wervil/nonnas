@@ -2055,7 +2055,6 @@ export default function Earth3DPage() {
           .filter((r) => r.length >= 4);
         if (!rings.length) return;
 
-        clearPolygonOverlays();
         for (const ring of rings) {
           const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
             lat,
@@ -2108,9 +2107,6 @@ export default function Earth3DPage() {
       ) => {
         console.log("[Earth3D] Drawing boundary for", name, featureType, countryCode);
 
-        // Skip continents and world — no boundary to draw
-        if (featureType === "continent") return;
-
         // Clear previous boundary immediately so old selection doesn't linger
         clearPolygonOverlays();
 
@@ -2121,7 +2117,31 @@ export default function Earth3DPage() {
         try {
           let geojson: any = null;
 
-          if (featureType === "country") {
+          if (featureType === "continent") {
+            // Draw all countries in the continent as a combined highlight
+            const { getCountriesByContinent } = await import("@/lib/countryData");
+            const continentCountries = getCountriesByContinent(name);
+            const fc = await loadCountryGeoJson();
+
+            // Ensure loader shows for at least 400ms
+            const elapsed = Date.now() - loadStart;
+            if (elapsed < 400) await new Promise((r) => setTimeout(r, 400 - elapsed));
+            setBoundaryLoadingRef.current(false);
+
+            let drawnCount = 0;
+            for (const c of continentCountries) {
+              const feature = findCountryFeature(fc, c.name, c.code);
+              if (feature?.geometry) {
+                extractAndDrawRings(feature.geometry, name);
+                drawnCount++;
+              }
+            }
+            if (drawnCount === 0) {
+              setBoundaryFailedRef.current(true);
+              setTimeout(() => setBoundaryFailedRef.current(false), 1500);
+            }
+            return;
+          } else if (featureType === "country") {
             const fc = await loadCountryGeoJson();
             const feature = findCountryFeature(fc, name, countryCode);
             if (feature?.geometry) geojson = feature.geometry;
@@ -2262,9 +2282,40 @@ export default function Earth3DPage() {
                     limit: "1",
                   });
                   if (featureType === "continent") {
-                    // For continents, use a simplified approach since Nominatim doesn't support continent boundaries well
-                    // We'll skip continent boundary drawing for now and just show the label
-                    console.log("[Earth3D] Continent hover detected:", hoverName);
+                    // Draw continent hover by highlighting all its countries from local GeoJSON
+                    const { getCountriesByContinent } = await import("@/lib/countryData");
+                    const continentCountries = getCountriesByContinent(hoverName);
+                    const fc = await loadCountryGeoJson();
+                    for (const c of continentCountries) {
+                      const feature = findCountryFeature(fc, c.name, c.code);
+                      if (!feature?.geometry) continue;
+                      const geom = feature.geometry;
+                      let rings: number[][][] = [];
+                      if (geom.type === "Polygon") rings = [geom.coordinates[0]];
+                      else if (geom.type === "MultiPolygon")
+                        rings = (geom.coordinates as number[][][][]).map((p) => p[0]);
+                      const MAX_RING_POINTS = 200;
+                      rings = rings
+                        .map((ring: number[][]) => {
+                          if (ring.length <= MAX_RING_POINTS) return ring;
+                          const step = Math.ceil(ring.length / MAX_RING_POINTS);
+                          const out = ring.filter((_: number[], i: number) => i % step === 0);
+                          if (out[0]?.[0] !== out[out.length - 1]?.[0]) out.push(out[0]);
+                          return out;
+                        })
+                        .filter((r: number[][]) => r.length >= 4);
+                      for (const ring of rings) {
+                        const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 100 }));
+                        const poly = new window.google.maps.maps3d.Polygon3DElement();
+                        poly.outerCoordinates = outerCoordinates as any;
+                        poly.strokeColor = TEAL.stroke;
+                        poly.strokeWidth = 1.5;
+                        poly.fillColor = TEAL.fill;
+                        poly.altitudeMode = "RELATIVE_TO_GROUND";
+                        map3d.append(poly);
+                        hoverPolygonOverlays.push(poly as any);
+                      }
+                    }
                     return;
                   } else if (featureType === "country") {
                     params.set("featuretype", "country");
@@ -3771,6 +3822,9 @@ export default function Earth3DPage() {
                   disabled={isDisabled}
                   onClick={() => {
                     if (!map3dRef.current || isDisabled) return;
+
+                    // Close nonna comment panel when navigating via pills
+                    setCommentSection(prev => ({ ...prev, open: false }));
 
                     // Set flight state to pause scroll-based detection during animation
                     flightStateRef.current = {
