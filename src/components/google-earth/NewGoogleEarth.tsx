@@ -217,6 +217,101 @@ function countryFlag(code: string): string {
       .map((c) => 0x1f1e6 + c.charCodeAt(0) - 65),
   );
 }
+
+// Street View Native Markers Component
+function StreetViewMarkers({
+  streetViewPanorama,
+  nonnaData,
+  onMarkerClick,
+}: {
+  streetViewPanorama: any;
+  nonnaData: GlobeNonna[];
+  onMarkerClick: (nonna: GlobeNonna) => void;
+}) {
+  const markersRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (!streetViewPanorama || !window.google?.maps) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // Get current Street View position
+    const panoramaPosition = streetViewPanorama.getPosition();
+    if (!panoramaPosition) return;
+
+    const panoramaLat = panoramaPosition.lat();
+    const panoramaLng = panoramaPosition.lng();
+
+    console.log('[StreetViewMarkers] Creating markers for', nonnaData.length, 'nonnas');
+    console.log('[StreetViewMarkers] Street View position:', panoramaLat, panoramaLng);
+
+    // Filter and create markers for nonnas within reasonable distance
+    const nearbyNonnas = nonnaData.filter(nonna => {
+      // Only show individual Nonnas (count = 1)
+      if (nonna.nonnaCount !== 1) return false;
+
+      // Calculate distance
+      const distance = calculateDistance(panoramaLat, panoramaLng, nonna.lat, nonna.lng);
+
+      // Only show within 500 meters
+      return distance <= 500;
+    });
+
+    console.log('[StreetViewMarkers] Found', nearbyNonnas.length, 'nearby nonnas');
+
+    nearbyNonnas.forEach(nonna => {
+      const distance = calculateDistance(panoramaLat, panoramaLng, nonna.lat, nonna.lng);
+
+      // Create custom marker with nonna styling
+      const marker = new window.google.maps.Marker({
+        position: { lat: nonna.lat, lng: nonna.lng },
+        map: streetViewPanorama,
+        title: nonna.representativeName,
+        // Custom styling to match our nonna markers
+        icon: {
+          url: generateAvatarSvgUri(nonna.representativeName, nonna.countryCode),
+          scaledSize: new window.google.maps.Size(100, 100),
+          anchor: new window.google.maps.Point(30, 50)
+        },
+
+      });
+
+      // Add click handler
+      marker.addListener('click', () => {
+        console.log('[StreetViewMarkers] Marker clicked:', nonna.representativeName);
+        onMarkerClick(nonna);
+      });
+
+      markersRef.current.push(marker);
+
+      console.log('[StreetViewMarkers] Created marker for', nonna.representativeName, 'at', distance.toFixed(0), 'meters');
+    });
+
+    // Cleanup function
+    return () => {
+      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current = [];
+    };
+  }, [streetViewPanorama, nonnaData, onMarkerClick]);
+
+  // This component doesn't render anything - it manages Google Maps markers
+  return null;
+}
+
+// Distance calculation helper
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 function buildMarkerTemplate(opts: {
   name: string;
   photoUrl: string | null;
@@ -3200,7 +3295,23 @@ export default function Earth3DPage() {
         }}
       />
 
-
+      {/* Street View Native Markers */}
+      {streetViewActive && streetViewPanoramaRef.current && (
+        <StreetViewMarkers
+          streetViewPanorama={streetViewPanoramaRef.current}
+          nonnaData={nonnaData}
+          onMarkerClick={(nonna) => {
+            if (nonna.nonnaCount === 1 && nonna.recipeId) {
+              setCommentSection({
+                open: true,
+                recipeId: parseInt(nonna.recipeId.toString()),
+                nonnaName: nonna.representativeName,
+                titleName: nonna.representativeTitle,
+              });
+            }
+          }}
+        />
+      )}
 
       {/* Search Bar - Mobile responsive */}
       <div
