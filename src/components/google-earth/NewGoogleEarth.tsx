@@ -654,25 +654,7 @@ export default function Earth3DPage() {
     }
   }, [currentLevel, streetViewActive]);
 
-  // Keep discussion panel in sync when level changes (e.g. via scroll or nav pills)
-  useEffect(() => {
-    if (!panel.open) return;
-
-    const levelOrder: ZoomLevel[] = ["EARTH", "CONTINENT", "COUNTRY", "STATE", "CITY", "NONNA"];
-    const scopeToLevel: Record<string, ZoomLevel> = {
-      country: "COUNTRY",
-      state: "STATE",
-      city: "CITY",
-    };
-    const panelLevel = scopeToLevel[panel.scope] || "COUNTRY";
-    const panelIdx = levelOrder.indexOf(panelLevel);
-    const currentIdx = levelOrder.indexOf(currentLevel);
-
-    // If user zoomed out past the panel's scope, close the panel
-    if (currentIdx < panelIdx) {
-      setPanel(prev => ({ ...prev, open: false }));
-    }
-  }, [currentLevel, panel.open, panel.scope]);
+  // (Panel data is updated by the scroll/click handlers directly — no extra sync needed)
 
   const [streetViewToast, setStreetViewToast] = useState<string | null>(null);
   const streetViewPickModeRef = useRef(false);
@@ -1415,7 +1397,7 @@ export default function Earth3DPage() {
 
               console.log(`[Earth3D] ${direction} - Opening discussion panel for:`, targetName, 'with', nonnas.length, 'nonnas');
 
-              // Update discussion panel data and auto-open
+              // Update discussion panel data, keep it open if already open
               setPanel(prev => ({
                 ...prev,
                 region: targetName,
@@ -1426,7 +1408,6 @@ export default function Earth3DPage() {
                 city: featureType === "city" ? targetName : undefined,
                 nonnas,
                 initialTab: "discussion",
-                open: false, // Auto-open the panel
               }));
 
               // Update active place info

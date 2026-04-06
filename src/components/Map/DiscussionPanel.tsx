@@ -67,6 +67,11 @@ export default function DiscussionPanel({
         setActiveTab(initialTab);
     }, [initialTab]);
 
+    useEffect(() => {
+        setViewMode("list");
+        setSelectedThreadId(null);
+    }, [region, scope]);
+
     const handleViewRecipe = (recipeId: string | number) => {
         router.push(`/?recipe=${recipeId}`);
     };
