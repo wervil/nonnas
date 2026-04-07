@@ -153,19 +153,6 @@ function parseAdminLevelsFromGeocodeResult(result: any) {
   return { country, countryCode, state, stateCode };
 }
 
-function getContinentFromLatLng(lat: number, lng: number): string | null {
-  // Simple continent detection based on coordinates
-  // These are rough boundaries for major continents
-  if (lat > 10 && lat < 85 && lng > -170 && lng < -50) return "North America";
-  if (lat > -60 && lat < 15 && lng > -85 && lng < -35) return "South America";
-  if (lat > 35 && lat < 70 && lng > -10 && lng < 40) return "Europe";
-  if (lat > -35 && lat < 37 && lng > -20 && lng < 55) return "Africa";
-  if (lat > -10 && lat < 70 && lng > 5 && lng < 180) return "Asia";
-  // Oceania region - covers Australia, New Zealand, and Pacific islands
-  if (lat > -50 && lat < 0 && lng > 110 && lng < 180) return "Oceania";
-  if (lat > -90 && lat < -60 && lng > -180 && lng < 180) return "Antarctica";
-  return null;
-}
 // Avatar generation
 function hashStr(s: string): number {
   let h = 0;
@@ -695,6 +682,9 @@ export default function Earth3DPage() {
   // antimeridian-safe). Replaces the runtime country-stitching that produced the
   // global "ring" artifact for Oceania/Asia.
   const continentGeoJsonCacheRef = useRef<any>(null);
+  // Slimmed Natural Earth admin-1 (states/regions). Same role as the country
+  // file: local-first lookup, Nominatim only as a fallback.
+  const stateGeoJsonCacheRef = useRef<any>(null);
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
   const user = useUser();
@@ -1219,8 +1209,6 @@ export default function Earth3DPage() {
       return;
     }
 
-    viewportContinentRef.current = getContinentFromLatLng(lat, lng);
-
     try {
       const response = await geocoder.geocode({ location: { lat, lng } });
       const first = response?.results?.[0];
@@ -1228,6 +1216,8 @@ export default function Earth3DPage() {
         const info = parseAdminLevelsFromGeocodeResult(first);
         if (info.country) {
           viewportCountryRef.current = info.country;
+          viewportContinentRef.current =
+            getCountryInfoWithFallback(info.country).continent || null;
         }
       }
     } catch {
@@ -2199,6 +2189,34 @@ export default function Earth3DPage() {
       });
       map3dRef.current = map3d;
       setMapReady(true);
+
+      // Warm up the boundary GeoJSON caches in parallel as soon as the map is
+      // ready. The user almost certainly will hover/select something within a
+      // second or two, and lazy-loading these on the first interaction adds a
+      // visible lag (especially the 6.5MB states file). All three load in
+      // parallel and the browser caches the responses for subsequent visits.
+      (async () => {
+        try {
+          const [continents, countries, states] = await Promise.all([
+            continentGeoJsonCacheRef.current
+              ? Promise.resolve(continentGeoJsonCacheRef.current)
+              : fetch("/geo/ne_continents.geojson").then((r) => r.json()),
+            geoJsonCacheRef.current
+              ? Promise.resolve(geoJsonCacheRef.current)
+              : fetch("/geo/ne_admin0_countries.geojson").then((r) => r.json()),
+            stateGeoJsonCacheRef.current
+              ? Promise.resolve(stateGeoJsonCacheRef.current)
+              : fetch("/geo/ne_states_slim.geojson").then((r) => r.json()),
+          ]);
+          continentGeoJsonCacheRef.current ||= continents;
+          geoJsonCacheRef.current ||= countries;
+          stateGeoJsonCacheRef.current ||= states;
+          console.log("[Earth3D] Boundary caches preloaded");
+        } catch (e) {
+          console.warn("[Earth3D] Boundary cache preload failed (will lazy-load):", e);
+        }
+      })();
+
       // Boundary polygon helpers (teal)
       const polygonOverlays: RemovableOverlay[] = [];
       let activeHighlightName: string | null = null;
@@ -2261,10 +2279,11 @@ export default function Earth3DPage() {
             }
           }
 
-          // Countries: prefer the local Natural Earth file first (already
-          // antimeridian-safe and complete), only fall through to Nominatim if
-          // the lookup misses. This kills the USA / Russia "ring across the
-          // globe" problem at the data-source layer.
+          // Countries / states: prefer the local Natural Earth files first
+          // (already antimeridian-safe and complete), only fall through to
+          // Nominatim if the lookup misses. This kills the USA / Russia "ring
+          // across the globe" problem and the rate-limited / fuzzy state
+          // matching at the data-source layer.
           let geojsonFromTrustedLocal = false;
           if (featureType === "country") {
             try {
@@ -2285,6 +2304,34 @@ export default function Earth3DPage() {
               }
             } catch (geoErr) {
               console.warn("[Earth3D] Local country GeoJSON load failed:", geoErr);
+            }
+          } else if (featureType === "state") {
+            try {
+              if (!stateGeoJsonCacheRef.current) {
+                const sRes = await fetch("/geo/ne_states_slim.geojson");
+                stateGeoJsonCacheRef.current = await sRes.json();
+              }
+              const sFc = stateGeoJsonCacheRef.current;
+              const target = name.toLowerCase();
+              const cc = (countryCode || "").toLowerCase();
+              // Match by name (or English alias) AND, when known, by country
+              // code — that disambiguates duplicates like "Georgia" (US/Country).
+              const feature = sFc.features.find((f: any) => {
+                const p = f.properties || {};
+                const nameMatches =
+                  (p.name || "").toLowerCase() === target ||
+                  (p.name_en || "").toLowerCase() === target;
+                if (!nameMatches) return false;
+                if (cc && p.iso_a2) return p.iso_a2.toLowerCase() === cc;
+                return true;
+              });
+              if (feature?.geometry) {
+                geojson = feature.geometry;
+                geojsonFromTrustedLocal = true;
+                console.log("[Earth3D] State from local GeoJSON:", name);
+              }
+            } catch (geoErr) {
+              console.warn("[Earth3D] Local state GeoJSON load failed:", geoErr);
             }
           }
 
@@ -2488,7 +2535,9 @@ export default function Earth3DPage() {
 
             // EARTH/WORLD VIEW → Next level is CONTINENT, so show continent boundaries
             if (level === "EARTH") {
-              hoverName = getContinentFromLatLng(latLng.lat, latLng.lng);
+              hoverName = info.country
+                ? getCountryInfoWithFallback(info.country).continent || null
+                : null;
               featureType = "continent";
             }
             // CONTINENT VIEW → Next level is COUNTRY, so highlight the COUNTRY boundary
@@ -2594,9 +2643,107 @@ export default function Earth3DPage() {
                     }
                     return;
                   } else if (featureType === "country") {
+                    // Country hover: prefer the local Natural Earth file too.
+                    try {
+                      const fc = await loadCountryGeoJson();
+                      const target = hoverName.toLowerCase();
+                      const cc = (info.countryCode || "").toLowerCase();
+                      const feature = fc.features.find((f: any) => {
+                        const p = f.properties || {};
+                        return (
+                          (cc && p.ISO_A2?.toLowerCase() === cc) ||
+                          p.ADMIN?.toLowerCase() === target ||
+                          p.NAME?.toLowerCase() === target ||
+                          p.NAME_LONG?.toLowerCase() === target
+                        );
+                      });
+                      if (feature?.geometry) {
+                        const geom = feature.geometry;
+                        let rings: number[][][] = [];
+                        if (geom.type === "Polygon") rings = [geom.coordinates[0]];
+                        else if (geom.type === "MultiPolygon")
+                          rings = (geom.coordinates as number[][][][]).map((p) => p[0]);
+                        const MAX_RING_POINTS = 200;
+                        rings = rings
+                          .map((ring: number[][]) => {
+                            if (ring.length <= MAX_RING_POINTS) return ring;
+                            const step = Math.ceil(ring.length / MAX_RING_POINTS);
+                            const out = ring.filter((_: number[], i: number) => i % step === 0);
+                            if (out[0]?.[0] !== out[out.length - 1]?.[0]) out.push(out[0]);
+                            return out;
+                          })
+                          .filter((r: number[][]) => r.length >= 4);
+                        for (const ring of rings) {
+                          const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 100 }));
+                          const poly = new window.google.maps.maps3d.Polygon3DElement();
+                          poly.outerCoordinates = outerCoordinates as any;
+                          poly.strokeColor = "rgba(94,234,212,0.6)";
+                          poly.strokeWidth = 2;
+                          poly.fillColor = "rgba(94,234,212,0.25)";
+                          poly.altitudeMode = "RELATIVE_TO_GROUND";
+                          map3d.append(poly);
+                          hoverPolygonOverlays.push(poly as any);
+                        }
+                        return;
+                      }
+                    } catch (e) {
+                      console.warn("[Earth3D] hover country local lookup failed:", e);
+                    }
+                    // Fall through to Nominatim if local missed.
                     params.set("featuretype", "country");
                     params.set("q", hoverName);
                   } else if (featureType === "state") {
+                    // State hover: prefer the local Natural Earth states file.
+                    try {
+                      if (!stateGeoJsonCacheRef.current) {
+                        const sRes = await fetch("/geo/ne_states_slim.geojson");
+                        stateGeoJsonCacheRef.current = await sRes.json();
+                      }
+                      const sFc = stateGeoJsonCacheRef.current;
+                      const target = hoverName.toLowerCase();
+                      const cc = (info.countryCode || "").toLowerCase();
+                      const feature = sFc.features.find((f: any) => {
+                        const p = f.properties || {};
+                        const nameMatches =
+                          (p.name || "").toLowerCase() === target ||
+                          (p.name_en || "").toLowerCase() === target;
+                        if (!nameMatches) return false;
+                        if (cc && p.iso_a2) return p.iso_a2.toLowerCase() === cc;
+                        return true;
+                      });
+                      if (feature?.geometry) {
+                        const geom = feature.geometry;
+                        let rings: number[][][] = [];
+                        if (geom.type === "Polygon") rings = [geom.coordinates[0]];
+                        else if (geom.type === "MultiPolygon")
+                          rings = (geom.coordinates as number[][][][]).map((p) => p[0]);
+                        const MAX_RING_POINTS = 200;
+                        rings = rings
+                          .map((ring: number[][]) => {
+                            if (ring.length <= MAX_RING_POINTS) return ring;
+                            const step = Math.ceil(ring.length / MAX_RING_POINTS);
+                            const out = ring.filter((_: number[], i: number) => i % step === 0);
+                            if (out[0]?.[0] !== out[out.length - 1]?.[0]) out.push(out[0]);
+                            return out;
+                          })
+                          .filter((r: number[][]) => r.length >= 4);
+                        for (const ring of rings) {
+                          const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 100 }));
+                          const poly = new window.google.maps.maps3d.Polygon3DElement();
+                          poly.outerCoordinates = outerCoordinates as any;
+                          poly.strokeColor = "rgba(94,234,212,0.6)";
+                          poly.strokeWidth = 2;
+                          poly.fillColor = "rgba(94,234,212,0.25)";
+                          poly.altitudeMode = "RELATIVE_TO_GROUND";
+                          map3d.append(poly);
+                          hoverPolygonOverlays.push(poly as any);
+                        }
+                        return;
+                      }
+                    } catch (e) {
+                      console.warn("[Earth3D] hover state local lookup failed:", e);
+                    }
+                    // Fall through to Nominatim if local missed.
                     params.set("featuretype", "state");
                     params.set("state", hoverName);
                     if (info.countryCode)
@@ -2806,7 +2953,9 @@ export default function Earth3DPage() {
             // At EARTH level, implement two-step interaction:
             // 1. First click: center on continent, stay at EARTH level
             // 2. Second click (same continent): zoom to CONTINENT level
-            const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
+            const continent = info.country
+              ? getCountryInfoWithFallback(info.country).continent || null
+              : null;
             const isSameContinent = continent === activeHighlightName;
 
             if (isSameContinent) {
@@ -2824,7 +2973,9 @@ export default function Earth3DPage() {
             // At CONTINENT level, implement two-step interaction (same as EARTH level):
             // 1. First click: center on continent, stay at CONTINENT level
             // 2. Second click (same continent): zoom to COUNTRY level
-            const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
+            const continent = info.country
+              ? getCountryInfoWithFallback(info.country).continent || null
+              : null;
             const isSameContinent = continent === activeHighlightName;
 
             if (isSameContinent) {
@@ -3100,12 +3251,15 @@ export default function Earth3DPage() {
           }
         }
 
-        // Zoom level detection - more gradual thresholds with overlaps for smooth scroll zoom
+        // Zoom level detection - more gradual thresholds with overlaps for smooth scroll zoom.
+        // CITY is the deepest user-facing level: zooming further (down to street view)
+        // keeps the left-side level pill on CITY instead of falling off into nothing.
+        // NONNA is no longer a selectable level — Street View is opened explicitly
+        // via the bottom-left button, not by passive zoom.
         let rawLevel: ZoomLevel = "EARTH";
-        if (currentRange <= ZOOM_RANGES.NONNA * 2) rawLevel = "NONNA"; // 60000 - lower threshold for easier transition
-        else if (currentRange <= ZOOM_RANGES.CITY * 2.5) rawLevel = "CITY"; // 375000
-        else if (currentRange <= ZOOM_RANGES.STATE * 2) rawLevel = "STATE"; // 1600000
-        else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) rawLevel = "COUNTRY"; // 6000000
+        if (currentRange <= ZOOM_RANGES.CITY * 2.5) rawLevel = "CITY";
+        else if (currentRange <= ZOOM_RANGES.STATE * 2) rawLevel = "STATE";
+        else if (currentRange <= ZOOM_RANGES.COUNTRY * 2) rawLevel = "COUNTRY";
         else if (currentRange <= ZOOM_RANGES.CONTINENT * 1.5)
           rawLevel = "CONTINENT";
 
