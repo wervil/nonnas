@@ -7,7 +7,7 @@ import ThreadCard from './ThreadCard'
 
 interface ThreadListProps {
     region?: string
-    scope?: 'country' | 'state' | 'city'
+    scope?: 'continent' | 'country' | 'state' | 'city'
     sort?: 'newest' | 'top' | 'relevant'
     userId?: string
     onThreadClick?: (threadId: number) => void
