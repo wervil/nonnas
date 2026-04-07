@@ -1156,6 +1156,9 @@ export default function Earth3DPage() {
     timeoutId: null,
     lastRequestTime: 0,
   });
+  // Exposed by the map init effect so level-change handlers can trigger the
+  // same pan-follow refresh that runs on drag.
+  const followCenterHighlightRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -1805,6 +1808,18 @@ export default function Earth3DPage() {
       } else if (currentIdx > prevIdx) {
         highlightBoundaryForLevelChange("zoom-in");
       }
+    }
+
+    // After any level change, refocus the highlight + discussion pill on
+    // whatever is actually centered now (uses the same path as drag-pan).
+    // Small debounce so a flurry of scroll-wheel ticks resolves to one fetch.
+    if (prevIdx !== -1 && prevIdx !== currentIdx) {
+      const t = setTimeout(() => {
+        followCenterHighlightRef.current?.();
+      }, 250);
+      // Update previous level for next change detection
+      setPreviousLevel(currentLevel);
+      return () => clearTimeout(t);
     }
 
     // Update previous level for next change detection
@@ -3382,6 +3397,8 @@ export default function Earth3DPage() {
           console.warn("[Earth3D] follow-center highlight failed:", e);
         }
       };
+
+      followCenterHighlightRef.current = followCenterHighlight;
 
       const checkCenterChange = () => {
         if (!mounted || !map3d) return;
