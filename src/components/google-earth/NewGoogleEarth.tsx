@@ -1,10 +1,10 @@
 "use client";
+import { getCountryInfoWithFallback } from "@/lib/countryData";
 import { useUser } from "@stackframe/stack";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CommentSection from "../Comments/CommentSection";
 import DiscussionPanel from "../Map/DiscussionPanel";
-import { getCountryInfoWithFallback } from "@/lib/countryData";
 
 // Search result type
 type SearchResult = {
@@ -2455,10 +2455,10 @@ export default function Earth3DPage() {
           rings = trustedSource
             ? rings.map(simplifyRing).filter((r) => r.length >= 4)
             : rings
-                .map(simplifyRing)
-                .filter((r) => r.length >= 4)
-                .flatMap(splitAtAntimeridian)
-                .filter((r) => !isPolarOrGlobalRing(r));
+              .map(simplifyRing)
+              .filter((r) => r.length >= 4)
+              .flatMap(splitAtAntimeridian)
+              .filter((r) => !isPolarOrGlobalRing(r));
           if (!rings.length) {
             console.warn("[Earth3D] No valid rings after simplification for", name);
             return;
@@ -3288,7 +3288,8 @@ export default function Earth3DPage() {
         const newLevel = LEVEL_ORDER_SCROLL[clampedIndex];
 
         // Only change level if it's different and not during a programmatic flight
-        if (newLevel !== currentLevelRef.current && !flightStateRef.current.active) {
+        // Also prevent changing away from NONNA level (internal Street View level)
+        if (newLevel !== currentLevelRef.current && !flightStateRef.current.active && currentLevelRef.current !== "NONNA") {
           const prevIndex = LEVEL_ORDER_SCROLL.indexOf(currentLevelRef.current);
           setLevel(newLevel);
           // Clear highlight whenever zooming out (moving to a higher/broader level)
