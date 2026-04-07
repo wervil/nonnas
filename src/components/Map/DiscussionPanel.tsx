@@ -27,7 +27,7 @@ interface DiscussionPanelProps {
     onClose: () => void;
     region: string;
     regionDisplayName: string;
-    scope: "country" | "state" | "city";
+    scope: "continent" | "country" | "state" | "city";
     /** When set, the scope line matches the active map zoom tier (left nav). */
     mapZoomLevel?: MapZoomLevel;
     country?: string;
@@ -42,6 +42,7 @@ interface DiscussionPanelProps {
         origin?: string;
     }>;
     initialTab?: "discussion" | "nonnas";
+    isLoading?: boolean;
 }
 
 export default function DiscussionPanel({

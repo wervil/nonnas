@@ -10,7 +10,7 @@ import { AttachmentType } from '../messaging/types'
 
 interface CreateThreadFormProps {
     region: string
-    scope: 'country' | 'state' | 'city'
+    scope: 'continent' | 'country' | 'state' | 'city'
     country?: string
     state?: string
     city?: string

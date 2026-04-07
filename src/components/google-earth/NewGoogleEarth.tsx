@@ -831,12 +831,13 @@ export default function Earth3DPage() {
     open: boolean;
     region: string;
     regionDisplayName: string;
-    scope: "country" | "state" | "city";
+    scope: "continent" | "country" | "state" | "city";
     country?: string;
     state?: string;
     city?: string;
     nonnas: Array<PanelNonna>;
     initialTab: "discussion" | "nonnas";
+    isLoading: boolean;
   }>({
     open: false,
     region: "",
@@ -844,6 +845,7 @@ export default function Earth3DPage() {
     scope: "country",
     nonnas: [],
     initialTab: "discussion", // Default to Community tab
+    isLoading: false,
   });
 
   // Comment Section state for nonna-specific discussions
@@ -1044,6 +1046,7 @@ export default function Earth3DPage() {
         panorama.addListener("closeclick", () => {
           streetViewPanoramaRef.current = null;
           setStreetViewActive(false);
+          setStreetViewNonnaPopup(prev => (prev.open ? { ...prev, open: false } : prev));
 
           setLevel("CITY");
           currentLevelRef.current = "CITY";
@@ -1095,6 +1098,53 @@ export default function Earth3DPage() {
       cancelled = true;
     };
   }, [panel.open, panel.region, currentLevel]);
+
+  // Refetch nonnas when region changes (continent, country, state, city)
+  useEffect(() => {
+    if (!panel.open || !panel.region || panel.region.trim() === "") {
+      return;
+    }
+
+    const fetchNonnasForRegion = async () => {
+      setPanel(prev => ({ ...prev, isLoading: true }));
+
+      try {
+        let url = '/api/recipes?published=true';
+
+        if (panel.scope === "continent") {
+          const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+          const continent = getCountryInfoWithFallback(panel.country || '').continent;
+          url += `&continent=${encodeURIComponent(continent)}`;
+        } else if (panel.scope === "country") {
+          url += `&country=${encodeURIComponent(panel.country || '')}`;
+        } else if (panel.scope === "state") {
+          url += `&country=${encodeURIComponent(panel.country || '')}`;
+          url += `&region=${encodeURIComponent(panel.region)}`;
+        } else if (panel.scope === "city") {
+          url += `&country=${encodeURIComponent(panel.country || '')}`;
+          if (panel.state) {
+            url += `&region=${encodeURIComponent(panel.state)}`;
+          }
+          url += `&city=${encodeURIComponent(panel.city || '')}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+        const nonnas = mapRecipesToPanelNonnas(data.recipes || []);
+
+        setPanel(prev => ({
+          ...prev,
+          nonnas,
+          isLoading: false,
+        }));
+      } catch (error) {
+        console.error("[Earth3D] Error refetching nonnas for region change:", error);
+        setPanel(prev => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    fetchNonnasForRegion();
+  }, [panel.region, panel.scope, panel.country, panel.state, panel.city, panel.open]);
 
   const allClustersRef = useRef<{
     continents: GlobeNonna[];
@@ -4312,6 +4362,7 @@ export default function Earth3DPage() {
           onClick={() => {
             streetViewPanoramaRef.current = null;
             setStreetViewActive(false);
+            setStreetViewNonnaPopup(prev => (prev.open ? { ...prev, open: false } : prev));
             setLevel("CITY");
             currentLevelRef.current = "CITY";
             // Fly to CITY level range for appropriate view
@@ -4694,6 +4745,7 @@ export default function Earth3DPage() {
         city={panel.city}
         nonnas={panel.nonnas}
         initialTab={panel.initialTab}
+        isLoading={panel.isLoading}
       />
 
       {/* Comment Section for nonna-specific discussions */}
