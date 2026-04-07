@@ -908,8 +908,8 @@ export default function Earth3DPage() {
   const streetViewPickModeRef = useRef(false);
 
   // Street View button: at NONNA level we already know which nonna is in focus,
-  // so re-enter Street View facing her with her marker preloaded. At higher
-  // levels (CITY), fall back to the existing pick-a-spot mode.
+  // so re-enter Street View facing her with her marker preloaded. At CITY level,
+  // activate pick-a-spot mode. At COUNTRY/STATE levels, zoom in to CITY first.
   const handleStreetViewButtonClick = useCallback(() => {
     if (currentNonnaRef.current) {
       const n = currentNonnaRef.current;
@@ -918,12 +918,24 @@ export default function Earth3DPage() {
       activateStreetViewAtRef.current(n.lat, n.lng, n);
       return;
     }
+
+    // At COUNTRY or STATE level, use pick mode (same as city level)
+    if (currentLevel === "COUNTRY" || currentLevel === "STATE") {
+      setStreetViewPickMode(prev => {
+        const next = !prev;
+        streetViewPickModeRef.current = next;
+        return next;
+      });
+      return;
+    }
+
+    // At CITY level or below, just activate pick mode
     setStreetViewPickMode(prev => {
       const next = !prev;
       streetViewPickModeRef.current = next;
       return next;
     });
-  }, []);
+  }, [currentLevel]);
 
   // Activate Street View at a specific lat/lng — flies camera down then opens panorama.
   // If `targetNonna` is provided, the panorama heading is aimed toward her and the
@@ -956,7 +968,7 @@ export default function Earth3DPage() {
       const sv = new window.google.maps.StreetViewService();
       const result = await sv.getPanorama({
         location: { lat, lng },
-        radius: 100,
+        radius: 5000,
         source: window.google.maps.StreetViewSource.OUTDOOR,
       });
 
@@ -1101,7 +1113,7 @@ export default function Earth3DPage() {
 
   // Refetch nonnas when region changes (continent, country, state, city)
   useEffect(() => {
-    if (!panel.open || !panel.region || panel.region.trim() === "") {
+    if (!panel.region || panel.region.trim() === "") {
       return;
     }
 
@@ -1144,7 +1156,7 @@ export default function Earth3DPage() {
     };
 
     fetchNonnasForRegion();
-  }, [panel.region, panel.scope, panel.country, panel.state, panel.city, panel.open]);
+  }, [panel.region, panel.scope, panel.country, panel.state, panel.city]);
 
   const allClustersRef = useRef<{
     continents: GlobeNonna[];
@@ -3944,7 +3956,7 @@ export default function Earth3DPage() {
         console.error('[Earth3D] Fallback geocoding error:', fallbackError);
       }
     }
-  }, []);
+  }, [setLevel]);
 
   // Close search results when clicking outside (supports touch)
   useEffect(() => {
@@ -4296,7 +4308,7 @@ export default function Earth3DPage() {
       </div>
 
       {/* Street View button — pegman icon, city level and below */}
-      {mapReady && !streetViewActive && (currentLevel === "CITY" || currentLevel === "NONNA") && (
+      {mapReady && !streetViewActive && (currentLevel === "CITY" || currentLevel === "NONNA" || currentLevel === "STATE" || currentLevel === "COUNTRY") && (
         <button
           onClick={handleStreetViewButtonClick}
           title={streetViewPickMode ? "Cancel Street View" : "Street View"}
