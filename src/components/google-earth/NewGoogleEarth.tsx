@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CommentSection from "../Comments/CommentSection";
 import DiscussionPanel from "../Map/DiscussionPanel";
+import { getCountryInfoWithFallback } from "@/lib/countryData";
 
 // Search result type
 type SearchResult = {
@@ -155,11 +156,9 @@ function parseAdminLevelsFromGeocodeResult(result: any) {
 function getContinentFromLatLng(lat: number, lng: number): string | null {
   // Simple continent detection based on coordinates
   // These are rough boundaries for major continents
-  // Europe checked first so Iceland/UK/Scandinavia stay in Europe
-  if (lat > 35 && lat < 72 && lng > -10 && lng < 40) return "Europe";
-  // North America box extended east to lng -10 so Greenland is included
-  if (lat > 10 && lat < 85 && lng > -170 && lng < -10) return "North America";
+  if (lat > 10 && lat < 85 && lng > -170 && lng < -50) return "North America";
   if (lat > -60 && lat < 15 && lng > -85 && lng < -35) return "South America";
+  if (lat > 35 && lat < 70 && lng > -10 && lng < 40) return "Europe";
   if (lat > -35 && lat < 37 && lng > -20 && lng < 55) return "Africa";
   if (lat > -10 && lat < 70 && lng > 5 && lng < 180) return "Asia";
   // Oceania region - covers Australia, New Zealand, and Pacific islands
@@ -1147,6 +1146,12 @@ export default function Earth3DPage() {
   // Ref to store fetchAndDrawBoundary function for zoom-out highlighting
   const fetchAndDrawBoundaryRef = useRef<((name: string, featureType: "continent" | "country" | "state" | "city", countryCode?: string | null) => Promise<void>) | null>(null);
 
+  // When the user picks a search result we already know exactly what to
+  // highlight. Suppress the level-change auto-highlight for one cycle so it
+  // doesn't reverse-geocode the still-flying camera and overwrite the
+  // user's actual selection with whatever happens to be under the lens.
+  const suppressNextLevelHighlightRef = useRef(false);
+
   // Ref to track and cancel ongoing highlighting requests
   const highlightingRef = useRef<{
     controller: AbortController | null;
@@ -1588,7 +1593,11 @@ export default function Earth3DPage() {
             featureType = "country";
           }
           else if (currentLevel === "CONTINENT") {
-            targetName = getContinentFromLatLng(lat, lng);
+            // Resolve continent from the actual country reverse-geocoded at the
+            // current center, not from hand-drawn lat/lng boxes.
+            targetName = info.country
+              ? getCountryInfoWithFallback(info.country).continent || null
+              : null;
             featureType = "continent";
           }
           // Don't highlight for CITY or EARTH levels when zooming out
@@ -1598,7 +1607,9 @@ export default function Earth3DPage() {
 
           // Always highlight the current level's boundary when zooming in
           if (currentLevel === "CONTINENT") {
-            targetName = getContinentFromLatLng(lat, lng);
+            targetName = info.country
+              ? getCountryInfoWithFallback(info.country).continent || null
+              : null;
             featureType = "continent";
           }
           else if (currentLevel === "COUNTRY") {
@@ -1767,6 +1778,16 @@ export default function Earth3DPage() {
         }
       }
     };
+
+    // If a search just drove this level change, the search handler has already
+    // applied the correct highlight. Skip the auto reverse-geocode entirely so
+    // it can't overwrite the user's actual selection with whatever the still-
+    // flying camera happens to be over.
+    if (suppressNextLevelHighlightRef.current) {
+      suppressNextLevelHighlightRef.current = false;
+      setPreviousLevel(currentLevel);
+      return;
+    }
 
     // Check if we're zooming out (moving to a higher level index)
     if (prevIdx !== -1 && currentIdx < prevIdx) {
@@ -3466,6 +3487,9 @@ export default function Earth3DPage() {
             startTime: Date.now(),
             lastRanges: [],
           };
+          // Tell the level-change effect to skip its own reverse-geocode for this
+          // transition — we already know the exact place the user picked.
+          suppressNextLevelHighlightRef.current = true;
           setLevel(targetLevel);
           currentLevelRef.current = targetLevel;
 
@@ -3492,11 +3516,11 @@ export default function Earth3DPage() {
           const countryCode: string | null = info.countryCode || null;
 
           if (targetLevel === "CONTINENT" || targetLevel === "EARTH") {
-            const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
-            if (continent) {
-              featureType = "continent";
-              highlightName = continent;
-            }
+            // The user explicitly selected this place — trust its name directly
+            // (e.g. "Asia"). Never re-derive the continent from lat/lng boxes,
+            // which mis-classifies border regions like Iran as Africa.
+            featureType = "continent";
+            highlightName = result.main_text || result.description || searchName;
           } else if (targetLevel === "COUNTRY") {
             featureType = "country";
             highlightName = info.country || searchName;
