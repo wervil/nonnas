@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@stackframe/stack";
-import { ArrowLeft, MapPin, MessageCircle, Users, X } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, MessageCircle, Users, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,6 +57,7 @@ export default function DiscussionPanel({
     city,
     nonnas,
     initialTab = "discussion",
+    isLoading = false,
 }: DiscussionPanelProps) {
     const router = useRouter();
     const user = useUser();
@@ -258,7 +259,12 @@ export default function DiscussionPanel({
                     </div>
                 ) : (
                     <div className="p-6">
-                        {nonnas.length === 0 ? (
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <Loader2 className="w-8 h-8 text-gray-400 animate-spin mb-3" />
+                                <p className="text-gray-500 text-sm">Loading nonnas...</p>
+                            </div>
+                        ) : nonnas.length === 0 ? (
                             <div className="text-center py-12">
                                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                                     <Users className="w-8 h-8 text-gray-400" />
