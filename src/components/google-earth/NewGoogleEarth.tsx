@@ -155,9 +155,11 @@ function parseAdminLevelsFromGeocodeResult(result: any) {
 function getContinentFromLatLng(lat: number, lng: number): string | null {
   // Simple continent detection based on coordinates
   // These are rough boundaries for major continents
-  if (lat > 10 && lat < 85 && lng > -170 && lng < -50) return "North America";
+  // Europe checked first so Iceland/UK/Scandinavia stay in Europe
+  if (lat > 35 && lat < 72 && lng > -10 && lng < 40) return "Europe";
+  // North America box extended east to lng -10 so Greenland is included
+  if (lat > 10 && lat < 85 && lng > -170 && lng < -10) return "North America";
   if (lat > -60 && lat < 15 && lng > -85 && lng < -35) return "South America";
-  if (lat > 35 && lat < 70 && lng > -10 && lng < 40) return "Europe";
   if (lat > -35 && lat < 37 && lng > -20 && lng < 55) return "Africa";
   if (lat > -10 && lat < 70 && lng > 5 && lng < 180) return "Asia";
   // Oceania region - covers Australia, New Zealand, and Pacific islands
@@ -218,86 +220,202 @@ function countryFlag(code: string): string {
   );
 }
 
-// Street View Native Markers Component
-function StreetViewMarkers({
+// ─────────────────────────────────────────────────────────────────────────────
+//  Street View DOM Overlay — pins a real DOM avatar to a nonna's world position
+//  inside a StreetViewPanorama by projecting heading/pitch on every camera move.
+//  Because it's a real DOM node we get free CSS animation (the waving idle).
+// ─────────────────────────────────────────────────────────────────────────────
+function StreetViewNonnaOverlay({
   streetViewPanorama,
+  containerRef,
   nonnaData,
-  onMarkerClick,
+  currentNonnaPhoto,
+  currentNonnaRecipeId,
+  onAvatarClick,
 }: {
   streetViewPanorama: any;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   nonnaData: GlobeNonna[];
-  onMarkerClick: (nonna: GlobeNonna) => void;
+  currentNonnaPhoto: string | null;
+  currentNonnaRecipeId: number | null;
+  onAvatarClick: (nonna: GlobeNonna) => void;
 }) {
-  const markersRef = useRef<any[]>([]);
+  const [placements, setPlacements] = useState<
+    Array<{ nonna: GlobeNonna; x: number; y: number; size: number; photo: string | null }>
+  >([]);
 
   useEffect(() => {
-    if (!streetViewPanorama || !window.google?.maps) return;
+    if (!streetViewPanorama || !containerRef.current || !window.google?.maps) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
-
-    // Get current Street View position
-    const panoramaPosition = streetViewPanorama.getPosition();
-    if (!panoramaPosition) return;
-
-    const panoramaLat = panoramaPosition.lat();
-    const panoramaLng = panoramaPosition.lng();
-
-    console.log('[StreetViewMarkers] Creating markers for', nonnaData.length, 'nonnas');
-    console.log('[StreetViewMarkers] Street View position:', panoramaLat, panoramaLng);
-
-    // Filter and create markers for nonnas within reasonable distance
-    const nearbyNonnas = nonnaData.filter(nonna => {
-      // Only show individual Nonnas (count = 1)
-      if (nonna.nonnaCount !== 1) return false;
-
-      // Calculate distance
-      const distance = calculateDistance(panoramaLat, panoramaLng, nonna.lat, nonna.lng);
-
-      // Only show within 500 meters
-      return distance <= 500;
-    });
-
-    console.log('[StreetViewMarkers] Found', nearbyNonnas.length, 'nearby nonnas');
-
-    nearbyNonnas.forEach(nonna => {
-      const distance = calculateDistance(panoramaLat, panoramaLng, nonna.lat, nonna.lng);
-
-      // Create custom marker with nonna styling
-      const marker = new window.google.maps.Marker({
-        position: { lat: nonna.lat, lng: nonna.lng },
-        map: streetViewPanorama,
-        title: nonna.representativeName,
-        // Custom styling to match our nonna markers
-        icon: {
-          url: generateAvatarSvgUri(nonna.representativeName, nonna.countryCode),
-          scaledSize: new window.google.maps.Size(100, 100),
-          anchor: new window.google.maps.Point(30, 50)
-        },
-
-      });
-
-      // Add click handler
-      marker.addListener('click', () => {
-        console.log('[StreetViewMarkers] Marker clicked:', nonna.representativeName);
-        onMarkerClick(nonna);
-      });
-
-      markersRef.current.push(marker);
-
-      console.log('[StreetViewMarkers] Created marker for', nonna.representativeName, 'at', distance.toFixed(0), 'meters');
-    });
-
-    // Cleanup function
-    return () => {
-      markersRef.current.forEach(marker => marker.setMap(null));
-      markersRef.current = [];
+    const bearing = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+      const toRad = (d: number) => (d * Math.PI) / 180;
+      const toDeg = (r: number) => (r * 180) / Math.PI;
+      const φ1 = toRad(lat1);
+      const φ2 = toRad(lat2);
+      const Δλ = toRad(lng2 - lng1);
+      const y = Math.sin(Δλ) * Math.cos(φ2);
+      const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
     };
-  }, [streetViewPanorama, nonnaData, onMarkerClick]);
 
-  // This component doesn't render anything - it manages Google Maps markers
-  return null;
+    const update = () => {
+      const pano = streetViewPanorama;
+      const container = containerRef.current;
+      if (!container) return;
+
+      const pos = pano.getPosition?.();
+      const pov = pano.getPov?.();
+      if (!pos || !pov) return;
+
+      const panoLat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
+      const panoLng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
+      const heading = pov.heading || 0;
+      const pitch = pov.pitch || 0;
+      const zoom = pano.getZoom?.() ?? 1;
+
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+
+      // Street View FOV ≈ 180° / 2^zoom (matches Google's behaviour closely enough
+      // for billboard placement; we don't need pixel-perfect rectilinear projection).
+      const fovH = 180 / Math.pow(2, zoom);
+      const fovV = fovH * (h / w);
+      const tanFovH = Math.tan(((fovH / 2) * Math.PI) / 180);
+      const tanFovV = Math.tan(((fovV / 2) * Math.PI) / 180);
+
+      const next: typeof placements = [];
+
+      nonnaData.forEach((nonna) => {
+        if (nonna.nonnaCount !== 1) return;
+        const distance = calculateDistance(panoLat, panoLng, nonna.lat, nonna.lng);
+        if (distance > 500) return;
+
+        const b = bearing(panoLat, panoLng, nonna.lat, nonna.lng);
+        let relH = ((b - heading + 540) % 360) - 180; // [-180, 180]
+        if (Math.abs(relH) > 89) return; // behind / extreme edge
+
+        const tanH = Math.tan((relH * Math.PI) / 180);
+        const x = w / 2 + (tanH / tanFovH) * (w / 2);
+
+        // Pin the avatar at the horizon (pitch 0 in world space). Account for
+        // current camera pitch so the avatar stays anchored when the user looks up/down.
+        const tanV = Math.tan((-pitch * Math.PI) / 180);
+        const y = h / 2 - (tanV / tanFovV) * (h / 2);
+
+        // Distance-based size: ~140px at 8m, clamped so it stays usable.
+        const size = Math.max(70, Math.min(180, (140 * 8) / Math.max(distance, 4)));
+
+        // Prefer the cached resolved photo for the current nonna (cluster aggregate
+        // returns null for many nonnas).
+        const recipeId = nonna.recipeId ? parseInt(nonna.recipeId.toString(), 10) : null;
+        const photo =
+          recipeId && recipeId === currentNonnaRecipeId
+            ? currentNonnaPhoto
+            : nonna.representativePhoto || null;
+
+        next.push({ nonna, x, y, size, photo });
+      });
+
+      setPlacements(next);
+    };
+
+    update();
+
+    const listeners = [
+      streetViewPanorama.addListener("pov_changed", update),
+      streetViewPanorama.addListener("position_changed", update),
+      streetViewPanorama.addListener("zoom_changed", update),
+    ];
+    const onResize = () => update();
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      listeners.forEach((l: any) => l?.remove?.());
+      window.removeEventListener("resize", onResize);
+    };
+  }, [streetViewPanorama, containerRef, nonnaData, currentNonnaPhoto, currentNonnaRecipeId]);
+
+  return (
+    <>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+@keyframes nonna-wave {
+  0%, 100% { transform: rotate(-7deg) translateY(0); }
+  50%      { transform: rotate(7deg)  translateY(-6px); }
+}
+@keyframes nonna-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.nonna-sv-avatar {
+  animation: nonna-bob 3.2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+.nonna-sv-avatar-inner {
+  animation: nonna-wave 2.2s ease-in-out infinite;
+  transform-origin: center bottom;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid #14b8a6;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+}
+.nonna-sv-avatar-inner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 6,
+          overflow: "hidden",
+        }}
+      >
+        {placements.map((p, i) => {
+          const imgSrc =
+            p.photo
+              ? `/api/proxy-image?url=${encodeURIComponent(p.photo)}`
+              : generateAvatarSvgUri(p.nonna.representativeName, p.nonna.countryCode);
+          return (
+            <button
+              key={`${p.nonna.id}-${i}`}
+              onClick={() => onAvatarClick(p.nonna)}
+              className="nonna-sv-avatar"
+              style={{
+                position: "absolute",
+                left: p.x - p.size / 2,
+                top: p.y - p.size / 2,
+                width: p.size,
+                height: p.size,
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                pointerEvents: "auto",
+              }}
+              aria-label={p.nonna.representativeName}
+            >
+              <div className="nonna-sv-avatar-inner">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imgSrc} alt={p.nonna.representativeName} />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
 }
 
 // Distance calculation helper
@@ -561,6 +679,18 @@ export default function Earth3DPage() {
   const map3dRef = useRef<any>(null);
   const streetViewContainerRef = useRef<HTMLDivElement | null>(null);
   const streetViewPanoramaRef = useRef<any>(null);
+  // Tracks the nonna currently focused at NONNA level so the Street View
+  // button can re-enter Street View facing her with her marker preloaded.
+  const currentNonnaRef = useRef<{
+    lat: number;
+    lng: number;
+    recipeId: number;
+    name: string;
+    title: string;
+    photo: string | null;
+    countryName: string;
+    countryCode: string;
+  } | null>(null);
   const geoJsonCacheRef = useRef<any>(null);
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
@@ -729,23 +859,51 @@ export default function Earth3DPage() {
     recipeId: number;
     nonnaName: string;
     titleName: string;
+    photo: string | null;
+    countryCode: string;
   }>({
     open: false,
     recipeId: 0,
     nonnaName: "",
     titleName: "",
+    photo: null,
+    countryCode: "",
+  });
+
+  // In-Street-View popup card shown when clicking a nonna marker inside Street View.
+  // This intentionally lives OUTSIDE the discussion tab, per Brendan's feedback.
+  const [streetViewNonnaPopup, setStreetViewNonnaPopup] = useState<{
+    open: boolean;
+    recipeId: number;
+    name: string;
+    title: string;
+    photo: string | null;
+    countryName: string;
+    countryCode: string;
+  }>({
+    open: false,
+    recipeId: 0,
+    name: "",
+    title: "",
+    photo: null,
+    countryName: "",
+    countryCode: "",
   });
   const { currentLevel, setLevel } = useEarthNavigation();
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
   useEffect(() => {
     currentLevelRef.current = currentLevel;
 
-    // Leaving NONNA level — destroy Street View
+    // Leaving NONNA level — destroy Street View and close any popup
     if (currentLevel !== "NONNA" && streetViewActive) {
       if (streetViewPanoramaRef.current) {
         streetViewPanoramaRef.current = null;
       }
       setStreetViewActive(false);
+      setStreetViewNonnaPopup((prev) => (prev.open ? { ...prev, open: false } : prev));
+    }
+    if (currentLevel !== "NONNA") {
+      currentNonnaRef.current = null;
     }
   }, [currentLevel, streetViewActive]);
 
@@ -754,8 +912,17 @@ export default function Earth3DPage() {
   const [streetViewToast, setStreetViewToast] = useState<string | null>(null);
   const streetViewPickModeRef = useRef(false);
 
-  // Toggle Street View pick mode
+  // Street View button: at NONNA level we already know which nonna is in focus,
+  // so re-enter Street View facing her with her marker preloaded. At higher
+  // levels (CITY), fall back to the existing pick-a-spot mode.
   const handleStreetViewButtonClick = useCallback(() => {
+    if (currentNonnaRef.current) {
+      const n = currentNonnaRef.current;
+      setStreetViewPickMode(false);
+      streetViewPickModeRef.current = false;
+      activateStreetViewAtRef.current(n.lat, n.lng, n);
+      return;
+    }
     setStreetViewPickMode(prev => {
       const next = !prev;
       streetViewPickModeRef.current = next;
@@ -763,8 +930,23 @@ export default function Earth3DPage() {
     });
   }, []);
 
-  // Activate Street View at a specific lat/lng — flies camera down then opens panorama
-  const activateStreetViewAt = useCallback(async (lat: number, lng: number) => {
+  // Activate Street View at a specific lat/lng — flies camera down then opens panorama.
+  // If `targetNonna` is provided, the panorama heading is aimed toward her and the
+  // in-Street-View popup card is opened immediately so the user sees her info right away.
+  const activateStreetViewAt = useCallback(async (
+    lat: number,
+    lng: number,
+    targetNonna?: {
+      lat: number;
+      lng: number;
+      recipeId: number;
+      name: string;
+      title: string;
+      photo: string | null;
+      countryName: string;
+      countryCode: string;
+    } | null,
+  ) => {
     const map3d = map3dRef.current;
     const container = streetViewContainerRef.current;
     if (!map3d || !container || !window.google?.maps) return;
@@ -801,6 +983,7 @@ export default function Earth3DPage() {
       setLevel("NONNA");
       currentLevelRef.current = "NONNA";
 
+      const FLIGHT_MS = 1600;
       map3d.flyCameraTo({
         endCamera: {
           center: { lat, lng, altitude: 0 },
@@ -808,16 +991,39 @@ export default function Earth3DPage() {
           tilt: 75,
           heading: map3d.heading,
         },
-        durationMillis: 2500,
+        durationMillis: FLIGHT_MS,
       });
 
-      // After flight completes, open Street View
-      setTimeout(() => {
+      // Hand off to Street View on the actual flight completion event, with a
+      // setTimeout fallback so we never guess timings or dip under the terrain.
+      let handoffDone = false;
+      const handoff = () => {
+        if (handoffDone) return;
+        handoffDone = true;
+        map3d.removeEventListener?.("gmp-animationend", handoff);
         flightStateRef.current.active = false;
 
+        // If we have a target nonna, aim the camera toward her so she's in view.
+        const panoLatLng = result.data.location.latLng;
+        const panoLat = typeof panoLatLng.lat === "function" ? panoLatLng.lat() : panoLatLng.lat;
+        const panoLng = typeof panoLatLng.lng === "function" ? panoLatLng.lng() : panoLatLng.lng;
+        let initialHeading = 0;
+        if (targetNonna) {
+          const toRad = (d: number) => (d * Math.PI) / 180;
+          const toDeg = (r: number) => (r * 180) / Math.PI;
+          const φ1 = toRad(panoLat);
+          const φ2 = toRad(targetNonna.lat);
+          const Δλ = toRad(targetNonna.lng - panoLng);
+          const y = Math.sin(Δλ) * Math.cos(φ2);
+          const x =
+            Math.cos(φ1) * Math.sin(φ2) -
+            Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+          initialHeading = (toDeg(Math.atan2(y, x)) + 360) % 360;
+        }
+
         const panorama = new window.google.maps.StreetViewPanorama(container, {
-          position: result.data.location.latLng,
-          pov: { heading: 0, pitch: 0 },
+          position: panoLatLng,
+          pov: { heading: initialHeading, pitch: 0 },
           zoom: 1,
           motionTracking: false,
           motionTrackingControl: false,
@@ -829,11 +1035,26 @@ export default function Earth3DPage() {
         streetViewPanoramaRef.current = panorama;
         setStreetViewActive(true);
 
+        // Pre-open the in-Street-View nonna popup so the user sees her info immediately.
+        if (targetNonna) {
+          setStreetViewNonnaPopup({
+            open: true,
+            recipeId: targetNonna.recipeId,
+            name: targetNonna.name,
+            title: targetNonna.title,
+            photo: targetNonna.photo,
+            countryName: targetNonna.countryName,
+            countryCode: targetNonna.countryCode,
+          });
+        }
+
         panorama.addListener("closeclick", () => {
           streetViewPanoramaRef.current = null;
           setStreetViewActive(false);
         });
-      }, 2700);
+      };
+      map3d.addEventListener?.("gmp-animationend", handoff, { once: true });
+      setTimeout(handoff, FLIGHT_MS + 50);
 
     } catch {
       setStreetViewToast("No Street View data is available here.");
@@ -1081,6 +1302,8 @@ export default function Earth3DPage() {
           recipeId: actualNonna.recipeId,
           nonnaName: actualNonna.representativeName,
           titleName: actualNonna.representativeTitle,
+          photo: actualNonna.representativePhoto || null,
+          countryCode: actualNonna.countryCode || "",
         });
 
         // Zoom to NONNA level using actual coordinates
@@ -1110,6 +1333,18 @@ export default function Earth3DPage() {
             },
             durationMillis: 1500,
           });
+
+          // Remember this nonna so the Street View button can re-enter facing her.
+          currentNonnaRef.current = {
+            lat: actualNonna.lat,
+            lng: actualNonna.lng,
+            recipeId: parseInt(actualNonna.recipeId.toString(), 10),
+            name: actualNonna.representativeName,
+            title: actualNonna.representativeTitle,
+            photo: actualNonna.representativePhoto || null,
+            countryName: actualNonna.countryName || "",
+            countryCode: actualNonna.countryCode || "",
+          };
 
           setTimeout(() => {
             flightStateRef.current.active = false;
@@ -1689,6 +1924,8 @@ export default function Earth3DPage() {
                     recipeId: parseInt(nonna.recipeId, 10),
                     nonnaName: nonna.representativeName,
                     titleName: nonna.representativeTitle,
+                    photo: nonna.representativePhoto || null,
+                    countryCode: nonna.countryCode || "",
                   });
 
                   // Zoom to NONNA level (street view) after opening comment section
@@ -1700,6 +1937,10 @@ export default function Earth3DPage() {
                     (async () => {
                       let targetLat = nonna.lat;
                       let targetLng = nonna.lng;
+                      // The clustering API computes repPhoto via coalesce(avatar_image, photo[2]),
+                      // which is null for nonnas that only have a single photo. Pull the real
+                      // photo from the recipe payload below so the marker + popup always show her.
+                      let resolvedPhoto: string | null = nonna.representativePhoto || null;
 
                       try {
                         const res = await fetch(`/api/recipes?published=true&id=${nonna.recipeId}`);
@@ -1713,6 +1954,12 @@ export default function Earth3DPage() {
                             targetLat = parts[0];
                             targetLng = parts[1];
                           }
+                        }
+                        if (recipe) {
+                          resolvedPhoto =
+                            recipe.avatar_image
+                            || (Array.isArray(recipe.photo) ? recipe.photo[0] : null)
+                            || resolvedPhoto;
                         }
                       } catch (err) {
                         console.warn("[Earth3D] Failed to fetch nonna coords, using cluster coords", err);
@@ -1740,6 +1987,18 @@ export default function Earth3DPage() {
                         },
                         durationMillis: 1500,
                       });
+
+                      // Remember this nonna so the Street View button can re-enter facing her.
+                      currentNonnaRef.current = {
+                        lat: targetLat,
+                        lng: targetLng,
+                        recipeId: parseInt(nonna.recipeId, 10),
+                        name: nonna.representativeName,
+                        title: nonna.representativeTitle,
+                        photo: resolvedPhoto,
+                        countryName: nonna.countryName || "",
+                        countryCode: nonna.countryCode || "",
+                      };
 
                       setTimeout(() => {
                         flightStateRef.current.active = false;
@@ -1949,9 +2208,6 @@ export default function Earth3DPage() {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
 
         try {
-          // Skip boundary drawing for continents — composite polygons look bad
-
-
           const params = new URLSearchParams({
             polygon_geojson: "1",
             format: "json",
@@ -1989,7 +2245,7 @@ export default function Earth3DPage() {
           console.log("[Earth3D] Nominatim response data:", data);
           let geojson = data?.[0]?.geojson;
 
-          // If Nominatim returns nothing or a Point, try local GeoJSON for countries
+          // If Nominatim returns nothing or a Point, fall back to local GeoJSON
           if ((!geojson || geojson.type === "Point") && (featureType === "country" || featureType === "continent")) {
             console.log("[Earth3D] Nominatim failed for", name, "- trying local GeoJSON fallback");
             try {
@@ -2009,8 +2265,13 @@ export default function Earth3DPage() {
                   console.log("[Earth3D] Found country in local GeoJSON:", name);
                 }
               } else if (featureType === "continent") {
-                // For continents: combine all country polygons in that continent
+                // For continents: combine all country polygons in that continent.
+                // Russia (and Antarctica) cause polar ring artifacts, so exclude them
+                // from the composite — they're too large to render cleanly on a 3D globe.
+                const EXCLUDED_FROM_CONTINENT = new Set(["RU", "AQ"]);
                 const continentFeatures = fc.features.filter((f: any) => {
+                  const iso = (f.properties?.ISO_A2 || "").toUpperCase();
+                  if (EXCLUDED_FROM_CONTINENT.has(iso)) return false;
                   const centroid = f.properties?.LABEL_Y && f.properties?.LABEL_X
                     ? { lat: f.properties.LABEL_Y, lng: f.properties.LABEL_X }
                     : null;
@@ -2018,7 +2279,6 @@ export default function Earth3DPage() {
                   return getContinentFromLatLng(centroid.lat, centroid.lng) === name;
                 });
                 if (continentFeatures.length > 0) {
-                  // Create a MultiPolygon from all country polygons
                   const allCoords: number[][][][] = [];
                   for (const f of continentFeatures) {
                     if (f.geometry.type === "Polygon") allCoords.push(f.geometry.coordinates);
@@ -2056,7 +2316,50 @@ export default function Earth3DPage() {
             if (first[0] !== last[0] || first[1] !== last[1]) out.push(first);
             return out;
           };
-          rings = rings.map(simplifyRing).filter((r) => r.length >= 4);
+
+          // Antimeridian safety: when a ring has consecutive points jumping
+          // more than 30° in longitude, Polygon3DElement renders an edge
+          // straight across the globe. Split such rings into east/west halves.
+          const ringSpansAntimeridian = (ring: number[][]): boolean => {
+            for (let i = 1; i < ring.length; i++) {
+              if (Math.abs(ring[i][0] - ring[i - 1][0]) > 30) return true;
+            }
+            return false;
+          };
+          const splitAtAntimeridian = (ring: number[][]): number[][][] => {
+            if (!ringSpansAntimeridian(ring)) return [ring];
+            const east: number[][] = [];
+            const west: number[][] = [];
+            for (const [lng, lat] of ring) {
+              (lng >= 0 ? east : west).push([lng, lat]);
+            }
+            return [east, west].filter((r) => r.length >= 4);
+          };
+
+          // Drop rings that span more than 150° of longitude OR sit entirely
+          // above ±70° latitude — these always render as polar/global artifacts
+          // on the 3D globe (Russia's arctic coast, Antarctica).
+          const isPolarOrGlobalRing = (ring: number[][]): boolean => {
+            let minLng = Infinity, maxLng = -Infinity;
+            let minLat = Infinity, maxLat = -Infinity;
+            for (const [lng, lat] of ring) {
+              if (lng < minLng) minLng = lng;
+              if (lng > maxLng) maxLng = lng;
+              if (lat < minLat) minLat = lat;
+              if (lat > maxLat) maxLat = lat;
+            }
+            if (maxLng - minLng > 150) return true;
+            if (minLat > 70 || maxLat < -70) return true;
+            return false;
+          };
+
+          const isContinent = featureType === "continent";
+
+          rings = rings
+            .map(simplifyRing)
+            .filter((r) => r.length >= 4)
+            .flatMap(splitAtAntimeridian)
+            .filter((r) => !isPolarOrGlobalRing(r));
           if (!rings.length) {
             console.warn("[Earth3D] No valid rings after simplification for", name);
             return;
@@ -2064,7 +2367,6 @@ export default function Earth3DPage() {
 
           console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
           clearPolygonOverlays();
-          const isContinent = featureType === "continent";
           for (const ring of rings) {
             const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
               lat,
@@ -3181,34 +3483,70 @@ export default function Earth3DPage() {
           // Update active place info and highlight boundary
           const searchName = result.main_text || result.description;
           setActivePlaceName(searchName);
-          if (place.address_components) {
-            const info = parseAdminLevelsFromGeocodeResult(place);
-            if (info.country) setActiveCountry(info.country);
+          const info = parseAdminLevelsFromGeocodeResult(place);
+          if (info.country) setActiveCountry(info.country);
+
+          // Determine the right scope/region for the panel based on target level
+          let featureType: "continent" | "country" | "state" | "city" = "country";
+          let highlightName = searchName;
+          const countryCode: string | null = info.countryCode || null;
+
+          if (targetLevel === "CONTINENT" || targetLevel === "EARTH") {
+            const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
+            if (continent) {
+              featureType = "continent";
+              highlightName = continent;
+            }
+          } else if (targetLevel === "COUNTRY") {
+            featureType = "country";
+            highlightName = info.country || searchName;
+          } else if (targetLevel === "STATE") {
+            featureType = "state";
+            highlightName = info.state || searchName;
+          } else {
+            featureType = "city";
           }
 
-          // Highlight the searched region
-          if (fetchAndDrawBoundaryRef.current) {
-            const info = parseAdminLevelsFromGeocodeResult(place);
-            let featureType: "continent" | "country" | "state" | "city" = "country";
-            let highlightName = searchName;
-            let countryCode: string | null = info.countryCode || null;
-
-            if (targetLevel === "CONTINENT") {
-              const continent = getContinentFromLatLng(latLng.lat, latLng.lng);
-              if (continent) {
-                featureType = "continent";
-                highlightName = continent;
-              }
-            } else if (targetLevel === "COUNTRY") {
-              featureType = "country";
-              highlightName = info.country || searchName;
-            } else if (targetLevel === "STATE") {
-              featureType = "state";
-              highlightName = info.state || searchName;
-            } else if (targetLevel === "CITY" || targetLevel === "NONNA") {
-              featureType = "city";
+          // Build a human-readable display name for the discussion pill
+          let regionDisplayName = highlightName;
+          if (featureType === "city") {
+            if (info.state && info.country) {
+              regionDisplayName = `${info.country} • ${info.state} • ${highlightName}`;
+            } else if (info.country) {
+              regionDisplayName = `${info.country} • ${highlightName}`;
             }
+          } else if (featureType === "state") {
+            regionDisplayName = `${info.country || ""} • ${highlightName}`.replace(/^ • /, "");
+          }
 
+          // Sync the panel state so the right-side pill updates correctly.
+          // Panel scope only supports country/state/city — for continent, fall back to "country"
+          // (the panel doesn't have a continent scope) and clear the region so the pill shows
+          // a generic "Discussions" label at world/continent level.
+          if (featureType === "continent") {
+            setPanel((prev) => ({
+              ...prev,
+              region: "",
+              regionDisplayName: "",
+              scope: "country",
+              country: undefined,
+              state: undefined,
+              city: undefined,
+            }));
+          } else {
+            setPanel((prev) => ({
+              ...prev,
+              region: highlightName,
+              regionDisplayName,
+              scope: featureType as "country" | "state" | "city",
+              country: info.country || undefined,
+              state: info.state || undefined,
+              city: featureType === "city" ? highlightName : undefined,
+            }));
+          }
+
+          // Highlight the searched region with a boundary polygon
+          if (fetchAndDrawBoundaryRef.current) {
             fetchAndDrawBoundaryRef.current(highlightName, featureType, countryCode);
           }
         }
@@ -3295,22 +3633,135 @@ export default function Earth3DPage() {
         }}
       />
 
-      {/* Street View Native Markers */}
+      {/* Street View nonna avatar overlay (real DOM, projected from world coords) */}
       {streetViewActive && streetViewPanoramaRef.current && (
-        <StreetViewMarkers
+        <StreetViewNonnaOverlay
           streetViewPanorama={streetViewPanoramaRef.current}
+          containerRef={streetViewContainerRef}
           nonnaData={nonnaData}
-          onMarkerClick={(nonna) => {
+          currentNonnaPhoto={currentNonnaRef.current?.photo ?? null}
+          currentNonnaRecipeId={currentNonnaRef.current?.recipeId ?? null}
+          onAvatarClick={(nonna) => {
             if (nonna.nonnaCount === 1 && nonna.recipeId) {
-              setCommentSection({
+              const clickedRecipeId = parseInt(nonna.recipeId.toString(), 10);
+              // If this is the nonna we already resolved (with the real photo from
+              // the recipe payload), prefer that data over the cluster aggregate —
+              // the aggregate's repPhoto can be null even when a real photo exists.
+              const cached = currentNonnaRef.current;
+              const useCached = cached && cached.recipeId === clickedRecipeId;
+              setStreetViewNonnaPopup({
                 open: true,
-                recipeId: parseInt(nonna.recipeId.toString()),
-                nonnaName: nonna.representativeName,
-                titleName: nonna.representativeTitle,
+                recipeId: clickedRecipeId,
+                name: useCached ? cached!.name : nonna.representativeName,
+                title: useCached ? cached!.title : nonna.representativeTitle,
+                photo: useCached ? cached!.photo : (nonna.representativePhoto || null),
+                countryName: useCached ? cached!.countryName : nonna.countryName,
+                countryCode: useCached ? cached!.countryCode : nonna.countryCode,
               });
             }
           }}
         />
+      )}
+
+      {/* In-Street-View nonna popup card (lives outside the discussion tab) */}
+      {streetViewActive && streetViewNonnaPopup.open && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: isMobile ? "24px" : "40px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 100,
+            background: "rgba(255,255,255,0.97)",
+            backdropFilter: "blur(16px)",
+            borderRadius: "20px",
+            boxShadow: "0 12px 48px rgba(0,0,0,0.35)",
+            border: "1px solid rgba(94,234,212,0.5)",
+            padding: isMobile ? "14px 16px" : "18px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: isMobile ? "12px" : "16px",
+            maxWidth: isMobile ? "calc(100vw - 32px)" : "440px",
+            fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={
+              streetViewNonnaPopup.photo
+              || generateAvatarSvgUri(streetViewNonnaPopup.name, streetViewNonnaPopup.countryCode)
+            }
+            alt={streetViewNonnaPopup.name}
+            style={{
+              width: isMobile ? "56px" : "72px",
+              height: isMobile ? "56px" : "72px",
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: `3px solid ${TEAL.light}`,
+              flexShrink: 0,
+              boxShadow: `0 4px 16px ${TEAL.glow}`,
+            }}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: isMobile ? "15px" : "17px",
+                fontWeight: 700,
+                color: "#111827",
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {streetViewNonnaPopup.name}
+            </div>
+            {streetViewNonnaPopup.countryName && (
+              <div
+                style={{
+                  fontSize: isMobile ? "11px" : "12px",
+                  color: "#6b7280",
+                  marginTop: "2px",
+                }}
+              >
+                {countryFlag(streetViewNonnaPopup.countryCode)} {streetViewNonnaPopup.countryName}
+              </div>
+            )}
+            <button
+              onClick={() => {
+                window.location.href = `/?recipe=${streetViewNonnaPopup.recipeId}`;
+              }}
+              style={{
+                marginTop: "8px",
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background: TEAL.primary,
+                color: "white",
+                fontSize: isMobile ? "12px" : "13px",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+                boxShadow: `0 2px 8px ${TEAL.glow}`,
+              }}
+            >
+              Read Her Book →
+            </button>
+          </div>
+          <button
+            onClick={() => setStreetViewNonnaPopup({ ...streetViewNonnaPopup, open: false })}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "#6b7280",
+              padding: "4px",
+              alignSelf: "flex-start",
+            }}
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       )}
 
       {/* Search Bar - Mobile responsive */}
@@ -3845,99 +4296,9 @@ export default function Earth3DPage() {
               );
             },
           )}
-          {/* NONNA tile — only enabled when at CITY level (one step before) or already at NONNA */}
-          {(() => {
-            const isNonnaActive = currentLevel === "NONNA";
-            const isNonnaDisabled = currentLevel !== "CITY" && currentLevel !== "NONNA";
-            return (
-              <button
-                disabled={isNonnaDisabled}
-                onClick={() => {
-                  if (!map3dRef.current || isNonnaDisabled) return;
-
-                  // Set flight state to pause scroll-based detection during animation
-                  flightStateRef.current = {
-                    active: true,
-                    targetRange: ZOOM_RANGES.NONNA,
-                    targetLevel: "NONNA",
-                    startTime: Date.now(),
-                    lastRanges: [],
-                  };
-
-                  setLevel("NONNA"); // Explicitly set the level for active state
-                  const targetTilt = 65; // 3D tilt for NONNA level
-
-                  map3dRef.current.flyCameraTo({
-                    endCamera: {
-                      center: map3dRef.current.center,
-                      range: ZOOM_RANGES.NONNA,
-                      heading: map3dRef.current.heading,
-                      tilt: targetTilt,
-                    },
-                    durationMillis: 1500,
-                  });
-                }}
-                title={isNonnaDisabled ? "Drill down to City level first" : "See individual Nonnas in 3D view"}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "left",
-                  padding: isMobile ? "8px 12px" : "10px 16px",
-                  borderRadius: "999px",
-                  background: isNonnaActive
-                    ? "rgba(13,148,136,0.85)"
-                    : isNonnaDisabled
-                      ? "rgba(0,0,0,0.2)"
-                      : "rgba(0,0,0,0.5)",
-                  border: `1.5px solid ${isNonnaActive ? "rgba(94,234,212,0.6)" : isNonnaDisabled ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)"}`,
-                  backdropFilter: "blur(10px)",
-                  boxShadow: isNonnaActive ? `0 4px 20px ${TEAL.glow}` : "none",
-                  cursor: isNonnaDisabled ? "not-allowed" : "pointer",
-                  transform: isNonnaActive ? "scale(1.06)" : "scale(1)",
-                  transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-                  color: isNonnaActive ? "white" : isNonnaDisabled ? "rgba(220,220,220,0.3)" : "rgba(220,220,220,0.8)",
-                  fontSize: isMobile ? "11px" : "13px",
-                  fontWeight: 600,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  fontFamily: "ui-sans-serif, system-ui, sans-serif",
-                  userSelect: "none",
-                  WebkitTapHighlightColor: "transparent",
-                  opacity: isNonnaDisabled ? 0.4 : 1,
-                }}
-                onTouchStart={(e) => {
-                  if (!isNonnaActive && !isNonnaDisabled) (e.currentTarget as HTMLElement).style.background = "rgba(13,148,136,0.4)";
-                }}
-                onTouchEnd={(e) => {
-                  if (!isNonnaActive && !isNonnaDisabled) (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
-                }}
-                onMouseEnter={(e) => {
-                  if (!isMobile && !isNonnaActive && !isNonnaDisabled)
-                    (e.currentTarget as HTMLElement).style.background =
-                      "rgba(13,148,136,0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isMobile && !isNonnaActive && !isNonnaDisabled)
-                    (e.currentTarget as HTMLElement).style.background =
-                      "rgba(0,0,0,0.5)";
-                }}
-              >
-                <span>Nonna</span>
-                {isNonnaActive && (
-                  <span
-                    style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      background: TEAL.lighter,
-                      boxShadow: `0 0 6px ${TEAL.lighter}`,
-                      marginLeft: "8px",
-                    }}
-                  />
-                )}
-              </button>
-            );
-          })()}
+          {/* NONNA tile removed per Brendan's feedback — Street View opens automatically
+              when a single-nonna marker is clicked, so the manual NONNA pill is redundant.
+              NONNA still exists as an internal level used by activateStreetViewAt. */}
         </div>
       )}
 
@@ -4026,10 +4387,16 @@ export default function Earth3DPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="relative w-12 h-12 rounded-2xl bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3] flex items-center justify-center shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/20">
-                      <span className="text-2xl filter drop-shadow-sm">💬</span>
-                      {/* Glow effect */}
-                      <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-[#9BC9C3]/30 to-[#7FB5B0]/30 blur-sm animate-pulse" />
+                    <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/40 bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={
+                          commentSection.photo
+                          || generateAvatarSvgUri(commentSection.nonnaName, commentSection.countryCode)
+                        }
+                        alt={commentSection.nonnaName}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-gray-900 leading-tight">
@@ -4038,13 +4405,6 @@ export default function Earth3DPage() {
                       <p className="text-sm text-gray-600 mt-1">
                         Share memories and stories about this Nonna&apos;s recipes
                       </p>
-                      <button
-                        onClick={() => window.location.href = `/profile/${commentSection.recipeId}`}
-                      >
-                        <p className="font-['Inter'] font-semibold text-lg mt-2 text-[#4A7C7A]">
-                          View Nonna →
-                        </p>
-                      </button>
                     </div>
                   </div>
                 </div>
