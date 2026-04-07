@@ -1044,6 +1044,10 @@ export default function Earth3DPage() {
         panorama.addListener("closeclick", () => {
           streetViewPanoramaRef.current = null;
           setStreetViewActive(false);
+
+          setLevel("CITY");
+          currentLevelRef.current = "CITY";
+
         });
       };
       map3d.addEventListener?.("gmp-animationend", handoff, { once: true });
@@ -1308,10 +1312,10 @@ export default function Earth3DPage() {
           countryCode: actualNonna.countryCode || "",
         });
 
-        // Zoom to NONNA level using actual coordinates
+        // Zoom to CITY level using actual coordinates (so a tile is selected)
         const map3d = map3dRef.current;
         if (map3d) {
-          const nextLevel = "NONNA";
+          const nextLevel = "CITY";
 
           // Update level immediately
           setLevel(nextLevel);
@@ -1958,10 +1962,10 @@ export default function Earth3DPage() {
                     countryCode: nonna.countryCode || "",
                   });
 
-                  // Zoom to NONNA level (street view) after opening comment section
+                  // Zoom to CITY level after opening comment section (so a tile is selected)
                   const map3d = map3dRef.current;
                   if (map3d) {
-                    const nextLevel = "NONNA";
+                    const nextLevel = "CITY";
 
                     // Fetch real nonna coordinates (cluster coords may be region/country center)
                     (async () => {
@@ -4308,6 +4312,27 @@ export default function Earth3DPage() {
           onClick={() => {
             streetViewPanoramaRef.current = null;
             setStreetViewActive(false);
+            setLevel("CITY");
+            currentLevelRef.current = "CITY";
+            // Fly to CITY level range for appropriate view
+            if (map3dRef.current) {
+              flightStateRef.current = {
+                active: true,
+                targetRange: ZOOM_RANGES.CITY,
+                targetLevel: "CITY",
+                startTime: Date.now(),
+                lastRanges: [],
+              };
+              map3dRef.current.flyCameraTo({
+                endCamera: {
+                  center: map3dRef.current.center,
+                  range: ZOOM_RANGES.CITY,
+                  heading: map3dRef.current.heading,
+                  tilt: 65,
+                },
+                durationMillis: 1000,
+              });
+            }
           }}
           style={{
             position: "absolute",
