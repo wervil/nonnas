@@ -1953,43 +1953,40 @@ export default function Earth3DPage() {
           });
 
           marker.addEventListener("gmp-click", (e: Event) => {
-            // Get the actual click position within the SVG
+            // Avatar mode: distinguish circle vs name card. Bubble modes: skip the
+            // strict circle test — at EARTH/CONTINENT we use bubble-large; the test
+            // used fixed radii that don't match buildMarkerTemplate's dynamic
+            // bubbleRadius and mis-maps under 3D, so clicks on the bubble were
+            // ignored and the map handled the click instead (breaking single-nonna
+            // zoom-to-city).
             const svgElement = marker.querySelector('svg');
-            if (!svgElement) {
-              console.log("[Earth3D] No SVG element found, allowing click");
-              // Fallback to normal behavior if we can't find SVG
-            } else {
+            if (svgElement && markerMode === "avatar") {
               const clickEvent = e as any;
               const rect = svgElement.getBoundingClientRect();
 
-              // If we have client coordinates, check if click is within the circle
               if (clickEvent.clientX && clickEvent.clientY) {
                 const svgX = clickEvent.clientX - rect.left;
                 const svgY = clickEvent.clientY - rect.top;
 
-                // Get SVG viewBox to calculate actual coordinates
                 const viewBox = svgElement.getAttribute('viewBox')?.split(' ').map(Number);
                 if (viewBox) {
                   const [vbX, vbY, vbW, vbH] = viewBox;
                   const actualX = (svgX / rect.width) * vbW + vbX;
                   const actualY = (svgY / rect.height) * vbH + vbY;
 
-                  // Calculate center of marker (cx from SVG)
                   const cx = vbW / 2;
-                  const aR = markerMode === "bubble-large" ? 100 : 34;
-                  const pad = markerMode === "bubble-large" ? 24 : 12;
+                  const aR = 34;
+                  const pad = 12;
                   const cy = aR + pad;
 
-                  // Calculate distance from click to center
                   const distance = Math.sqrt(Math.pow(actualX - cx, 2) + Math.pow(actualY - cy, 2));
 
-                  // Check if click is within the marker radius (with small buffer)
-                  const markerRadius = markerMode === "avatar" ? aR : (markerMode === "bubble-large" ? 85 : 28);
-                  const effectiveRadius = markerRadius + 10; // 10px buffer
+                  const markerRadius = aR;
+                  const effectiveRadius = markerRadius + 10;
 
                   if (distance > effectiveRadius) {
                     console.log("[Earth3D] Click outside marker radius:", distance, "vs", effectiveRadius, "- ignoring");
-                    return; // Click was outside the visible marker
+                    return;
                   }
                 }
               }
@@ -2324,6 +2321,39 @@ export default function Earth3DPage() {
         hoverPolygonOverlays.length = 0;
       };
 
+      /**
+       * Match Natural Earth admin-0 features by ISO code or any common label field.
+       * Selection used to only check ADMIN/NAME/ISO_A2, so names like "United States"
+       * missed while "United States of America" was in ADMIN — Nominatim fallback
+       * then drew OSM outlines with longitude jumps → Polygon3D "ring around the globe".
+       */
+      const matchNeCountryFeature = (
+        f: any,
+        name: string,
+        countryCode?: string | null,
+      ): boolean => {
+        const p = f.properties || {};
+        const lName = name.toLowerCase().trim();
+        const lCode = (countryCode || "").toLowerCase().trim();
+        if (lCode) {
+          if (p.ISO_A2?.toLowerCase() === lCode) return true;
+          if (p.ISO_A3?.toLowerCase() === lCode) return true;
+        }
+        const nameFields = [
+          p.ADMIN,
+          p.NAME,
+          p.NAME_LONG,
+          p.SUBUNIT,
+          p.BRK_NAME,
+          p.NAME_SORT,
+          p.NAME_EN,
+        ];
+        for (const field of nameFields) {
+          if (typeof field === "string" && field.toLowerCase() === lName) return true;
+        }
+        return false;
+      };
+
       const fetchAndDrawBoundary = async (
         name: string,
         featureType: "continent" | "country" | "state" | "city",
@@ -2374,9 +2404,7 @@ export default function Earth3DPage() {
               }
               const fc = geoJsonCacheRef.current;
               const feature = fc.features.find((f: any) =>
-                f.properties?.ADMIN?.toLowerCase() === name.toLowerCase() ||
-                f.properties?.NAME?.toLowerCase() === name.toLowerCase() ||
-                f.properties?.ISO_A2?.toLowerCase() === (countryCode || "").toLowerCase()
+                matchNeCountryFeature(f, name, countryCode),
               );
               if (feature?.geometry) {
                 geojson = feature.geometry;
@@ -2560,19 +2588,6 @@ export default function Earth3DPage() {
         }
         return geoJsonCacheRef.current;
       };
-      const findCountryFeature = (fc: any, name: string, code?: string | null) => {
-        const lName = name.toLowerCase();
-        const lCode = (code || "").toLowerCase();
-        return fc.features.find((f: any) => {
-          const p = f.properties || {};
-          return (
-            (lCode && p.ISO_A2?.toLowerCase() === lCode) ||
-            p.ADMIN?.toLowerCase() === lName ||
-            p.NAME?.toLowerCase() === lName ||
-            p.NAME_LONG?.toLowerCase() === lName
-          );
-        });
-      };
       // Store fetchAndDrawBoundary in ref for zoom-out highlighting
       fetchAndDrawBoundaryRef.current = fetchAndDrawBoundary;
 
@@ -2727,17 +2742,9 @@ export default function Earth3DPage() {
                     // Country hover: prefer the local Natural Earth file too.
                     try {
                       const fc = await loadCountryGeoJson();
-                      const target = hoverName.toLowerCase();
-                      const cc = (info.countryCode || "").toLowerCase();
-                      const feature = fc.features.find((f: any) => {
-                        const p = f.properties || {};
-                        return (
-                          (cc && p.ISO_A2?.toLowerCase() === cc) ||
-                          p.ADMIN?.toLowerCase() === target ||
-                          p.NAME?.toLowerCase() === target ||
-                          p.NAME_LONG?.toLowerCase() === target
-                        );
-                      });
+                      const feature = fc.features.find((f: any) =>
+                        matchNeCountryFeature(f, hoverName, info.countryCode),
+                      );
                       if (feature?.geometry) {
                         const geom = feature.geometry;
                         let rings: number[][][] = [];
