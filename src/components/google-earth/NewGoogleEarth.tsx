@@ -3294,11 +3294,95 @@ export default function Earth3DPage() {
       // Start unified zoom detection
       unifiedZoomCheck();
 
-      // ── Debounced center-change detection for viewport filtering ──
+      // ── Debounced center-change detection for viewport filtering + pan-follow highlighting ──
       let lastViewportLat = 0;
       let lastViewportLng = 0;
       let viewportUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+      let panHighlightTimer: ReturnType<typeof setTimeout> | null = null;
       const CENTER_CHANGE_THRESHOLD = 2;
+
+      // When the user drags / spins the globe, focus the highlight + discussion
+      // panel on whatever is centered in front of them at the current level.
+      // Reverse-geocode the new center, derive the feature for the level, and
+      // re-run the highlight pipeline. Debounced so we don't spam the geocoder.
+      const followCenterHighlight = async () => {
+        if (!mounted || !map3dRef.current || !geocoderRef.current) return;
+        if (flightStateRef.current.active) return; // skip during programmatic flights
+        const level = currentLevelRef.current;
+        if (level === "EARTH") return;
+
+        const c = map3dRef.current.center;
+        if (!c) return;
+        const cLat = Number(c.lat);
+        const cLng = Number(c.lng);
+        if (!Number.isFinite(cLat) || !Number.isFinite(cLng)) return;
+
+        try {
+          const response = await geocoderRef.current.geocode({ location: { lat: cLat, lng: cLng } });
+          const first = response?.results?.[0];
+          if (!first || !mounted) return;
+          const info = parseAdminLevelsFromGeocodeResult(first);
+
+          let targetName: string | null = null;
+          let featureType: "continent" | "country" | "state" | "city" | null = null;
+
+          if (level === "CONTINENT") {
+            targetName = info.country
+              ? getCountryInfoWithFallback(info.country).continent || null
+              : null;
+            featureType = "continent";
+          } else if (level === "COUNTRY") {
+            targetName = info.country;
+            featureType = "country";
+          } else if (level === "STATE") {
+            targetName = info.state;
+            featureType = "state";
+          } else if (level === "CITY" || level === "NONNA") {
+            const cityComponent = first.address_components?.find((cc: any) =>
+              cc.types?.includes("locality") || cc.types?.includes("administrative_area_level_2")
+            );
+            targetName = cityComponent?.long_name || null;
+            featureType = "city";
+          }
+
+          if (!targetName || !featureType) return;
+          if (targetName === activeHighlightName) return; // already focused
+
+          activeHighlightName = targetName;
+          setClickedLabel(targetName);
+          setActivePlaceName(targetName);
+          setActiveCountry(info.country || null);
+
+          // Sync the discussion pill to whatever the camera is now over.
+          let regionDisplayName = targetName;
+          if (featureType === "city") {
+            if (info.state && info.country) {
+              regionDisplayName = `${info.country} • ${info.state} • ${targetName}`;
+            } else if (info.country) {
+              regionDisplayName = `${info.country} • ${targetName}`;
+            }
+          } else if (featureType === "state") {
+            regionDisplayName = `${info.country || ""} • ${targetName}`.replace(/^ • /, "");
+          }
+          setPanel((prev) => ({
+            ...prev,
+            region: targetName!,
+            regionDisplayName,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            scope: featureType as any,
+            country: info.country || undefined,
+            state: info.state || undefined,
+            city: featureType === "city" ? targetName! : undefined,
+          }));
+
+          if (fetchAndDrawBoundaryRef.current) {
+            fetchAndDrawBoundaryRef.current(targetName, featureType, info.countryCode);
+          }
+        } catch (e) {
+          console.warn("[Earth3D] follow-center highlight failed:", e);
+        }
+      };
+
       const checkCenterChange = () => {
         if (!mounted || !map3d) return;
         const level = currentLevelRef.current;
@@ -3321,6 +3405,11 @@ export default function Earth3DPage() {
           viewportUpdateTimer = setTimeout(() => {
             if (mounted) updateViewportContext();
           }, 600);
+          // Also re-focus the highlight + discussion panel on the new center.
+          if (panHighlightTimer) clearTimeout(panHighlightTimer);
+          panHighlightTimer = setTimeout(() => {
+            if (mounted) followCenterHighlight();
+          }, 450);
         }
         if (mounted) setTimeout(checkCenterChange, 500);
       };
@@ -3720,30 +3809,18 @@ export default function Earth3DPage() {
           }
 
           // Sync the panel state so the right-side pill updates correctly.
-          // Panel scope only supports country/state/city — for continent, fall back to "country"
-          // (the panel doesn't have a continent scope) and clear the region so the pill shows
-          // a generic "Discussions" label at world/continent level.
-          if (featureType === "continent") {
-            setPanel((prev) => ({
-              ...prev,
-              region: "",
-              regionDisplayName: "",
-              scope: "country",
-              country: undefined,
-              state: undefined,
-              city: undefined,
-            }));
-          } else {
-            setPanel((prev) => ({
-              ...prev,
-              region: highlightName,
-              regionDisplayName,
-              scope: featureType as "country" | "state" | "city",
-              country: info.country || undefined,
-              state: info.state || undefined,
-              city: featureType === "city" ? highlightName : undefined,
-            }));
-          }
+          // Continents now go through the same path as click — the pill shows
+          // the continent name instead of falling back to a generic "Discussions".
+          setPanel((prev) => ({
+            ...prev,
+            region: highlightName,
+            regionDisplayName,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            scope: featureType as any,
+            country: info.country || undefined,
+            state: info.state || undefined,
+            city: featureType === "city" ? highlightName : undefined,
+          }));
 
           // Highlight the searched region with a boundary polygon
           if (fetchAndDrawBoundaryRef.current) {
