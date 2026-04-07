@@ -691,6 +691,10 @@ export default function Earth3DPage() {
     countryCode: string;
   } | null>(null);
   const geoJsonCacheRef = useRef<any>(null);
+  // Pre-cut Natural Earth continent polygons (one feature per continent, already
+  // antimeridian-safe). Replaces the runtime country-stitching that produced the
+  // global "ring" artifact for Oceania/Asia.
+  const continentGeoJsonCacheRef = useRef<any>(null);
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
   const user = useUser();
@@ -2229,89 +2233,92 @@ export default function Earth3DPage() {
         console.log("[Earth3D] Fetching boundary for", name, featureType, countryCode);
 
         try {
-          const params = new URLSearchParams({
-            polygon_geojson: "1",
-            format: "json",
-            limit: "1",
-          });
+          // Continents have a known, pre-cut local source — never round-trip
+          // through Nominatim (which returns either nothing useful or a giant
+          // Point that triggers the bad fallback path).
+          let geojson: any = null;
           if (featureType === "continent") {
-            params.set("q", name);
-          } else if (featureType === "country") {
-            params.set("q", name);
-            params.set("featuretype", "country");
-          } else if (featureType === "state") {
-            params.set("featuretype", "state");
-            params.set("state", name);
-            if (countryCode)
-              params.set("countrycodes", countryCode.toLowerCase());
-          } else {
-            params.set("featuretype", "city");
-            params.set("city", name);
-            if (countryCode)
-              params.set("countrycodes", countryCode.toLowerCase());
+            try {
+              if (!continentGeoJsonCacheRef.current) {
+                const cRes = await fetch("/geo/ne_continents.geojson");
+                continentGeoJsonCacheRef.current = await cRes.json();
+              }
+              const cFc = continentGeoJsonCacheRef.current;
+              const target = name.toLowerCase();
+              const cFeature = cFc.features.find(
+                (f: any) => (f.properties?.CONTINENT || "").toLowerCase() === target,
+              );
+              if (cFeature?.geometry) {
+                geojson = cFeature.geometry;
+                console.log("[Earth3D] Loaded continent boundary from ne_continents:", name);
+              } else {
+                console.warn("[Earth3D] Continent not found in ne_continents:", name);
+                return;
+              }
+            } catch (geoErr) {
+              console.warn("[Earth3D] Continent GeoJSON load failed:", geoErr);
+              return;
+            }
           }
 
-          console.log("[Earth3D] Nominatim fetch params:", params.toString());
-          // Use proxy to avoid CORS issues
-          const proxyUrl = `/api/nominatim-proxy?${params.toString()}`;
-          console.log("[Earth3D] Using proxy URL:", proxyUrl);
-
-          const res = await fetch(proxyUrl);
-          console.log("[Earth3D] Proxy fetch response:", res);
-          if (!res.ok) {
-            console.error("[Earth3D] Proxy fetch failed:", res.status, res.statusText);
-            throw new Error(`Proxy HTTP ${res.status}`);
-          }
-          const data = await res.json();
-          console.log("[Earth3D] Nominatim response data:", data);
-          let geojson = data?.[0]?.geojson;
-
-          // If Nominatim returns nothing or a Point, fall back to local GeoJSON
-          if ((!geojson || geojson.type === "Point") && (featureType === "country" || featureType === "continent")) {
-            console.log("[Earth3D] Nominatim failed for", name, "- trying local GeoJSON fallback");
+          // Countries: prefer the local Natural Earth file first (already
+          // antimeridian-safe and complete), only fall through to Nominatim if
+          // the lookup misses. This kills the USA / Russia "ring across the
+          // globe" problem at the data-source layer.
+          let geojsonFromTrustedLocal = false;
+          if (featureType === "country") {
             try {
               if (!geoJsonCacheRef.current) {
                 const geoRes = await fetch("/geo/ne_admin0_countries.geojson");
                 geoJsonCacheRef.current = await geoRes.json();
               }
               const fc = geoJsonCacheRef.current;
-              if (featureType === "country") {
-                const feature = fc.features.find((f: any) =>
-                  f.properties?.ADMIN?.toLowerCase() === name.toLowerCase() ||
-                  f.properties?.NAME?.toLowerCase() === name.toLowerCase() ||
-                  f.properties?.ISO_A2?.toLowerCase() === (countryCode || "").toLowerCase()
-                );
-                if (feature?.geometry) {
-                  geojson = feature.geometry;
-                  console.log("[Earth3D] Found country in local GeoJSON:", name);
-                }
-              } else if (featureType === "continent") {
-                // For continents: combine all country polygons in that continent.
-                // Russia (and Antarctica) cause polar ring artifacts, so exclude them
-                // from the composite — they're too large to render cleanly on a 3D globe.
-                const EXCLUDED_FROM_CONTINENT = new Set(["RU", "AQ"]);
-                const continentFeatures = fc.features.filter((f: any) => {
-                  const iso = (f.properties?.ISO_A2 || "").toUpperCase();
-                  if (EXCLUDED_FROM_CONTINENT.has(iso)) return false;
-                  const centroid = f.properties?.LABEL_Y && f.properties?.LABEL_X
-                    ? { lat: f.properties.LABEL_Y, lng: f.properties.LABEL_X }
-                    : null;
-                  if (!centroid) return false;
-                  return getContinentFromLatLng(centroid.lat, centroid.lng) === name;
-                });
-                if (continentFeatures.length > 0) {
-                  const allCoords: number[][][][] = [];
-                  for (const f of continentFeatures) {
-                    if (f.geometry.type === "Polygon") allCoords.push(f.geometry.coordinates);
-                    else if (f.geometry.type === "MultiPolygon") allCoords.push(...f.geometry.coordinates);
-                  }
-                  geojson = { type: "MultiPolygon", coordinates: allCoords };
-                  console.log("[Earth3D] Built continent boundary from", continentFeatures.length, "countries");
-                }
+              const feature = fc.features.find((f: any) =>
+                f.properties?.ADMIN?.toLowerCase() === name.toLowerCase() ||
+                f.properties?.NAME?.toLowerCase() === name.toLowerCase() ||
+                f.properties?.ISO_A2?.toLowerCase() === (countryCode || "").toLowerCase()
+              );
+              if (feature?.geometry) {
+                geojson = feature.geometry;
+                geojsonFromTrustedLocal = true;
+                console.log("[Earth3D] Country from local GeoJSON:", name);
               }
             } catch (geoErr) {
-              console.warn("[Earth3D] GeoJSON fallback failed:", geoErr);
+              console.warn("[Earth3D] Local country GeoJSON load failed:", geoErr);
             }
+          }
+
+          // For state/city — and country if the local file missed — query Nominatim.
+          if (!geojson && featureType !== "continent") {
+            const params = new URLSearchParams({
+              polygon_geojson: "1",
+              format: "json",
+              limit: "1",
+            });
+            if (featureType === "country") {
+              params.set("q", name);
+              params.set("featuretype", "country");
+            } else if (featureType === "state") {
+              params.set("featuretype", "state");
+              params.set("state", name);
+              if (countryCode)
+                params.set("countrycodes", countryCode.toLowerCase());
+            } else {
+              params.set("featuretype", "city");
+              params.set("city", name);
+              if (countryCode)
+                params.set("countrycodes", countryCode.toLowerCase());
+            }
+
+            console.log("[Earth3D] Nominatim fetch params:", params.toString());
+            const proxyUrl = `/api/nominatim-proxy?${params.toString()}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) {
+              console.error("[Earth3D] Proxy fetch failed:", res.status, res.statusText);
+              throw new Error(`Proxy HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            geojson = data?.[0]?.geojson;
           }
 
           if (!geojson || geojson.type === "Point") {
@@ -2376,11 +2383,20 @@ export default function Earth3DPage() {
 
           const isContinent = featureType === "continent";
 
-          rings = rings
-            .map(simplifyRing)
-            .filter((r) => r.length >= 4)
-            .flatMap(splitAtAntimeridian)
-            .filter((r) => !isPolarOrGlobalRing(r));
+          // Geometry from a trusted, pre-cut local source (continents file or
+          // ne_admin0_countries) is already antimeridian-safe and may legitimately
+          // contain very wide landmasses (Asia 154°, USA mainland+Alaska, Russia).
+          // Skip the antimeridian splitter and the polar/global filter for those —
+          // both were heuristic guards against bad Nominatim/stitched data and
+          // would otherwise erase the main polygon.
+          const trustedSource = isContinent || geojsonFromTrustedLocal;
+          rings = trustedSource
+            ? rings.map(simplifyRing).filter((r) => r.length >= 4)
+            : rings
+                .map(simplifyRing)
+                .filter((r) => r.length >= 4)
+                .flatMap(splitAtAntimeridian)
+                .filter((r) => !isPolarOrGlobalRing(r));
           if (!rings.length) {
             console.warn("[Earth3D] No valid rings after simplification for", name);
             return;
@@ -2536,39 +2552,45 @@ export default function Earth3DPage() {
                     limit: "1",
                   });
                   if (featureType === "continent") {
-                    // Draw continent hover by highlighting all its countries from local GeoJSON
-                    const { getCountriesByContinent } = await import("@/lib/countryData");
-                    const continentCountries = getCountriesByContinent(hoverName);
-                    const fc = await loadCountryGeoJson();
-                    for (const c of continentCountries) {
-                      const feature = findCountryFeature(fc, c.name, c.code);
-                      if (!feature?.geometry) continue;
-                      const geom = feature.geometry;
-                      let rings: number[][][] = [];
-                      if (geom.type === "Polygon") rings = [geom.coordinates[0]];
-                      else if (geom.type === "MultiPolygon")
-                        rings = (geom.coordinates as number[][][][]).map((p) => p[0]);
-                      const MAX_RING_POINTS = 200;
-                      rings = rings
-                        .map((ring: number[][]) => {
-                          if (ring.length <= MAX_RING_POINTS) return ring;
-                          const step = Math.ceil(ring.length / MAX_RING_POINTS);
-                          const out = ring.filter((_: number[], i: number) => i % step === 0);
-                          if (out[0]?.[0] !== out[out.length - 1]?.[0]) out.push(out[0]);
-                          return out;
-                        })
-                        .filter((r: number[][]) => r.length >= 4);
-                      for (const ring of rings) {
-                        const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 100 }));
-                        const poly = new window.google.maps.maps3d.Polygon3DElement();
-                        poly.outerCoordinates = outerCoordinates as any;
-                        poly.strokeColor = TEAL.stroke;
-                        poly.strokeWidth = 1.5;
-                        poly.fillColor = TEAL.fill;
-                        poly.altitudeMode = "RELATIVE_TO_GROUND";
-                        map3d.append(poly);
-                        hoverPolygonOverlays.push(poly as any);
-                      }
+                    // Draw continent hover from the pre-cut Natural Earth file —
+                    // one feature per continent, antimeridian-safe, no per-country
+                    // strokes (which produced the scattered "rings" artifact).
+                    if (!continentGeoJsonCacheRef.current) {
+                      const cRes = await fetch("/geo/ne_continents.geojson");
+                      continentGeoJsonCacheRef.current = await cRes.json();
+                    }
+                    const cFc = continentGeoJsonCacheRef.current;
+                    const target = hoverName.toLowerCase();
+                    const cFeature = cFc.features.find(
+                      (f: any) => (f.properties?.CONTINENT || "").toLowerCase() === target,
+                    );
+                    if (!cFeature?.geometry) return;
+                    const geom = cFeature.geometry;
+                    let rings: number[][][] = [];
+                    if (geom.type === "Polygon") rings = [geom.coordinates[0]];
+                    else if (geom.type === "MultiPolygon")
+                      rings = (geom.coordinates as number[][][][]).map((p) => p[0]);
+                    const MAX_RING_POINTS = 200;
+                    rings = rings
+                      .map((ring: number[][]) => {
+                        if (ring.length <= MAX_RING_POINTS) return ring;
+                        const step = Math.ceil(ring.length / MAX_RING_POINTS);
+                        const out = ring.filter((_: number[], i: number) => i % step === 0);
+                        if (out[0]?.[0] !== out[out.length - 1]?.[0]) out.push(out[0]);
+                        return out;
+                      })
+                      .filter((r: number[][]) => r.length >= 4);
+                    for (const ring of rings) {
+                      const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 100 }));
+                      const poly = new window.google.maps.maps3d.Polygon3DElement();
+                      poly.outerCoordinates = outerCoordinates as any;
+                      // Match the selected look: fill only, no per-feature stroke.
+                      poly.strokeColor = "rgba(0,0,0,0)";
+                      poly.strokeWidth = 0;
+                      poly.fillColor = TEAL.fill;
+                      poly.altitudeMode = "RELATIVE_TO_GROUND";
+                      map3d.append(poly);
+                      hoverPolygonOverlays.push(poly as any);
                     }
                     return;
                   } else if (featureType === "country") {
