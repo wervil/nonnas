@@ -217,6 +217,101 @@ function countryFlag(code: string): string {
       .map((c) => 0x1f1e6 + c.charCodeAt(0) - 65),
   );
 }
+
+// Street View Native Markers Component
+function StreetViewMarkers({
+  streetViewPanorama,
+  nonnaData,
+  onMarkerClick,
+}: {
+  streetViewPanorama: any;
+  nonnaData: GlobeNonna[];
+  onMarkerClick: (nonna: GlobeNonna) => void;
+}) {
+  const markersRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (!streetViewPanorama || !window.google?.maps) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // Get current Street View position
+    const panoramaPosition = streetViewPanorama.getPosition();
+    if (!panoramaPosition) return;
+
+    const panoramaLat = panoramaPosition.lat();
+    const panoramaLng = panoramaPosition.lng();
+
+    console.log('[StreetViewMarkers] Creating markers for', nonnaData.length, 'nonnas');
+    console.log('[StreetViewMarkers] Street View position:', panoramaLat, panoramaLng);
+
+    // Filter and create markers for nonnas within reasonable distance
+    const nearbyNonnas = nonnaData.filter(nonna => {
+      // Only show individual Nonnas (count = 1)
+      if (nonna.nonnaCount !== 1) return false;
+
+      // Calculate distance
+      const distance = calculateDistance(panoramaLat, panoramaLng, nonna.lat, nonna.lng);
+
+      // Only show within 500 meters
+      return distance <= 500;
+    });
+
+    console.log('[StreetViewMarkers] Found', nearbyNonnas.length, 'nearby nonnas');
+
+    nearbyNonnas.forEach(nonna => {
+      const distance = calculateDistance(panoramaLat, panoramaLng, nonna.lat, nonna.lng);
+
+      // Create custom marker with nonna styling
+      const marker = new window.google.maps.Marker({
+        position: { lat: nonna.lat, lng: nonna.lng },
+        map: streetViewPanorama,
+        title: nonna.representativeName,
+        // Custom styling to match our nonna markers
+        icon: {
+          url: generateAvatarSvgUri(nonna.representativeName, nonna.countryCode),
+          scaledSize: new window.google.maps.Size(100, 100),
+          anchor: new window.google.maps.Point(30, 50)
+        },
+
+      });
+
+      // Add click handler
+      marker.addListener('click', () => {
+        console.log('[StreetViewMarkers] Marker clicked:', nonna.representativeName);
+        onMarkerClick(nonna);
+      });
+
+      markersRef.current.push(marker);
+
+      console.log('[StreetViewMarkers] Created marker for', nonna.representativeName, 'at', distance.toFixed(0), 'meters');
+    });
+
+    // Cleanup function
+    return () => {
+      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current = [];
+    };
+  }, [streetViewPanorama, nonnaData, onMarkerClick]);
+
+  // This component doesn't render anything - it manages Google Maps markers
+  return null;
+}
+
+// Distance calculation helper
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 function buildMarkerTemplate(opts: {
   name: string;
   photoUrl: string | null;
@@ -1991,7 +2086,26 @@ export default function Earth3DPage() {
           console.error("[Earth3D] Boundary fetch/draw error for", name, ":", err);
         }
       };
-
+      const loadCountryGeoJson = async () => {
+        if (!geoJsonCacheRef.current) {
+          const res = await fetch("/geo/ne_admin0_countries.geojson");
+          geoJsonCacheRef.current = await res.json();
+        }
+        return geoJsonCacheRef.current;
+      };
+      const findCountryFeature = (fc: any, name: string, code?: string | null) => {
+        const lName = name.toLowerCase();
+        const lCode = (code || "").toLowerCase();
+        return fc.features.find((f: any) => {
+          const p = f.properties || {};
+          return (
+            (lCode && p.ISO_A2?.toLowerCase() === lCode) ||
+            p.ADMIN?.toLowerCase() === lName ||
+            p.NAME?.toLowerCase() === lName ||
+            p.NAME_LONG?.toLowerCase() === lName
+          );
+        });
+      };
       // Store fetchAndDrawBoundary in ref for zoom-out highlighting
       fetchAndDrawBoundaryRef.current = fetchAndDrawBoundary;
 
@@ -2099,9 +2213,40 @@ export default function Earth3DPage() {
                     limit: "1",
                   });
                   if (featureType === "continent") {
-                    // For continents, use a simplified approach since Nominatim doesn't support continent boundaries well
-                    // We'll skip continent boundary drawing for now and just show the label
-                    console.log("[Earth3D] Continent hover detected:", hoverName);
+                    // Draw continent hover by highlighting all its countries from local GeoJSON
+                    const { getCountriesByContinent } = await import("@/lib/countryData");
+                    const continentCountries = getCountriesByContinent(hoverName);
+                    const fc = await loadCountryGeoJson();
+                    for (const c of continentCountries) {
+                      const feature = findCountryFeature(fc, c.name, c.code);
+                      if (!feature?.geometry) continue;
+                      const geom = feature.geometry;
+                      let rings: number[][][] = [];
+                      if (geom.type === "Polygon") rings = [geom.coordinates[0]];
+                      else if (geom.type === "MultiPolygon")
+                        rings = (geom.coordinates as number[][][][]).map((p) => p[0]);
+                      const MAX_RING_POINTS = 200;
+                      rings = rings
+                        .map((ring: number[][]) => {
+                          if (ring.length <= MAX_RING_POINTS) return ring;
+                          const step = Math.ceil(ring.length / MAX_RING_POINTS);
+                          const out = ring.filter((_: number[], i: number) => i % step === 0);
+                          if (out[0]?.[0] !== out[out.length - 1]?.[0]) out.push(out[0]);
+                          return out;
+                        })
+                        .filter((r: number[][]) => r.length >= 4);
+                      for (const ring of rings) {
+                        const outerCoordinates = ring.map(([lng, lat]: number[]) => ({ lat, lng, altitude: 100 }));
+                        const poly = new window.google.maps.maps3d.Polygon3DElement();
+                        poly.outerCoordinates = outerCoordinates as any;
+                        poly.strokeColor = TEAL.stroke;
+                        poly.strokeWidth = 1.5;
+                        poly.fillColor = TEAL.fill;
+                        poly.altitudeMode = "RELATIVE_TO_GROUND";
+                        map3d.append(poly);
+                        hoverPolygonOverlays.push(poly as any);
+                      }
+                    }
                     return;
                   } else if (featureType === "country") {
                     params.set("featuretype", "country");
@@ -3150,7 +3295,23 @@ export default function Earth3DPage() {
         }}
       />
 
-
+      {/* Street View Native Markers */}
+      {streetViewActive && streetViewPanoramaRef.current && (
+        <StreetViewMarkers
+          streetViewPanorama={streetViewPanoramaRef.current}
+          nonnaData={nonnaData}
+          onMarkerClick={(nonna) => {
+            if (nonna.nonnaCount === 1 && nonna.recipeId) {
+              setCommentSection({
+                open: true,
+                recipeId: parseInt(nonna.recipeId.toString()),
+                nonnaName: nonna.representativeName,
+                titleName: nonna.representativeTitle,
+              });
+            }
+          }}
+        />
+      )}
 
       {/* Search Bar - Mobile responsive */}
       <div
@@ -3592,6 +3753,9 @@ export default function Earth3DPage() {
                   disabled={isDisabled}
                   onClick={() => {
                     if (!map3dRef.current || isDisabled) return;
+
+                    // Close nonna comment panel when navigating via pills
+                    setCommentSection(prev => ({ ...prev, open: false }));
 
                     // Set flight state to pause scroll-based detection during animation
                     flightStateRef.current = {
