@@ -93,30 +93,75 @@ declare global {
   }
 }
 function loadGoogleMaps(apiKey: string) {
+  // If Google Maps is already fully initialized, resolve immediately
   if (window.google?.maps?.importLibrary) return Promise.resolve();
+
   return new Promise<void>((resolve, reject) => {
     const scriptId = "google-maps-js";
-    if (document.getElementById(scriptId)) {
-      const t = setInterval(() => {
-        if (window.google?.maps?.importLibrary) {
-          clearInterval(t);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(t);
-        if (!window.google?.maps?.importLibrary) reject(new Error("timeout"));
-      }, 10000);
-      return;
+
+    // Clean up any stale script tag that might exist from a failed load
+    const existingScript = document.getElementById(scriptId) as HTMLScriptElement;
+    if (existingScript) {
+      // Check if it's actually working
+      if (window.google?.maps?.importLibrary) {
+        resolve();
+        return;
+      }
+      // Remove stale script to force reload
+      existingScript.remove();
     }
-    const s = document.createElement("script");
-    s.id = scriptId;
-    s.async = true;
-    s.defer = true;
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=beta&loading=async`;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
-    document.head.appendChild(s);
+
+    // Create a unique callback name for this load
+    const callbackName = `googleMapsCallback_${Date.now()}`;
+
+    // Set up the callback that Google Maps will call when ready
+    (window as any)[callbackName] = () => {
+      clearTimeout(timeoutId);
+      delete (window as any)[callbackName];
+      // Wait a bit to ensure libraries are fully loaded
+      setTimeout(() => {
+        if (window.google?.maps?.importLibrary) {
+          resolve();
+        } else {
+          // Fallback polling in case callback fires too early
+          const t = setInterval(() => {
+            if (window.google?.maps?.importLibrary) {
+              clearInterval(t);
+              resolve();
+            }
+          }, 50);
+          setTimeout(() => {
+            clearInterval(t);
+            if (!window.google?.maps?.importLibrary) {
+              reject(new Error("Google Maps initialization timeout"));
+            }
+          }, 5000);
+        }
+      }, 100);
+    };
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.async = true;
+    script.defer = true;
+    // Use callback parameter for reliable initialization detection
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=beta&loading=async&callback=${callbackName}`;
+
+    script.onerror = () => {
+      clearTimeout(timeoutId);
+      delete (window as any)[callbackName];
+      reject(new Error("Failed to load Google Maps JS"));
+    };
+
+    // Also set a timeout in case the callback never fires
+    const timeoutId = setTimeout(() => {
+      delete (window as any)[callbackName];
+      if (!window.google?.maps?.importLibrary) {
+        reject(new Error("Google Maps loading timeout"));
+      }
+    }, 15000);
+
+    document.head.appendChild(script);
   });
 }
 type LatLngLiteral = { lat: number; lng: number };
@@ -416,7 +461,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 }
 
-function buildMarkerTemplate(opts: {
+async function buildMarkerTemplate(opts: {
   name: string;
   photoUrl: string | null;
   avatarUri: string;
@@ -425,7 +470,7 @@ function buildMarkerTemplate(opts: {
   nonnaCount: number;
   expanded?: boolean;
   mode: "avatar" | "bubble-small" | "bubble-large";
-}): HTMLTemplateElement {
+}): Promise<HTMLTemplateElement> {
   const {
     name,
     avatarUri,
@@ -457,7 +502,22 @@ function buildMarkerTemplate(opts: {
   const svgH = aR + pad + aR + gap + cardH + pad;
   const cx = svgW / 2;
   const cy = aR + pad;
-  const imgHref = opts.photoUrl || avatarUri;
+  async function loadImageAsBase64(url: string): Promise<string> {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  const imgHref = opts.photoUrl
+    ? await loadImageAsBase64(`/api/proxy-image?url=${encodeURIComponent(opts.photoUrl)}`)
+    : await loadImageAsBase64(avatarUri);
+
+
   let markerContent = "";
   if (mode === "bubble-large" || mode === "bubble-small") {
     const baseR = isLarge ? 85 : 28;
@@ -470,27 +530,78 @@ function buildMarkerTemplate(opts: {
       <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
     `;
   } else {
-    markerContent = `
-      <ellipse cx="${cx}" cy="${cy + 5}" rx="${aR + 22}" ry="${aR + 16}" fill="url(#bloom${uid})"/>
-      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(94,234,212,0.82)" stroke-width="2.5">
-        <animate attributeName="r" values="${aR};${aR + 24};${aR}" dur="2.4s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.85;0;0.85" dur="2.4s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(94,234,212,0.42)" stroke-width="2">
-        <animate attributeName="r" values="${aR};${aR + 42};${aR}" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="${cx}" cy="${cy}" r="${aR + 3}" fill="white" filter="url(#ash${uid})"/>
-      <image href="${imgHref}" x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}"
-        clip-path="url(#av${uid})" preserveAspectRatio="xMidYMid slice"/>
-      <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="${TEAL.light}" stroke-width="3.5"/>
-          `;
+    console.log("USING AVATAR IMAGE", imgHref)
+    const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+         width="${svgW}"
+         height="${svgH}"
+         viewBox="0 0 ${svgW} ${svgH}"
+         overflow="visible">
+  
+      <defs>
+        <style>
+          @keyframes floatBob {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+          }
+  
+          .bob-anim {
+            animation: floatBob 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+            transform-origin: center center;
+          }
+        </style>
+  
+        <filter id="ash${uid}" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="rgba(0,0,0,0.30)"/>
+        </filter>
+  
+        <radialGradient id="bloom${uid}" cx="50%" cy="58%" r="50%">
+          <stop offset="0%" stop-color="rgba(94,234,212,0.5)"/>
+          <stop offset="100%" stop-color="rgba(94,234,212,0)"/>
+        </radialGradient>
+        
+        <clipPath id="clip${uid}">
+          <circle cx="${cx}" cy="${cy}" r="${aR}"/>
+        </clipPath>
+      </defs>
+  
+      <g>
+  
+        <!-- animated rings -->
+        <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(94,234,212,0.82)" stroke-width="2.5">
+          <animate attributeName="r" values="${aR};${aR + 24};${aR}" dur="2.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.85;0;0.85" dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+  
+        <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="rgba(94,234,212,0.42)" stroke-width="2">
+          <animate attributeName="r" values="${aR};${aR + 42};${aR}" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
+        </circle>
+  
+        <!-- white background circle -->
+        <circle cx="${cx}" cy="${cy}" r="${aR}" fill="white" filter="url(#ash${uid})"/>
+  
+        <!-- avatar image using foreignObject with background -->
+        <foreignObject x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}" clip-path="url(#clip${uid})">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="width: 100%; height: 100%; background-image: url('${imgHref}'); background-size: cover; background-position: center;"></div>
+        </foreignObject>
+          
+        <!-- border -->
+        <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="${TEAL.light}" stroke-width="3.5"/>
+      </g>
+  
+    </svg>
+    `;
+
+    const tpl = document.createElement("template");
+    tpl.innerHTML = svg.trim();
+    return tpl;
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
   width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" overflow="visible">
   <defs>
     <style>
-      @keyframes floatBob { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+      @keyframes floatBob { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); }
       .bob-anim { animation: floatBob 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite; transform-origin: center center; }
       @keyframes cardPop {
         0%   { opacity: 0; transform: translateY(-12px) scale(0.92); }
@@ -498,7 +609,6 @@ function buildMarkerTemplate(opts: {
       }
       .card-anim { animation: cardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.02s; transform-origin: ${cx}px ${cy + aR + gap}px; }
     </style>
-    <clipPath id="av${uid}"><circle cx="${cx}" cy="${cy}" r="${aR}"/></clipPath>
     <filter id="ash${uid}" x="-40%" y="-40%" width="180%" height="180%">
       <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="rgba(0,0,0,0.30)"/>
     </filter>
@@ -512,29 +622,14 @@ function buildMarkerTemplate(opts: {
   </defs>
   <g class="">
     ${markerContent}
-    ${expanded && mode === "avatar"
-      ? `
-    <g class="card-anim">
-      <g filter="url(#csh${uid})">
-        <rect x="${Math.round((svgW - cardW) / 2)}" y="${cy + aR + gap}"
-          width="${cardW}" height="${cardH}" rx="${cardH / 2}" fill="rgba(255,255,255,0.97)"/>
-      </g>
-      <text x="${cx}" y="${cy + aR + gap + 22}" text-anchor="middle"
-        font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial,sans-serif"
-        font-size="14" font-weight="700" fill="#111827">${displayName}</text>
-      <text x="${cx}" y="${cy + aR + gap + 40}" text-anchor="middle"
-        font-family="-apple-system,'SF Pro Text','Helvetica Neue',Arial,sans-serif"
-        font-size="11.5" font-weight="500" fill="#9ca3af">${badge}</text>
-    </g>
-    `
-      : ""
-    }
   </g>
 </svg>`;
   const tpl = document.createElement("template");
   tpl.innerHTML = svg.trim();
   return tpl;
 }
+
+
 type GlobeNonna = {
   id: string;
   lat: number;
@@ -685,6 +780,20 @@ export default function Earth3DPage() {
   // Slimmed Natural Earth admin-1 (states/regions). Same role as the country
   // file: local-first lookup, Nominatim only as a fallback.
   const stateGeoJsonCacheRef = useRef<any>(null);
+  const currentMarkersRef = useRef<any[]>([]);
+
+  // Function to clear all current markers immediately
+  const clearCurrentMarkers = useCallback(() => {
+    for (const marker of currentMarkersRef.current) {
+      try {
+        marker.remove();
+      } catch (error) {
+        console.warn("[Earth3D] Failed to remove marker:", error);
+      }
+    }
+    currentMarkersRef.current = [];
+  }, []);
+
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
   const user = useUser();
@@ -953,6 +1062,7 @@ export default function Earth3DPage() {
       countryName: string;
       countryCode: string;
     } | null,
+    fallback?: () => void,
   ) => {
     const map3d = map3dRef.current;
     const container = streetViewContainerRef.current;
@@ -975,6 +1085,9 @@ export default function Earth3DPage() {
       if (!result?.data?.location?.latLng) {
         setStreetViewToast("No Street View data is available here.");
         setTimeout(() => setStreetViewToast(null), 3000);
+        if (fallback) {
+          fallback();
+        }
         return;
       }
 
@@ -1071,6 +1184,9 @@ export default function Earth3DPage() {
     } catch {
       setStreetViewToast("No Street View data is available here.");
       setTimeout(() => setStreetViewToast(null), 3000);
+      if (fallback) {
+        fallback();
+      }
     }
   }, [setLevel]);
 
@@ -1182,15 +1298,25 @@ export default function Earth3DPage() {
     data: typeof allClustersRef.current,
   ) => {
     if (!data) return;
-    if (level === "EARTH" || level === "CONTINENT")
+    if (level === "EARTH" || level === "CONTINENT") {
+      console.log(`[Earth3D] Setting ${level} level data:`, {
+        level,
+        continentsCount: data.continents?.length || 0,
+        countriesCount: data.countries?.length || 0,
+        firstContinent: data.continents?.[0],
+        firstCountry: data.countries?.[0]
+      });
       setNonnaData(data.continents);
+    }
     else if (level === "COUNTRY")
       setNonnaData(data.states);
     else if (level === "STATE") {
       setNonnaData(data.states)
     }
+    // CITY and NONNA levels should use fetchIndividualNonnas, not this function
+    // Return early for these levels to prevent incorrect data being set
     else if (level === "CITY" || level === "NONNA")
-      setNonnaData(data.countries);
+      return;
   }, []);
   const fetchIndividualNonnas = useCallback(async (level: "CITY" | "NONNA") => {
     try {
@@ -1234,6 +1360,14 @@ export default function Earth3DPage() {
         const res = await fetch("/api/nonnas/clustering?level=ALL");
         if (!res.ok) throw new Error("Failed to fetch all clusters");
         const data = await res.json();
+        console.log("[Earth3D] API response structure:", {
+          continents: data.continents?.length || 0,
+          countries: data.countries?.length || 0,
+          states: data.states?.length || 0,
+          sampleContinent: data.continents?.[0],
+          sampleCountry: data.countries?.[0],
+          sampleState: data.states?.[0]
+        });
         console.log("data", data);
         if (mounted) {
           allClustersRef.current = {
@@ -1294,9 +1428,14 @@ export default function Earth3DPage() {
     }
 
     if (allClustersRef.current) {
-      applyClusterLevel(level, allClustersRef.current);
+      // For CITY and NONNA levels, fetch individual nonnas instead of using cluster data
+      if (level === "CITY" || level === "NONNA") {
+        fetchIndividualNonnas(level);
+      } else {
+        applyClusterLevel(level, allClustersRef.current);
+      }
     }
-  }, [applyClusterLevel]);
+  }, [applyClusterLevel, fetchIndividualNonnas]);
 
   useEffect(() => {
     if (!allClustersRef.current) return;
@@ -1895,8 +2034,11 @@ export default function Earth3DPage() {
   // Place nonna markers
   useEffect(() => {
     if (!nonnaData.length || !mapReady || !map3dRef.current) return;
+
+    // Clear existing markers immediately before creating new ones
+    clearCurrentMarkers();
+
     const map3d = map3dRef.current;
-    const placedMarkers: any[] = [];
     let mounted = true;
     (async () => {
       try {
@@ -1920,7 +2062,7 @@ export default function Earth3DPage() {
             : isHighZ
               ? "bubble-large"
               : "bubble-small";
-          const tplCompact = buildMarkerTemplate({
+          const tplCompact = await buildMarkerTemplate({
             name: nonna.representativeName,
             photoUrl: nonna.representativePhoto,
             avatarUri,
@@ -1938,7 +2080,7 @@ export default function Earth3DPage() {
           marker.setAttribute('data-nonna-name', nonna.representativeName);
           marker.append(tplCompact.cloneNode(true));
           map3d.append(marker);
-          placedMarkers.push(marker);
+          currentMarkersRef.current.push(marker);
 
           // Remove tooltip on mouseover
           marker.addEventListener("mouseover", (e: Event) => {
@@ -2010,29 +2152,14 @@ export default function Earth3DPage() {
                   // Close the comment section if clicking the same nonna
                   setCommentSection({ ...commentSection, open: false });
                 } else {
-                  // Close discussion panel if open, then open comment section
-                  setPanel(prev => ({ ...prev, open: false }));
-                  setCommentSection({
-                    open: true,
-                    recipeId: parseInt(nonna.recipeId, 10),
-                    nonnaName: nonna.representativeName,
-                    titleName: nonna.representativeTitle,
-                    photo: nonna.representativePhoto || null,
-                    countryCode: nonna.countryCode || "",
-                  });
+                  // At CITY level, activate Street View instead of opening comment section
+                  if (currentLevelRef.current === "CITY" || currentLevelRef.current === "COUNTRY" || currentLevelRef.current === "STATE" || currentLevelRef.current === "CONTINENT" || currentLevelRef.current === "EARTH") {
+                    console.log("[Earth3D] Single nonna clicked at CITY level - activating Street View");
 
-                  // Zoom to CITY level after opening comment section (so a tile is selected)
-                  const map3d = map3dRef.current;
-                  if (map3d) {
-                    const nextLevel = "CITY";
-
-                    // Fetch real nonna coordinates (cluster coords may be region/country center)
+                    // Fetch real nonna coordinates and activate Street View
                     (async () => {
                       let targetLat = nonna.lat;
                       let targetLng = nonna.lng;
-                      // The clustering API computes repPhoto via coalesce(avatar_image, photo[2]),
-                      // which is null for nonnas that only have a single photo. Pull the real
-                      // photo from the recipe payload below so the marker + popup always show her.
                       let resolvedPhoto: string | null = nonna.representativePhoto || null;
 
                       try {
@@ -2058,29 +2185,6 @@ export default function Earth3DPage() {
                         console.warn("[Earth3D] Failed to fetch nonna coords, using cluster coords", err);
                       }
 
-                      // Update level immediately
-                      setLevel(nextLevel);
-                      currentLevelRef.current = nextLevel;
-
-                      // Set flight state
-                      flightStateRef.current = {
-                        active: true,
-                        targetRange: ZOOM_RANGES[nextLevel],
-                        targetLevel: nextLevel,
-                        startTime: Date.now(),
-                        lastRanges: [],
-                      };
-
-                      map3d.flyCameraTo({
-                        endCamera: {
-                          center: { lat: targetLat, lng: targetLng, altitude: 0 },
-                          range: ZOOM_RANGES[nextLevel],
-                          tilt: 65,
-                          heading: map3d.heading,
-                        },
-                        durationMillis: 1500,
-                      });
-
                       // Remember this nonna so the Street View button can re-enter facing her.
                       currentNonnaRef.current = {
                         lat: targetLat,
@@ -2093,20 +2197,148 @@ export default function Earth3DPage() {
                         countryCode: nonna.countryCode || "",
                       };
 
-                      setTimeout(() => {
-                        flightStateRef.current.active = false;
-                      }, 1700);
+                      // Activate Street View at the nonna's location with fallback
+                      activateStreetViewAtRef.current(targetLat, targetLng, currentNonnaRef.current, () => {
+                        // Fallback: If not on city level, zoom to city level. If on city level, open comment section.
+                        const currentLevel = currentLevelRef.current;
+                        console.log("[Earth3D] Street View fallback triggered at level:", currentLevel);
+
+                        if (currentLevel !== "CITY") {
+                          // Zoom to CITY level
+                          const map3d = map3dRef.current;
+                          if (map3d) {
+                            setLevel("CITY");
+                            currentLevelRef.current = "CITY";
+
+                            flightStateRef.current = {
+                              active: true,
+                              targetRange: ZOOM_RANGES.CITY,
+                              targetLevel: "CITY",
+                              startTime: Date.now(),
+                              lastRanges: [],
+                            };
+
+                            map3d.flyCameraTo({
+                              endCamera: {
+                                center: { lat: targetLat, lng: targetLng, altitude: 0 },
+                                range: ZOOM_RANGES.CITY,
+                                tilt: 65,
+                                heading: map3d.heading,
+                              },
+                              durationMillis: 1500,
+                            });
+
+                            setTimeout(() => {
+                              flightStateRef.current.active = false;
+                            }, 1700);
+                          }
+                        } else {
+                          // On city level, open comment section
+                          setPanel(prev => ({ ...prev, open: false }));
+                          setCommentSection({
+                            open: true,
+                            recipeId: parseInt(nonna.recipeId, 10),
+                            nonnaName: nonna.representativeName,
+                            titleName: nonna.representativeTitle,
+                            photo: resolvedPhoto,
+                            countryCode: nonna.countryCode || "",
+                          });
+                        }
+                      });
                     })();
+                  } else {
+                    // At other levels, close discussion panel if open, then open comment section
+                    setPanel(prev => ({ ...prev, open: false }));
+                    setCommentSection({
+                      open: true,
+                      recipeId: parseInt(nonna.recipeId, 10),
+                      nonnaName: nonna.representativeName,
+                      titleName: nonna.representativeTitle,
+                      photo: nonna.representativePhoto || null,
+                      countryCode: nonna.countryCode || "",
+                    });
+
+                    // Zoom to CITY level after opening comment section (so a tile is selected)
+                    const map3d = map3dRef.current;
+                    if (map3d) {
+                      const nextLevel = "CITY";
+
+                      // Fetch real nonna coordinates (cluster coords may be region/country center)
+                      (async () => {
+                        let targetLat = nonna.lat;
+                        let targetLng = nonna.lng;
+                        // The clustering API computes repPhoto via coalesce(avatar_image, photo[2]),
+                        // which is null for nonnas that only have a single photo. Pull the real
+                        // photo from the recipe payload below so the marker + popup always show her.
+                        let resolvedPhoto: string | null = nonna.representativePhoto || null;
+
+                        try {
+                          const res = await fetch(`/api/recipes?published=true&id=${nonna.recipeId}`);
+                          const data = await res.json();
+                          const recipe = data?.recipes?.[0] || data?.[0];
+                          if (recipe?.coordinates) {
+                            const parts = typeof recipe.coordinates === "string"
+                              ? recipe.coordinates.split(",").map(Number)
+                              : null;
+                            if (parts && parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+                              targetLat = parts[0];
+                              targetLng = parts[1];
+                            }
+                          }
+                          if (recipe) {
+                            resolvedPhoto =
+                              recipe.avatar_image
+                              || (Array.isArray(recipe.photo) ? recipe.photo[0] : null)
+                              || resolvedPhoto;
+                          }
+                        } catch (err) {
+                          console.warn("[Earth3D] Failed to fetch nonna coords, using cluster coords", err);
+                        }
+
+                        // Update level immediately
+                        setLevel(nextLevel);
+                        currentLevelRef.current = nextLevel;
+
+                        // Set flight state
+                        flightStateRef.current = {
+                          active: true,
+                          targetRange: ZOOM_RANGES[nextLevel],
+                          targetLevel: nextLevel,
+                          startTime: Date.now(),
+                          lastRanges: [],
+                        };
+
+                        map3d.flyCameraTo({
+                          endCamera: {
+                            center: { lat: targetLat, lng: targetLng, altitude: 0 },
+                            range: ZOOM_RANGES[nextLevel],
+                            tilt: 65,
+                            heading: map3d.heading,
+                          },
+                          durationMillis: 1500,
+                        });
+
+                        // Remember this nonna so the Street View button can re-enter facing her.
+                        currentNonnaRef.current = {
+                          lat: targetLat,
+                          lng: targetLng,
+                          recipeId: parseInt(nonna.recipeId, 10),
+                          name: nonna.representativeName,
+                          title: nonna.representativeTitle,
+                          photo: resolvedPhoto,
+                          countryName: nonna.countryName || "",
+                          countryCode: nonna.countryCode || "",
+                        };
+
+                        setTimeout(() => {
+                          flightStateRef.current.active = false;
+                        }, 1700);
+                      })();
+                    }
                   }
                 }
               }
-            } else {
-              // At all other levels, ignore marker click and treat as map click
-              console.log("[Earth3D] Ignoring marker click at level:", currentLevelRef.current, "- treating as map click");
 
-              // Don't stop propagation or prevent default - let the map handle it
-              // This will trigger the map click handler instead
-              return;
             }
           });
         }
@@ -2116,15 +2348,9 @@ export default function Earth3DPage() {
     })();
     return () => {
       mounted = false;
-      for (const m of placedMarkers) {
-        try {
-          m.remove();
-        } catch {
-          /**/
-        }
-      }
+      clearCurrentMarkers();
     };
-  }, [nonnaData, mapReady, commentSection, panel, setPanel, setCommentSection, setLevel, handleClusterClick]);
+  }, [nonnaData, mapReady, commentSection, panel, setPanel, setCommentSection, setLevel, handleClusterClick, clearCurrentMarkers]);
   // Zoom button handlers
   const handleZoomIn = useCallback(() => {
     if (!map3dRef.current) return;
