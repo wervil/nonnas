@@ -116,6 +116,18 @@ export default function DiscussionPanel({
 
     const scopeDisplay = getScopeDisplay();
 
+    // Debug logging to see what values we're receiving
+    console.log("[DiscussionPanel] Props:", {
+        region,
+        regionDisplayName,
+        scope,
+        mapZoomLevel,
+        scopeDisplay,
+        country,
+        state,
+        city
+    });
+
     return (
         <div className="fixed top-0 right-0 h-screen w-full md:w-125 bg-white shadow-lg z-[9999] border-l border-gray-200 flex flex-col pt-[63px] sm:pt-[80px]">
             {/* Header */}

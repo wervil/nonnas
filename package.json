@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:clean": "rm -rf .next && next build"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",

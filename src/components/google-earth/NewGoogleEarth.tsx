@@ -530,7 +530,6 @@ async function buildMarkerTemplate(opts: {
       <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
     `;
   } else {
-    console.log("USING AVATAR IMAGE", imgHref)
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
          width="${svgW}"
@@ -1155,6 +1154,9 @@ export default function Earth3DPage() {
         streetViewPanoramaRef.current = panorama;
         setStreetViewActive(true);
 
+        // Close comment section when entering street view
+        setCommentSection(prev => ({ ...prev, open: false }));
+
         // Pre-open the in-Street-View nonna popup so the user sees her info immediately.
         if (targetNonna) {
           setStreetViewNonnaPopup({
@@ -1166,6 +1168,30 @@ export default function Earth3DPage() {
             countryName: targetNonna.countryName,
             countryCode: targetNonna.countryCode,
           });
+
+          // Track position changes to hide comment panel when moving 10m away from nonna
+          const checkDistance = () => {
+            const currentPos = panorama.getPosition?.();
+            if (!currentPos) return;
+
+            const currentLat = typeof currentPos.lat === "function" ? currentPos.lat() : currentPos.lat;
+            const currentLng = typeof currentPos.lng === "function" ? currentPos.lng() : currentPos.lng;
+
+            const distance = calculateDistance(
+              currentLat,
+              currentLng,
+              targetNonna.lat,
+              targetNonna.lng
+            );
+
+            // Hide comment panel if more than 10 meters away
+            if (distance > 10) {
+              setCommentSection(prev => ({ ...prev, open: false }));
+            }
+          };
+
+          panorama.addListener("position_changed", checkDistance);
+          panorama.addListener("pov_changed", checkDistance);
         }
 
         panorama.addListener("closeclick", () => {
@@ -1274,6 +1300,52 @@ export default function Earth3DPage() {
     fetchNonnasForRegion();
   }, [panel.region, panel.scope, panel.country, panel.state, panel.city]);
 
+  // Refresh panel data when exiting street view to ensure updated content
+  useEffect(() => {
+    if (!streetViewActive && panel.region && panel.region.trim() !== "" && panel.open) {
+      // When exiting street view, refresh the panel data to ensure it's up-to-date
+      const fetchNonnasForRegion = async () => {
+        setPanel(prev => ({ ...prev, isLoading: true }));
+
+        try {
+          let url = '/api/recipes?published=true';
+
+          if (panel.scope === "continent") {
+            const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+            const continent = getCountryInfoWithFallback(panel.country || '').continent;
+            url += `&continent=${encodeURIComponent(continent)}`;
+          } else if (panel.scope === "country") {
+            url += `&country=${encodeURIComponent(panel.country || '')}`;
+          } else if (panel.scope === "state") {
+            url += `&country=${encodeURIComponent(panel.country || '')}`;
+            url += `&region=${encodeURIComponent(panel.region)}`;
+          } else if (panel.scope === "city") {
+            url += `&country=${encodeURIComponent(panel.country || '')}`;
+            if (panel.state) {
+              url += `&region=${encodeURIComponent(panel.state)}`;
+            }
+            url += `&city=${encodeURIComponent(panel.city || '')}`;
+          }
+
+          const response = await fetch(url);
+          const data = await response.json();
+          const nonnas = mapRecipesToPanelNonnas(data.recipes || []);
+
+          setPanel(prev => ({
+            ...prev,
+            nonnas,
+            isLoading: false,
+          }));
+        } catch (error) {
+          console.error("[Earth3D] Error refreshing nonnas after street view exit:", error);
+          setPanel(prev => ({ ...prev, isLoading: false }));
+        }
+      };
+
+      fetchNonnasForRegion();
+    }
+  }, [streetViewActive, panel.region, panel.scope, panel.country, panel.state, panel.city, panel.open]);
+
   const allClustersRef = useRef<{
     continents: GlobeNonna[];
     countries: GlobeNonna[];
@@ -1360,15 +1432,7 @@ export default function Earth3DPage() {
         const res = await fetch("/api/nonnas/clustering?level=ALL");
         if (!res.ok) throw new Error("Failed to fetch all clusters");
         const data = await res.json();
-        console.log("[Earth3D] API response structure:", {
-          continents: data.continents?.length || 0,
-          countries: data.countries?.length || 0,
-          states: data.states?.length || 0,
-          sampleContinent: data.continents?.[0],
-          sampleCountry: data.countries?.[0],
-          sampleState: data.states?.[0]
-        });
-        console.log("data", data);
+
         if (mounted) {
           allClustersRef.current = {
             continents: data.continents ?? [],
@@ -1478,7 +1542,6 @@ export default function Earth3DPage() {
 
       // If only one nonna, fetch its actual data and zoom directly to it
       if (nonna.nonnaCount === 1 && nonna.recipeId) {
-        console.log("[Earth3D] Single nonna in cluster - fetching actual data and zooming directly");
 
         // Fetch the actual nonna data to get precise coordinates
         const response = await fetch(
@@ -1498,19 +1561,28 @@ export default function Earth3DPage() {
           return;
         }
 
-        console.log("[Earth3D] Found single nonna:", actualNonna.representativeName);
 
-        // Close discussion panel if open
-        setPanel(prev => ({ ...prev, open: false }));
-
-        // Open comment section
-        setCommentSection({
-          open: true,
-          recipeId: actualNonna.recipeId,
-          nonnaName: actualNonna.representativeName,
-          titleName: actualNonna.representativeTitle,
-          photo: actualNonna.representativePhoto || null,
-          countryCode: actualNonna.countryCode || "",
+        // Check if Street View is available at this location
+        const streetViewService = new window.google.maps.StreetViewService();
+        streetViewService.getPanorama({
+          location: { lat: actualNonna.lat, lng: actualNonna.lng },
+          radius: 50
+        }, (data: any, status: any) => {
+          if (status === window.google.maps.StreetViewStatus.OK) {
+            // Street View is available - don't open comment panel, let Street View handle it
+            console.log("[Earth3D] Street View available, not opening comment panel");
+          } else {
+            // Street View not available - open comment panel as exception
+            console.log("[Earth3D] Street View not available, opening comment panel as exception");
+            setCommentSection({
+              open: true,
+              recipeId: actualNonna.recipeId,
+              nonnaName: actualNonna.representativeName,
+              titleName: actualNonna.representativeTitle,
+              photo: actualNonna.representativePhoto || null,
+              countryCode: actualNonna.countryCode || "",
+            });
+          }
         });
 
         // Zoom to CITY level using actual coordinates (so a tile is selected)
@@ -1578,7 +1650,6 @@ export default function Earth3DPage() {
           return;
         }
 
-        console.log("[Earth3D] Found closest nonna:", closestNonna.representativeName);
 
         // Determine next level to zoom to
         let nextLevel: ZoomLevel;
@@ -1763,7 +1834,6 @@ export default function Earth3DPage() {
       const lng = Number(center.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-      console.log(`[Earth3D] ${direction} - Using center coordinates:`, lat, lng);
       setCurrentLocation({ lat, lng });
       highlightingRef.current.lastRequestTime = Date.now();
 
@@ -1823,17 +1893,13 @@ export default function Earth3DPage() {
             featureType = "state";
           }
           else if (currentLevel === "CITY") {
-            console.log(`[Earth3D] ${direction} - Processing CITY level highlighting`);
             const cityComponent = first.address_components?.find((c: any) =>
               c.types?.includes("locality") || c.types?.includes("administrative_area_level_2")
             );
             targetName = cityComponent?.long_name || null;
             featureType = "city";
 
-            // Enhanced logging for debugging
-            console.log(`[Earth3D] CITY level - Address components:`, first.address_components);
-            console.log(`[Earth3D] CITY level - Found city component:`, cityComponent);
-            console.log(`[Earth3D] CITY level - Target name:`, targetName);
+
 
             // Fallback: if no city found, try to use the most specific administrative level
             if (!targetName && first.address_components) {
@@ -2134,11 +2200,7 @@ export default function Earth3DPage() {
               }
             }
 
-            console.log("[Earth3D] MARKER CLICKED! Event:", e);
-            console.log("[Earth3D] Event target:", e.target);
-            console.log("[Earth3D] Event currentTarget:", e.currentTarget);
-            console.log("[Earth3D] Nonna data:", nonna.representativeName);
-            console.log("[Earth3D] Nonna count:", nonna.nonnaCount);
+
 
             // Handle clicks on single-nonna markers at any level
             if (nonna.nonnaCount === 1 && nonna.recipeId) {
@@ -2199,12 +2261,16 @@ export default function Earth3DPage() {
 
                       // Activate Street View at the nonna's location with fallback
                       activateStreetViewAtRef.current(targetLat, targetLng, currentNonnaRef.current, () => {
-                        // Fallback: If not on city level, zoom to city level. If on city level, open comment section.
+                        // Fallback: Street View not available - open comment panel as exception
                         const currentLevel = currentLevelRef.current;
-                        console.log("[Earth3D] Street View fallback triggered at level:", currentLevel);
+                        console.log("[Earth3D] Street View fallback triggered at level:", currentLevel, "- opening comment panel as exception");
 
+                        // Open comment section regardless of current level (exception when Street View is not available)
+                        setPanel(prev => ({ ...prev, open: false }));
+
+
+                        // Also zoom to CITY level if not already there for better context
                         if (currentLevel !== "CITY") {
-                          // Zoom to CITY level
                           const map3d = map3dRef.current;
                           if (map3d) {
                             setLevel("CITY");
@@ -2232,31 +2298,17 @@ export default function Earth3DPage() {
                               flightStateRef.current.active = false;
                             }, 1700);
                           }
-                        } else {
-                          // On city level, open comment section
-                          setPanel(prev => ({ ...prev, open: false }));
-                          setCommentSection({
-                            open: true,
-                            recipeId: parseInt(nonna.recipeId, 10),
-                            nonnaName: nonna.representativeName,
-                            titleName: nonna.representativeTitle,
-                            photo: resolvedPhoto,
-                            countryCode: nonna.countryCode || "",
-                          });
                         }
                       });
                     })();
+
+
+
+
                   } else {
                     // At other levels, close discussion panel if open, then open comment section
                     setPanel(prev => ({ ...prev, open: false }));
-                    setCommentSection({
-                      open: true,
-                      recipeId: parseInt(nonna.recipeId, 10),
-                      nonnaName: nonna.representativeName,
-                      titleName: nonna.representativeTitle,
-                      photo: nonna.representativePhoto || null,
-                      countryCode: nonna.countryCode || "",
-                    });
+
 
                     // Zoom to CITY level after opening comment section (so a tile is selected)
                     const map3d = map3dRef.current;
@@ -2350,7 +2402,7 @@ export default function Earth3DPage() {
       mounted = false;
       clearCurrentMarkers();
     };
-  }, [nonnaData, mapReady, commentSection, panel, setPanel, setCommentSection, setLevel, handleClusterClick, clearCurrentMarkers]);
+  }, [nonnaData, mapReady, setLevel, handleClusterClick, clearCurrentMarkers]);
   // Zoom button handlers
   const handleZoomIn = useCallback(() => {
     if (!map3dRef.current) return;
@@ -4243,14 +4295,32 @@ export default function Earth3DPage() {
               // the aggregate's repPhoto can be null even when a real photo exists.
               const cached = currentNonnaRef.current;
               const useCached = cached && cached.recipeId === clickedRecipeId;
+
+              const nonnaName = useCached ? cached!.name : nonna.representativeName;
+              const nonnaTitle = useCached ? cached!.title : nonna.representativeTitle;
+              const nonnaPhoto = useCached ? cached!.photo : (nonna.representativePhoto || null);
+              const nonnaCountryName = useCached ? cached!.countryName : nonna.countryName;
+              const nonnaCountryCode = useCached ? cached!.countryCode : nonna.countryCode;
+
+              // Open the Street View popup
               setStreetViewNonnaPopup({
                 open: true,
                 recipeId: clickedRecipeId,
-                name: useCached ? cached!.name : nonna.representativeName,
-                title: useCached ? cached!.title : nonna.representativeTitle,
-                photo: useCached ? cached!.photo : (nonna.representativePhoto || null),
-                countryName: useCached ? cached!.countryName : nonna.countryName,
-                countryCode: useCached ? cached!.countryCode : nonna.countryCode,
+                name: nonnaName,
+                title: nonnaTitle,
+                photo: nonnaPhoto,
+                countryName: nonnaCountryName,
+                countryCode: nonnaCountryCode,
+              });
+
+              // Also open the comment panel for this nonna
+              setCommentSection({
+                open: true,
+                recipeId: clickedRecipeId,
+                nonnaName: nonnaName,
+                titleName: nonnaTitle,
+                photo: nonnaPhoto,
+                countryCode: nonnaCountryCode,
               });
             }
           }}
@@ -4610,6 +4680,85 @@ export default function Earth3DPage() {
             setStreetViewNonnaPopup(prev => (prev.open ? { ...prev, open: false } : prev));
             setLevel("CITY");
             currentLevelRef.current = "CITY";
+
+            // Update panel region based on current camera center when exiting street view
+            const updatePanelForStreetViewExit = async () => {
+              const map3d = map3dRef.current;
+              const geocoder = geocoderRef.current;
+              if (!map3d || !geocoder) return;
+
+              const center = map3d.center;
+              if (!center) return;
+              const lat = Number(center.lat);
+              const lng = Number(center.lng);
+              if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+              try {
+                const response = await geocoder.geocode({ location: { lat, lng } });
+                const first = response?.results?.[0];
+                if (first) {
+                  const info = parseAdminLevelsFromGeocodeResult(first);
+
+                  // For street view exit, we're going to CITY level, so get city info
+                  const targetName = first.address_components?.find((c: any) => c.types.includes("locality"))?.long_name || "";
+
+                  if (targetName) {
+                    let regionDisplayName = targetName;
+                    if (info.state && info.country) {
+                      regionDisplayName = `${info.country} · ${info.state} · ${targetName}`;
+                    } else if (info.country) {
+                      regionDisplayName = `${info.country} · ${targetName}`;
+                    }
+
+                    // Update panel with new region data
+                    console.log("[Earth3D] Street View Exit - Updating panel:", {
+                      targetName,
+                      regionDisplayName,
+                      scope: "city",
+                      country: info.country,
+                      state: info.state,
+                      city: targetName,
+                      currentLevel: "CITY"
+                    });
+                    setPanel(prev => ({
+                      ...prev,
+                      region: targetName,
+                      regionDisplayName,
+                      scope: "city" as const,
+                      country: info.country || undefined,
+                      state: info.state || undefined,
+                      city: targetName,
+                    }));
+
+                    // Fetch fresh data for the new region
+                    let url = '/api/recipes?published=true';
+                    url += `&country=${encodeURIComponent(info.country || '')}`;
+                    if (info.state) {
+                      url += `&region=${encodeURIComponent(info.state)}`;
+                    }
+                    url += `&city=${encodeURIComponent(targetName)}`;
+
+                    const dataResponse = await fetch(url);
+                    const data = await dataResponse.json();
+                    const nonnas = mapRecipesToPanelNonnas(data.recipes || []);
+
+                    setPanel(prev => ({
+                      ...prev,
+                      nonnas,
+                      isLoading: false,
+                    }));
+                  }
+                }
+              } catch (error) {
+                console.error("[Earth3D] Error updating panel region after street view exit:", error);
+                setPanel(prev => ({ ...prev, isLoading: false }));
+              }
+            };
+
+            // Always call the update function so panel data is ready when opened
+            console.log("[Earth3D] Street View Exit - Updating panel data regardless of panel state");
+            updatePanelForStreetViewExit();
+
             // Fly to CITY level range for appropriate view
             if (map3dRef.current) {
               flightStateRef.current = {
@@ -4824,6 +4973,110 @@ export default function Earth3DPage() {
                     // Close nonna comment panel when navigating via pills
                     setCommentSection(prev => ({ ...prev, open: false }));
 
+                    // Update panel region based on current camera center for the new level
+                    const updatePanelForNewLevel = async () => {
+                      const map3d = map3dRef.current;
+                      const geocoder = geocoderRef.current;
+                      if (!map3d || !geocoder) return;
+
+                      const center = map3d.center;
+                      if (!center) return;
+                      const lat = Number(center.lat);
+                      const lng = Number(center.lng);
+                      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+                      try {
+                        const response = await geocoder.geocode({ location: { lat, lng } });
+                        const first = response?.results?.[0];
+                        if (first && panel.open) {
+                          const info = parseAdminLevelsFromGeocodeResult(first);
+
+                          // Determine the appropriate feature type and region name for this level
+                          let targetName = "";
+                          let featureType: "continent" | "country" | "state" | "city" = "country";
+
+                          if (lvl === "CONTINENT") {
+                            // For continent level, try to get continent from country info
+                            if (info.country) {
+                              const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+                              targetName = getCountryInfoWithFallback(info.country).continent || info.country;
+                              featureType = "continent";
+                            }
+                          } else if (lvl === "COUNTRY") {
+                            targetName = info.country || "";
+                            featureType = "country";
+                          } else if (lvl === "STATE") {
+                            targetName = info.state || "";
+                            featureType = "state";
+                          } else if (lvl === "CITY") {
+                            targetName = first.address_components?.find((c: any) => c.types.includes("locality"))?.long_name || "";
+                            featureType = "city";
+                          }
+
+                          if (targetName) {
+                            let regionDisplayName = targetName;
+                            if (featureType === "city") {
+                              if (info.state && info.country) {
+                                regionDisplayName = `${info.country} · ${info.state} · ${targetName}`;
+                              } else if (info.country) {
+                                regionDisplayName = `${info.country} · ${targetName}`;
+                              }
+                            } else if (featureType === "state") {
+                              regionDisplayName = `${info.country || ""} · ${targetName}`.replace(/^ · /, "");
+                            }
+
+                            // Update panel with new region data
+                            setPanel(prev => ({
+                              ...prev,
+                              region: targetName,
+                              regionDisplayName,
+                              scope: featureType,
+                              country: info.country || undefined,
+                              state: info.state || undefined,
+                              city: featureType === "city" ? targetName : undefined,
+                            }));
+
+                            // Fetch fresh data for the new region
+                            let url = '/api/recipes?published=true';
+                            if (featureType === "continent") {
+                              const { getCountryInfoWithFallback } = await import("@/lib/countryData");
+                              const continent = getCountryInfoWithFallback(info.country || '').continent;
+                              url += `&continent=${encodeURIComponent(continent)}`;
+                            } else if (featureType === "country") {
+                              url += `&country=${encodeURIComponent(info.country || '')}`;
+                            } else if (featureType === "state") {
+                              url += `&country=${encodeURIComponent(info.country || '')}`;
+                              url += `&region=${encodeURIComponent(targetName)}`;
+                            } else if (featureType === "city") {
+                              url += `&country=${encodeURIComponent(info.country || '')}`;
+                              if (info.state) {
+                                url += `&region=${encodeURIComponent(info.state)}`;
+                              }
+                              url += `&city=${encodeURIComponent(targetName)}`;
+                            }
+
+                            const dataResponse = await fetch(url);
+                            const data = await dataResponse.json();
+                            const nonnas = mapRecipesToPanelNonnas(data.recipes || []);
+
+                            setPanel(prev => ({
+                              ...prev,
+                              nonnas,
+                              isLoading: false,
+                            }));
+                          }
+                        }
+                      } catch (error) {
+                        console.error("[Earth3D] Error updating panel region for level navigation:", error);
+                        setPanel(prev => ({ ...prev, isLoading: false }));
+                      }
+                    };
+
+                    // Call the update function if panel is open
+                    if (panel.open) {
+                      updatePanelForNewLevel();
+                    }
+
                     // Set flight state to pause scroll-based detection during animation
                     flightStateRef.current = {
                       active: true,
@@ -4919,7 +5172,7 @@ export default function Earth3DPage() {
       )}
 
 
-      {/* Discussion Panel toggle button — always visible */}
+      {/* Discussion Panel toggle button - hidden in Street View */}
       <button
         onClick={() => setPanel(prev => ({ ...prev, open: !prev.open }))}
         style={{
@@ -4933,7 +5186,7 @@ export default function Earth3DPage() {
           backdropFilter: "blur(10px)",
           boxShadow: `0 4px 20px ${TEAL.glow}`,
           cursor: "pointer",
-          display: (isMobile && panel.open) || commentSection.open ? "none" : "flex",
+          display: streetViewActive || (isMobile && panel.open) || commentSection.open ? "none" : "flex",
           alignItems: "center",
           gap: isMobile ? "6px" : "10px",
           padding: isMobile ? "8px 12px" : "10px 16px",
@@ -4995,7 +5248,7 @@ export default function Earth3DPage() {
 
       {/* Comment Section for nonna-specific discussions */}
       {commentSection.open && (
-        <div className="fixed top-0 right-0 h-screen w-full md:w-140 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col pt-[63px] sm:pt-[80px]">
+        <div className="fixed top-0 right-0 h-screen w-full md:w-120 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col pt-[63px] sm:pt-[80px]">
           {/* Enhanced Header with gradient */}
           <div className="relative overflow-hidden">
 
