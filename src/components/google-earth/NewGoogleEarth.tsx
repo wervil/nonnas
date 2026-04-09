@@ -1008,6 +1008,11 @@ export default function Earth3DPage() {
     if (currentLevel !== "NONNA") {
       currentNonnaRef.current = null;
     }
+
+    // Hide comment section when moving away from CITY level
+    if (currentLevel !== "CITY") {
+      setCommentSection(prev => ({ ...prev, open: false, recipeId: 0 }));
+    }
   }, [currentLevel, streetViewActive]);
 
   // (Panel data is updated by the scroll/click handlers directly — no extra sync needed)
@@ -1084,6 +1089,19 @@ export default function Earth3DPage() {
       if (!result?.data?.location?.latLng) {
         setStreetViewToast("No Street View data is available here.");
         setTimeout(() => setStreetViewToast(null), 3000);
+
+        // Open comment section when street view is not available
+        if (targetNonna) {
+          setCommentSection({
+            open: true,
+            recipeId: targetNonna.recipeId,
+            nonnaName: targetNonna.name,
+            titleName: targetNonna.title,
+            photo: targetNonna.photo,
+            countryCode: targetNonna.countryCode,
+          });
+        }
+
         if (fallback) {
           fallback();
         }
@@ -1198,6 +1216,9 @@ export default function Earth3DPage() {
           streetViewPanoramaRef.current = null;
           setStreetViewActive(false);
           setStreetViewNonnaPopup(prev => (prev.open ? { ...prev, open: false } : prev));
+
+          // Clear comment section state completely when exiting Street View
+          setCommentSection(prev => ({ ...prev, open: false, recipeId: 0 }));
 
           setLevel("CITY");
           currentLevelRef.current = "CITY";
@@ -2212,11 +2233,11 @@ export default function Earth3DPage() {
                 // Check if comment section is already open for this same nonna
                 if (commentSection.open && commentSection.recipeId === parseInt(nonna.recipeId, 10)) {
                   // Close the comment section if clicking the same nonna
-                  setCommentSection({ ...commentSection, open: false });
+                  setCommentSection({ ...commentSection, open: false, recipeId: 0 });
+                  return; // Prevent street view activation from reopening it
                 } else {
-                  // At CITY level, activate Street View instead of opening comment section
                   if (currentLevelRef.current === "CITY" || currentLevelRef.current === "COUNTRY" || currentLevelRef.current === "STATE" || currentLevelRef.current === "CONTINENT" || currentLevelRef.current === "EARTH") {
-                    console.log("[Earth3D] Single nonna clicked at CITY level - activating Street View");
+                    console.log(`[Earth3D] Single nonna clicked at ${currentLevelRef.current} - activating Street View`);
 
                     // Fetch real nonna coordinates and activate Street View
                     (async () => {
@@ -2268,6 +2289,15 @@ export default function Earth3DPage() {
                         // Open comment section regardless of current level (exception when Street View is not available)
                         setPanel(prev => ({ ...prev, open: false }));
 
+                        // Open comment section with nonna's data
+                        setCommentSection({
+                          open: true,
+                          recipeId: currentNonnaRef.current?.recipeId || 0,
+                          nonnaName: currentNonnaRef.current?.name || "",
+                          titleName: currentNonnaRef.current?.title || "",
+                          photo: currentNonnaRef.current?.photo || null,
+                          countryCode: currentNonnaRef.current?.countryCode || "",
+                        });
 
                         // Also zoom to CITY level if not already there for better context
                         if (currentLevel !== "CITY") {
@@ -5279,7 +5309,7 @@ export default function Earth3DPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setCommentSection({ ...commentSection, open: false })}
+                  onClick={() => setCommentSection({ ...commentSection, open: false, recipeId: 0 })}
                   className="shrink-0 w-5 h-5 rounded-xl "
                   aria-label="Close discussion"
                 >
