@@ -151,26 +151,32 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
       ? pageForDisable >= totalPages - 1
       : pageForDisable >= totalPages - 2)
 
-  const goToPage = (pageNumber: number) => {
+  const goToPage = useCallback((pageNumber: number) => {
+    console.log('Book: goToPage called with:', pageNumber)
     if (flipbookRef.current) {
       flipbookRef.current.pageFlip()?.flip(pageNumber)
     }
-  }
+  }, [])
 
   // Find the page number for a specific recipe ID
   const getPageNumberForRecipe = useCallback((recipeId: number): number => {
     const recipeIndex = recipes.findIndex((r) => r.id === recipeId)
+    console.log('Book: Recipe index in array:', recipeIndex)
     if (recipeIndex === -1) return 0
     // Each recipe takes 2 pages, and there's a cover page at the start
-    return PAGES_BEFORE_RECIPES + (recipeIndex * 2)
+    // In double-page mode, ensure we start on an even page number (left page of spread)
+    const pageNumber = PAGES_BEFORE_RECIPES + (recipeIndex * 2)
+    return pageNumber
   }, [recipes])
 
   const goToRecipe = useCallback((recipeId: number) => {
     console.log('Book: goToRecipe called for ID:', recipeId)
+    const recipeIndex = recipes.findIndex((r) => r.id === recipeId)
+    console.log('Book: Recipe index in array:', recipeIndex)
     const pageNumber = getPageNumberForRecipe(recipeId)
     console.log('Book: Calculated page number:', pageNumber)
     goToPage(pageNumber)
-  }, [getPageNumberForRecipe, goToPage])
+  }, [getPageNumberForRecipe, goToPage, recipes])
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -271,8 +277,10 @@ export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, i
                       console.log('On cover page, clearing recipe')
                       setCurrentRecipeId(null)
                     } else {
+                      // In double-page mode, each flip advances by 2 pages but shows 1 recipe
+                      // In single-page mode, each recipe spans 2 pages
                       const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
-                      console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length)
+                      console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length, 'Current page:', currentPageNum, 'isSinglePage:', isSinglePage)
 
                       if (recipeIndex >= 0 && recipeIndex < recipes.length) {
                         const recipeId = recipes[recipeIndex].id

@@ -1,93 +1,108 @@
-import { useEffect, useState } from 'react'
-import { sanitizeHtml } from '@/utils/utils'
-import { Recipe } from '@/db/schema'
-import { useTranslations } from 'next-intl'
+import { Recipe } from "@/db/schema";
+import { sanitizeHtml } from "@/utils/utils";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
-export const MAX_RECIPES_PER_PAGE = 14
+export const MAX_RECIPES_PER_PAGE = 14;
 
 const convertRecipe = (recipe: Recipe) => ({
   ...recipe,
-  history: sanitizeHtml(recipe.history || ''),
-  geo_history: sanitizeHtml(recipe.geo_history || ''),
-  recipe: sanitizeHtml(recipe.recipe || ''),
-  directions: sanitizeHtml(recipe.directions || ''),
-  influences: sanitizeHtml(recipe.influences || ''),
-  traditions: sanitizeHtml(recipe.traditions || ''),
-})
+  history: sanitizeHtml(recipe.history || ""),
+  geo_history: sanitizeHtml(recipe.geo_history || ""),
+  recipe: sanitizeHtml(recipe.recipe || ""),
+  directions: sanitizeHtml(recipe.directions || ""),
+  influences: sanitizeHtml(recipe.influences || ""),
+  traditions: sanitizeHtml(recipe.traditions || ""),
+});
 
 export const useRecipes = () => {
-  const n = useTranslations('navigation')
+  const n = useTranslations("navigation");
   const [selectedCountry, setSelectedCountry] = useState<{
-    label: string
-    value: string
-  }>({ value: '', label: n('all') })
-  const [search, setSearch] = useState('')
-  const [recipes, setRecipes] = useState<Recipe[]>([]) // These are now ALL recipes
-  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]) // These are subsets
-  const [loading, setLoading] = useState(true)
+    label: string;
+    value: string;
+  }>({ value: "", label: n("all") });
+  const [search, setSearch] = useState("");
+  const [recipes, setRecipes] = useState<Recipe[]>([]); // These are now ALL recipes
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]); // These are subsets
+  const [loading, setLoading] = useState(true);
   const [tableOfContents, setTableOfContents] = useState<
     Record<string, Recipe[]>
-  >({})
-  const [lang] = useState('en-US')
+  >({});
+  const [lang] = useState("en-US");
 
   // Fetch all recipes once
   const fetchRecipes = async (lang: string) => {
-    setLoading(true)
-    const url = `/api/recipes?published=true&lang=${lang}`
+    setLoading(true);
+    const url = `/api/recipes?published=true&lang=${lang}`;
 
     try {
-      const res = await fetch(url)
-      const data = await res.json()
+      const res = await fetch(url);
+      const data = await res.json();
 
       if (Array.isArray(data.recipes)) {
-        const convertedRecipes = data.recipes.map(convertRecipe)
-        setRecipes(convertedRecipes)
+        const convertedRecipes = data.recipes.map(convertRecipe);
+        // Sort recipes by ID to ensure consistent navigation
+        const sortedById = convertedRecipes.sort(
+          (a: Recipe, b: Recipe) => a.id - b.id,
+        );
+        setRecipes(sortedById);
       } else {
-        const sortedRecipes: Record<string, Recipe[]> = Object.keys(data.recipes)
+        const sortedRecipes: Record<string, Recipe[]> = Object.keys(
+          data.recipes,
+        )
           .sort()
-          .reduce((acc, key) => {
-            acc[key] = data.recipes[key]
-            return acc
-          }, {} as Record<string, Recipe[]>)
+          .reduce(
+            (acc, key) => {
+              acc[key] = data.recipes[key];
+              return acc;
+            },
+            {} as Record<string, Recipe[]>,
+          );
 
-        setTableOfContents(sortedRecipes)
+        setTableOfContents(sortedRecipes);
 
-        const allRecipes = Object.values(sortedRecipes).flat() as Recipe[]
-        const convertedRecipes = allRecipes.map(convertRecipe)
+        const allRecipes = Object.values(sortedRecipes).flat() as Recipe[];
+        const convertedRecipes = allRecipes.map(convertRecipe);
+        // Sort recipes by ID to ensure consistent navigation
+        const sortedById = convertedRecipes.sort(
+          (a: Recipe, b: Recipe) => a.id - b.id,
+        );
 
-        setRecipes(convertedRecipes)
+        setRecipes(sortedById);
       }
     } catch (error) {
-      console.error("Failed to fetch recipes", error)
+      console.error("Failed to fetch recipes", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Filter recipes when search or country changes
   useEffect(() => {
-    let result = recipes
+    let result = recipes;
 
     if (search) {
-      const lowerSearch = search.toLowerCase()
-      result = result.filter(r =>
-        r.recipeTitle.toLowerCase().includes(lowerSearch) ||
-        r.firstName.toLowerCase().includes(lowerSearch) ||
-        r.lastName.toLowerCase().includes(lowerSearch) ||
-        (r.grandmotherTitle && r.grandmotherTitle.toLowerCase().includes(lowerSearch))
-      )
+      const lowerSearch = search.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.recipeTitle.toLowerCase().includes(lowerSearch) ||
+          r.firstName.toLowerCase().includes(lowerSearch) ||
+          r.lastName.toLowerCase().includes(lowerSearch) ||
+          (r.grandmotherTitle &&
+            r.grandmotherTitle.toLowerCase().includes(lowerSearch)),
+      );
     }
 
     if (selectedCountry.value) {
-      result = result.filter(r => r.country === selectedCountry.value)
+      result = result.filter((r) => r.country === selectedCountry.value);
     }
 
-    setFilteredRecipes(result)
-  }, [recipes, search, selectedCountry])
+    setFilteredRecipes(result);
+  }, [recipes, search, selectedCountry]);
 
   useEffect(() => {
-    fetchRecipes(lang)
-  }, [lang])
+    fetchRecipes(lang);
+  }, [lang]);
 
   // NOTE: Removed the debounce search fetch because we filter client side now.
 
@@ -100,5 +115,5 @@ export const useRecipes = () => {
     setSelectedCountry,
     search,
     setSearch,
-  }
-}
+  };
+};
