@@ -1,392 +1,566 @@
-'use client'
+"use client";
 
-import HTMLFlipBook from 'react-pageflip'
-import './Book.css'
+import HTMLFlipBook from "react-pageflip";
+import "./Book.css";
 
-import { Recipe } from '@/db/schema'
-import { convertRecipesToPages } from '@/utils/convertRecipesToPages'
-import { useTranslations } from 'next-intl'
-import Image from 'next/image'
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { ImagesModal } from '../ui/ImagesModal'
+import { Recipe } from "@/db/schema";
+import { convertRecipesToPages } from "@/utils/convertRecipesToPages";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import { ImagesModal } from "../ui/ImagesModal";
 // import { generateTOCpages } from '@/utils/generateTOCpages'
 // import { Typography } from '../ui/Typography'
-import { useUser } from '@stackframe/stack'
-import { ArrowLeft, ArrowRight, MessageCircle, X } from 'lucide-react'
-import CommentSection from '../Comments/CommentSection'
+import { useUser } from "@stackframe/stack";
+import { ArrowLeft, ArrowRight, MessageCircle, X } from "lucide-react";
+import CommentSection from "../Comments/CommentSection";
 
 type Props = {
-  recipes: Recipe[]
-  tableOfContents: Record<string, Recipe[]>
-  initialRecipeId?: number | null
-}
+  recipes: Recipe[];
+  tableOfContents: Record<string, Recipe[]>;
+  initialRecipeId?: number | null;
+};
 
 export type BookHandle = {
-  goToPage: (pageNumber: number) => void
-  goToRecipe: (recipeId: number) => void
+  goToPage: (pageNumber: number) => void;
+  goToRecipe: (recipeId: number) => void;
+};
+
+const HEADER_HEIGHT = 80; //200
+const TOC_ITEM_HEIGHT = 40;
+
+// Avatar generation utility
+const PALETTES = [
+  ["#dc2626", "#ea580c", "#f59e0b"],
+  ["#059669", "#10b981", "#34d399"],
+  ["#2563eb", "#3b82f6", "#60a5fa"],
+  ["#7c3aed", "#8b5cf6", "#a78bfa"],
+  ["#db2777", "#ec4899", "#f472b6"],
+  ["#0e7490", "#0f766e", "#047857"],
+  ["#14b8a6", "#0d9488", "#0891b2"],
+];
+
+function hashStr(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
 }
 
-const HEADER_HEIGHT = 80 //200
-const TOC_ITEM_HEIGHT = 40
+function generateAvatarSvgUri(name: string, countryCode: string): string {
+  const seed = hashStr(name + countryCode);
+  const [c0, c1, c2] = PALETTES[seed % PALETTES.length];
+  const parts = name.trim().split(/\s+/);
+  const initials = parts
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join("");
+
+  const svg = `
+    <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad${seed}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${c0};stop-opacity:1" />
+          <stop offset="50%" style="stop-color:${c1};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:${c2};stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="50" fill="url(#grad${seed})" />
+      <text x="50" y="50" text-anchor="middle" dy=".3em" 
+            font-family="system-ui, -apple-system, sans-serif" 
+            font-size="32" font-weight="600" fill="white">
+        ${initials}
+      </text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
 
 // Number of pages before recipes start (cover + TOC pages)
-const PAGES_BEFORE_RECIPES = 1 // Just cover page, TOC is commented out
+const PAGES_BEFORE_RECIPES = 1; // Just cover page, TOC is commented out
 
-export const Book = forwardRef<BookHandle, Props>(({ recipes, tableOfContents, initialRecipeId }, ref) => {
-  const l = useTranslations('labels')
-  const user = useUser()
-  const [isMobile, setIsMobile] = useState(false)
-  const [isSinglePage, setIsSinglePage] = useState(false)
-  const [contentHeight, setContentHeight] = useState(0)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+export const Book = forwardRef<BookHandle, Props>(
+  ({ recipes, tableOfContents, initialRecipeId }, ref) => {
+    const l = useTranslations("labels");
+    const user = useUser();
+    const [isMobile, setIsMobile] = useState(false);
+    const [isSinglePage, setIsSinglePage] = useState(false);
+    const [contentHeight, setContentHeight] = useState(0);
 
-  const [images, setImages] = useState<string[] | null>(null)
-  // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
-  const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null)
-  const [currentPage, setCurrentPage] = useState(0)
-  const totalPages = 1 + (recipes.length * 2)
+    const [images, setImages] = useState<string[] | null>(null);
+    // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
+    const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null);
+    const [currentPage, setCurrentPage] = useState(0);
+    const totalPages = 1 + recipes.length * 2;
 
-  const getCurrentLayout = () => {
-    if (flipbookRef.current) {
-      // setOrientation(
-      //   flipbookRef.current.pageFlip()?.getOrientation() || 'landscape'
-      // )
-    }
-  }
+    // Comment Section state for recipe-specific discussions
+    const [commentSection, setCommentSection] = useState<{
+      open: boolean;
+      recipeId: number;
+      nonnaName: string;
+      titleName: string;
+      photo: string | null;
+      countryCode: string;
+    }>({
+      open: false,
+      recipeId: 0,
+      nonnaName: "",
+      titleName: "",
+      photo: null,
+      countryCode: "",
+    });
 
-  useEffect(() => {
-    const recipesQuantity = Object.entries(tableOfContents).reduce(
-      (acc, entry) => ({
-        ...acc,
-        [entry[0]]: (entry[1] as Recipe[]).length * 2,
-      }),
-      {}
-    )
-    const countriesQuantity = Object.keys(recipesQuantity).length
-    const maxRecipesPerPage = Math.floor((contentHeight - 52) / TOC_ITEM_HEIGHT)
-    // setRecipesPerPage(maxRecipesPerPage)
-    let contentsPages = Math.ceil(countriesQuantity / maxRecipesPerPage)
-    if (contentsPages % 2 !== 0) {
-      contentsPages++
-    }
+    const getCurrentLayout = () => {
+      if (flipbookRef.current) {
+        // setOrientation(
+        //   flipbookRef.current.pageFlip()?.getOrientation() || 'landscape'
+        // )
+      }
+    };
 
-    // Create page ranges for each country
-    const pageRanges: Record<string, string> = {}
-    let currentPage = contentsPages + 3
-    for (const [country, pages] of Object.entries(recipesQuantity)) {
-      const numPages = Number(pages)
-      const startPage = currentPage
-      const endPage = currentPage + numPages - 1
-      pageRanges[country] = `${startPage}-${endPage}`
-      currentPage = endPage + 1
-    }
-    // setPageRanges(pageRanges)
-  }, [contentHeight, tableOfContents])
+    useEffect(() => {
+      const recipesQuantity = Object.entries(tableOfContents).reduce(
+        (acc, entry) => ({
+          ...acc,
+          [entry[0]]: (entry[1] as Recipe[]).length * 2,
+        }),
+        {},
+      );
+      const countriesQuantity = Object.keys(recipesQuantity).length;
+      const maxRecipesPerPage = Math.floor(
+        (contentHeight - 52) / TOC_ITEM_HEIGHT,
+      );
+      // setRecipesPerPage(maxRecipesPerPage)
+      let contentsPages = Math.ceil(countriesQuantity / maxRecipesPerPage);
+      if (contentsPages % 2 !== 0) {
+        contentsPages++;
+      }
 
-  const checkScreenSize = useCallback(() => {
-    const sidebarWidth = isSidebarOpen ? 400 : 0
-    const availableWidth = window.innerWidth - sidebarWidth
-    const mobile = window.innerWidth < 776 //1024
+      // Create page ranges for each country
+      const pageRanges: Record<string, string> = {};
+      let currentPage = contentsPages + 3;
+      for (const [country, pages] of Object.entries(recipesQuantity)) {
+        const numPages = Number(pages);
+        const startPage = currentPage;
+        const endPage = currentPage + numPages - 1;
+        pageRanges[country] = `${startPage}-${endPage}`;
+        currentPage = endPage + 1;
+      }
+      // setPageRanges(pageRanges)
+    }, [contentHeight, tableOfContents]);
 
-    setIsMobile(mobile)
-    // Switch to single page if it's mobile OR if available space is too narrow
-    setIsSinglePage(mobile || availableWidth < 1200 || recipes.length === 0)
+    const checkScreenSize = useCallback(() => {
+      const mobile = window.innerWidth < 776; //1024
 
-    setContentHeight(window.innerHeight - HEADER_HEIGHT)
-    // Call layout check after screen size changes
-    setTimeout(getCurrentLayout, 100)
-  }, [isSidebarOpen, recipes.length])
+      setIsMobile(mobile);
+      // Switch to single page if it's mobile OR if available space is too narrow
+      setIsSinglePage(
+        mobile || window.innerWidth < 1200 || recipes.length === 0,
+      );
 
-  useEffect(() => {
-    checkScreenSize()
-    window.addEventListener('resize', checkScreenSize)
+      setContentHeight(window.innerHeight - HEADER_HEIGHT);
+      // Call layout check after screen size changes
+      setTimeout(getCurrentLayout, 100);
+    }, [recipes.length]);
 
-    return () => window.removeEventListener('resize', checkScreenSize)
-  }, [checkScreenSize])
+    useEffect(() => {
+      checkScreenSize();
+      window.addEventListener("resize", checkScreenSize);
 
-  useEffect(() => {
-    getCurrentLayout()
-    const bookContainer = document.querySelector('.book-container')
-    if (!bookContainer) return
+      return () => window.removeEventListener("resize", checkScreenSize);
+    }, [checkScreenSize]);
 
-    const resizeObserver = new ResizeObserver(() => {
-      setTimeout(getCurrentLayout, 100)
-    })
+    useEffect(() => {
+      getCurrentLayout();
+      const bookContainer = document.querySelector(".book-container");
+      if (!bookContainer) return;
 
-    resizeObserver.observe(bookContainer)
+      const resizeObserver = new ResizeObserver(() => {
+        setTimeout(getCurrentLayout, 100);
+      });
 
-    return () => {
-      resizeObserver.disconnect()
-    }
-  }, [])
+      resizeObserver.observe(bookContainer);
 
-  const flipbookRef = useRef<{
-    pageFlip: () => {
-      flipNext: () => void
-      flipPrev: () => void
-      flip: (pageNumber: number) => void
-      getOrientation: () => 'landscape' | 'portrait'
-    }
-  } | null>(null)
-  const lastPageRef = useRef(0)
-  useEffect(() => {
-    lastPageRef.current = currentPage
-  }, [currentPage])
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, []);
 
-  const nextPage = () => {
-    if (isNextDisabled) return
-    flipbookRef.current?.pageFlip()?.flipNext()
-  }
+    const flipbookRef = useRef<{
+      pageFlip: () => {
+        flipNext: () => void;
+        flipPrev: () => void;
+        flip: (pageNumber: number) => void;
+        getOrientation: () => "landscape" | "portrait";
+      };
+    } | null>(null);
+    const lastPageRef = useRef(0);
+    useEffect(() => {
+      lastPageRef.current = currentPage;
+    }, [currentPage]);
 
-  const prevPage = () => {
-    flipbookRef.current?.pageFlip()?.flipPrev()
-  }
+    const nextPage = () => {
+      if (isNextDisabled) return;
+      flipbookRef.current?.pageFlip()?.flipNext();
+    };
 
-  const isPrevDisabled = currentPage === 0 || recipes.length === 0
-  // Use ref (updated in onFlip) so double-page mode gets correct page immediately
-  const pageForDisable = lastPageRef.current
-  const isNextDisabled =
-    totalPages <= 1 ||
-    (isSinglePage
-      ? pageForDisable >= totalPages - 1
-      : pageForDisable >= totalPages - 2)
+    const prevPage = () => {
+      flipbookRef.current?.pageFlip()?.flipPrev();
+    };
 
-  const goToPage = useCallback((pageNumber: number) => {
-    console.log('Book: goToPage called with:', pageNumber)
-    if (flipbookRef.current) {
-      flipbookRef.current.pageFlip()?.flip(pageNumber)
-    }
-  }, [])
+    const isPrevDisabled = currentPage === 0 || recipes.length === 0;
+    // Use ref (updated in onFlip) so double-page mode gets correct page immediately
+    const pageForDisable = lastPageRef.current;
+    const isNextDisabled =
+      totalPages <= 1 ||
+      (isSinglePage
+        ? pageForDisable >= totalPages - 1
+        : pageForDisable >= totalPages - 2);
 
-  // Find the page number for a specific recipe ID
-  const getPageNumberForRecipe = useCallback((recipeId: number): number => {
-    const recipeIndex = recipes.findIndex((r) => r.id === recipeId)
-    console.log('Book: Recipe index in array:', recipeIndex)
-    if (recipeIndex === -1) return 0
-    // Each recipe takes 2 pages, and there's a cover page at the start
-    // In double-page mode, ensure we start on an even page number (left page of spread)
-    const pageNumber = PAGES_BEFORE_RECIPES + (recipeIndex * 2)
-    return pageNumber
-  }, [recipes])
+    const goToPage = useCallback((pageNumber: number) => {
+      console.log("Book: goToPage called with:", pageNumber);
+      if (flipbookRef.current) {
+        flipbookRef.current.pageFlip()?.flip(pageNumber);
+      }
+    }, []);
 
-  const goToRecipe = useCallback((recipeId: number) => {
-    console.log('Book: goToRecipe called for ID:', recipeId)
-    const recipeIndex = recipes.findIndex((r) => r.id === recipeId)
-    console.log('Book: Recipe index in array:', recipeIndex)
-    const pageNumber = getPageNumberForRecipe(recipeId)
-    console.log('Book: Calculated page number:', pageNumber)
-    goToPage(pageNumber)
-  }, [getPageNumberForRecipe, goToPage, recipes])
+    // Find the page number for a specific recipe ID
+    const getPageNumberForRecipe = useCallback(
+      (recipeId: number): number => {
+        const recipeIndex = recipes.findIndex((r) => r.id === recipeId);
+        console.log("Book: Recipe index in array:", recipeIndex);
+        if (recipeIndex === -1) return 0;
+        // Each recipe takes 2 pages, and there's a cover page at the start
+        // In double-page mode, ensure we start on an even page number (left page of spread)
+        const pageNumber = PAGES_BEFORE_RECIPES + recipeIndex * 2;
+        return pageNumber;
+      },
+      [recipes],
+    );
 
-  // Expose methods via ref
-  useImperativeHandle(ref, () => ({
-    goToPage,
-    goToRecipe,
-  }))
+    const goToRecipe = useCallback(
+      (recipeId: number) => {
+        console.log("Book: goToRecipe called for ID:", recipeId);
+        const recipeIndex = recipes.findIndex((r) => r.id === recipeId);
+        console.log("Book: Recipe index in array:", recipeIndex);
+        const pageNumber = getPageNumberForRecipe(recipeId);
+        console.log("Book: Calculated page number:", pageNumber);
+        goToPage(pageNumber);
+      },
+      [getPageNumberForRecipe, goToPage, recipes],
+    );
 
-  // Handle initial recipe navigation
-  useEffect(() => {
-    if (initialRecipeId && recipes.length > 0) {
-      // Set the current recipe ID when navigating to a specific recipe
-      setCurrentRecipeId(initialRecipeId)
-      // Small delay to ensure flipbook is fully initialized
-      const timer = setTimeout(() => {
-        goToRecipe(initialRecipeId)
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, [initialRecipeId, recipes.length, goToRecipe]) // Added recipes.length to dependency to retry if loaded late
+    // Expose methods via ref
+    useImperativeHandle(ref, () => ({
+      goToPage,
+      goToRecipe,
+    }));
 
-  // Handle updates to the recipe list (e.g. search/filter)
-  useEffect(() => {
-    // When the recipe list changes (search/filter), effectively "reload" the book.
-    // Always reset to the cover (Page 0) and clear the active recipe.
-    console.log('Book: Recipes list changed, resetting to cover')
-    if (currentPage !== 0) {
-      setCurrentPage(0)
-    }
-    setCurrentRecipeId(null)
+    // Handle initial recipe navigation
+    useEffect(() => {
+      if (initialRecipeId && recipes.length > 0) {
+        // Set the current recipe ID when navigating to a specific recipe
+        setCurrentRecipeId(initialRecipeId);
+        // Small delay to ensure flipbook is fully initialized
+        const timer = setTimeout(() => {
+          goToRecipe(initialRecipeId);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }, [initialRecipeId, recipes.length, goToRecipe]); // Added recipes.length to dependency to retry if loaded late
 
-  }, [recipes]) // Re-run whenever the recipes array reference changes (new filter)
+    // Handle updates to the recipe list (e.g. search/filter)
+    useEffect(() => {
+      // When the recipe list changes (search/filter), effectively "reload" the book.
+      // Always reset to the cover (Page 0) and clear the active recipe.
+      console.log("Book: Recipes list changed, resetting to cover");
+      if (currentPage !== 0) {
+        setCurrentPage(0);
+      }
+      setCurrentRecipeId(null);
+    }, [recipes]); // Re-run whenever the recipes array reference changes (new filter)
 
-  return (
-    <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
-      <div
-        className={`transition-all duration-300 ease-in-out h-full relative ${isSidebarOpen ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full'
-          }`}
-      >
-        <div className="
+    return (
+      <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
+        <div className="transition-all duration-300 ease-in-out h-full relative w-full">
+          <div
+            className="
   wrap
   min-h-[calc(100vh-100px)]
   min-[391px]:!min-h-[80%]
-">
-
-          <div className="custom-container flex justify-center items-center h-full relative">
-            <button
-              className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${isPrevDisabled
-                ? "opacity-30 cursor-not-allowed pointer-events-none"
-                : "cursor-pointer hover:scale-110 transition-transform"
-                }`}
-              onClick={prevPage}
-              disabled={isPrevDisabled}
-              style={{ color: "white", fontSize: 20 }}
-            >
-              <div className="bg-white rounded-md p-3 sm:p-4">
-                <ArrowLeft size={32} className="w-8 h-8 sm:w-10 sm:h-10" color="black" />
-              </div>
-            </button>
-
-            <div
-              className="book-container"
-              style={{
-                transition: 'transform 1000ms ease',
-                transform: !isSinglePage && currentPage === 0 ? 'translateX(-35%)' : 'translateX(0)',
-                ...(isSinglePage ? { width: isMobile ? '300px' : `${contentHeight * 0.75}px`, maxWidth: '100%' } : {}),
-              }}
-            >
-              {contentHeight > 0 && (
-                <HTMLFlipBook
-                  key={`${isSinglePage ? 'single' : 'double'}-${recipes.length}`}
-                  width={isMobile ? 300 : contentHeight * 0.75}
-                  height={isMobile ? 550 : contentHeight}
-                  minHeight={isMobile ? 550 : contentHeight}
-                  maxShadowOpacity={0.5}
-                  drawShadow={true}
-                  showCover={true}
-                  size="fixed"
-                  useMouseEvents={false}
-                  ref={flipbookRef}
-                  className=""
-                  startPage={currentPage}
-                  minWidth={isSinglePage ? (isMobile ? 300 : contentHeight * 0.75) : contentHeight * 1.5}
-                  maxWidth={isSinglePage ? (isMobile ? 440 : contentHeight * 0.75) : contentHeight * 1.5}
-                  maxHeight={isMobile ? 550 : contentHeight}
-                  flippingTime={1000}
-                  usePortrait={isSinglePage}
-                  startZIndex={0}
-                  autoSize={true}
-                  swipeDistance={30}
-                  showPageCorners={true}
-                  disableFlipByClick={false}
-                  onFlip={(e) => {
-                    const currentPageNum = e.data
-                    lastPageRef.current = currentPageNum
-                    setCurrentPage(currentPageNum)
-
-                    if (currentPageNum < PAGES_BEFORE_RECIPES) {
-                      console.log('On cover page, clearing recipe')
-                      setCurrentRecipeId(null)
-                    } else {
-                      // In double-page mode, each flip advances by 2 pages but shows 1 recipe
-                      // In single-page mode, each recipe spans 2 pages
-                      const recipeIndex = Math.floor((currentPageNum - PAGES_BEFORE_RECIPES) / 2)
-                      console.log('Recipe index:', recipeIndex, 'Total recipes:', recipes.length, 'Current page:', currentPageNum, 'isSinglePage:', isSinglePage)
-
-                      if (recipeIndex >= 0 && recipeIndex < recipes.length) {
-                        const recipeId = recipes[recipeIndex].id
-                        console.log('Setting recipe ID to:', recipeId)
-                        setCurrentRecipeId(recipeId)
-                      } else {
-                        console.log('Recipe index out of bounds')
-                        setCurrentRecipeId(null)
-                      }
-                    }
-                  }}
-                  mobileScrollSupport={false}
-                  style={{}}
-                  clickEventForward={true}
-                >
-                  <div className="cover" key="cover">
-                    <Image
-                      src={
-                        !isSinglePage
-                          ? '/cover.webp'
-                          : '/cover-mobile.webp'
-                      }
-                      alt="Title"
-                      layout="fill"
-                      objectFit="contain"
-                      priority
-                    />
-                  </div>
-                  {convertRecipesToPages(recipes, l, contentHeight, setImages)}
-                </HTMLFlipBook>
-              )}
-            </div>
-
-            <button
-              className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-2.5 md:right-4 ${isNextDisabled
-                ? "opacity-30 cursor-not-allowed pointer-events-none"
-                : "cursor-pointer hover:scale-110 transition-transform"
-                }`}
-              onClick={nextPage}
-              disabled={isNextDisabled}
-              style={{ color: "white", fontSize: 20 }}
-            >
-              <div className="bg-white rounded-md p-3 sm:p-4">
-                <ArrowRight size={32} className="w-8 h-8 sm:w-10 sm:h-10" color="black" />
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Toggle Sidebar Button - Visible when sidebar is closed and we have a recipe */}
-        {!isSidebarOpen && currentRecipeId && (
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="absolute bottom-8 right-8 z-100 bg-[#CDD8F9] text-[#504DED] p-3 rounded-md shadow-lg hover:bg-[#B8C5F5] transition-colors border-2 border-[#A8B8F0] flex items-center gap-2"
-
-
-
-
-
+"
           >
-            <MessageCircle size={24} />
-            <span className="font-serif hidden">Discussions</span>
-
-          </button>
-        )}
-      </div>
-
-      {/* Sidebar - Comments Section */}
-      <div
-        className={`fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-2xl transition-transform duration-300 z-[1000] overflow-hidden w-full md:w-[80%] lg:w-[400px] ${isSidebarOpen ? 'translate-x-[0px]' : 'translate-x-full'
-          }`}
-      >
-        <div className="h-full flex flex-col relative">
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="absolute top-4 right-4 z-10 text-gray-500 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Close sidebar"
-          >
-            <X size={24} />
-          </button>
-
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-16">
-            {/* Decorative background with vintage paper texture effect */}
-            {/* <div className="absolute inset-0 bg-gradient-to-b from-[#352721]/95 via-[#2e231e]/90 to-[#241202]/95 pointer-events-none -z-10" /> */}
-
-            <div className="relative z-10">
-              {currentRecipeId ? (
-                <CommentSection
-                  key={currentRecipeId}
-                  recipeId={currentRecipeId}
-                  userId={user?.id}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500 text-center p-6">
-                  <h3 className="text-xl font-serif text-gray-900 mb-2">Select a Recipe</h3>
-                  <p className="opacity-70">Turn the pages to view discussions for each recipe.</p>
+            <div className="custom-container flex justify-center items-center h-full relative">
+              <button
+                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${isPrevDisabled
+                  ? "opacity-30 cursor-not-allowed pointer-events-none"
+                  : "cursor-pointer hover:scale-110 transition-transform"
+                  }`}
+                onClick={prevPage}
+                disabled={isPrevDisabled}
+                style={{ color: "white", fontSize: 20 }}
+              >
+                <div className="bg-white rounded-md p-3 sm:p-4">
+                  <ArrowLeft
+                    size={32}
+                    className="w-8 h-8 sm:w-10 sm:h-10"
+                    color="black"
+                  />
                 </div>
-              )}
+              </button>
+
+              <div
+                className="book-container"
+                style={{
+                  transition: "transform 1000ms ease",
+                  transform:
+                    !isSinglePage && currentPage === 0
+                      ? "translateX(-35%)"
+                      : "translateX(0)",
+                  ...(isSinglePage
+                    ? {
+                      width: isMobile ? "300px" : `${contentHeight * 0.75}px`,
+                      maxWidth: "100%",
+                    }
+                    : {}),
+                }}
+              >
+                {contentHeight > 0 && (
+                  <HTMLFlipBook
+                    key={`${isSinglePage ? "single" : "double"}-${recipes.length}`}
+                    width={isMobile ? 300 : contentHeight * 0.75}
+                    height={isMobile ? 550 : contentHeight}
+                    minHeight={isMobile ? 550 : contentHeight}
+                    maxShadowOpacity={0.5}
+                    drawShadow={true}
+                    showCover={true}
+                    size="fixed"
+                    useMouseEvents={false}
+                    ref={flipbookRef}
+                    className=""
+                    startPage={currentPage}
+                    minWidth={
+                      isSinglePage
+                        ? isMobile
+                          ? 300
+                          : contentHeight * 0.75
+                        : contentHeight * 1.5
+                    }
+                    maxWidth={
+                      isSinglePage
+                        ? isMobile
+                          ? 440
+                          : contentHeight * 0.75
+                        : contentHeight * 1.5
+                    }
+                    maxHeight={isMobile ? 550 : contentHeight}
+                    flippingTime={1000}
+                    usePortrait={isSinglePage}
+                    startZIndex={0}
+                    autoSize={true}
+                    swipeDistance={30}
+                    showPageCorners={true}
+                    disableFlipByClick={false}
+                    onFlip={(e) => {
+                      const currentPageNum = e.data;
+                      lastPageRef.current = currentPageNum;
+                      setCurrentPage(currentPageNum);
+
+                      if (currentPageNum < PAGES_BEFORE_RECIPES) {
+                        console.log("On cover page, clearing recipe");
+                        setCurrentRecipeId(null);
+                      } else {
+                        // In double-page mode, each flip advances by 2 pages but shows 1 recipe
+                        // In single-page mode, each recipe spans 2 pages
+                        const recipeIndex = Math.floor(
+                          (currentPageNum - PAGES_BEFORE_RECIPES) / 2,
+                        );
+                        console.log(
+                          "Recipe index:",
+                          recipeIndex,
+                          "Total recipes:",
+                          recipes.length,
+                          "Current page:",
+                          currentPageNum,
+                          "isSinglePage:",
+                          isSinglePage,
+                        );
+
+                        if (recipeIndex >= 0 && recipeIndex < recipes.length) {
+                          const recipeId = recipes[recipeIndex].id;
+                          console.log("Setting recipe ID to:", recipeId);
+                          setCurrentRecipeId(recipeId);
+                        } else {
+                          console.log("Recipe index out of bounds");
+                          setCurrentRecipeId(null);
+                        }
+                      }
+                    }}
+                    mobileScrollSupport={false}
+                    style={{}}
+                    clickEventForward={true}
+                  >
+                    <div className="cover" key="cover">
+                      <Image
+                        src={
+                          !isSinglePage ? "/cover.webp" : "/cover-mobile.webp"
+                        }
+                        alt="Title"
+                        layout="fill"
+                        objectFit="contain"
+                        priority
+                      />
+                    </div>
+                    {convertRecipesToPages(
+                      recipes,
+                      l,
+                      contentHeight,
+                      setImages,
+                    )}
+                  </HTMLFlipBook>
+                )}
+              </div>
+
+              <button
+                className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-2.5 md:right-4 ${isNextDisabled
+                  ? "opacity-30 cursor-not-allowed pointer-events-none"
+                  : "cursor-pointer hover:scale-110 transition-transform"
+                  }`}
+                onClick={nextPage}
+                disabled={isNextDisabled}
+                style={{ color: "white", fontSize: 20 }}
+              >
+                <div className="bg-white rounded-md p-3 sm:p-4">
+                  <ArrowRight
+                    size={32}
+                    className="w-8 h-8 sm:w-10 sm:h-10"
+                    color="black"
+                  />
+                </div>
+              </button>
             </div>
           </div>
+
+          {/* Toggle Sidebar Button - Visible when sidebar is closed and we have a recipe */}
+          {!commentSection.open && currentRecipeId && (
+            <button
+              onClick={() => {
+                const currentRecipe = recipes.find(
+                  (r) => r.id === currentRecipeId,
+                );
+                if (currentRecipe) {
+                  setCommentSection({
+                    open: true,
+                    recipeId: currentRecipe.id,
+                    nonnaName: currentRecipe.grandmotherTitle || "Nonna",
+                    titleName: currentRecipe.recipeTitle,
+                    photo: currentRecipe.photo?.[0] || null,
+                    countryCode: currentRecipe.country || "",
+                  });
+                }
+              }}
+              className="absolute bottom-8 right-8 z-100 bg-[#CDD8F9] text-[#504DED] p-3 rounded-md shadow-lg hover:bg-[#B8C5F5] transition-colors border-2 border-[#A8B8F0] flex items-center gap-2"
+            >
+              <MessageCircle size={24} />
+              <span className="font-serif hidden">Discussions</span>
+            </button>
+          )}
         </div>
+
+        {/* Comment Panel - New Google Earth style */}
+        {commentSection.open && (
+          <>
+            {/* Backdrop for click outside to close */}
+            <div
+              className="fixed inset-0 bg-black/20 z-[9998]"
+              onClick={() =>
+                setCommentSection({
+                  ...commentSection,
+                  open: false,
+                  recipeId: 0,
+                })
+              }
+            />
+            <div className="fixed top-0 right-0 h-screen w-full md:w-120 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col  pt-[20px]">
+              {/* Enhanced Header with gradient */}
+              <div className="relative overflow-hidden">
+                <div className="relative px-6 py-6 border-b border-[#9BC9C3]/50">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/40 bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={
+                              commentSection.photo
+                                ? `/api/proxy-image?url=${encodeURIComponent(commentSection.photo)}`
+                                : generateAvatarSvgUri(
+                                  commentSection.nonnaName,
+                                  commentSection.countryCode,
+                                )
+                            }
+                            alt={commentSection.nonnaName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-gray-900 leading-tight">
+                            Discussion with {commentSection.nonnaName}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Share memories and stories about this Nonna&apos;s
+                            recipes
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setCommentSection({
+                          ...commentSection,
+                          open: false,
+                          recipeId: 0,
+                        })
+                      }
+                      className="shrink-0 w-5 h-5 rounded-xl "
+                      aria-label="Close discussion"
+                    >
+                      <X className="w-5 items-center h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content area with subtle background */}
+              <div className="flex-1 overflow-y-auto relative bg-gradient-to-b from-white via-white to-[#9BC9C3]/20">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
+                <div className="relative px-2 p-3">
+                  <CommentSection
+                    recipeId={commentSection.recipeId}
+                    userId={user?.id}
+                    recipeName={commentSection.titleName}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        <ImagesModal images={images} onClose={() => setImages(null)} />
       </div>
+    );
+  },
+);
 
-      <ImagesModal images={images} onClose={() => setImages(null)} />
-    </div>
-  )
-})
-
-Book.displayName = 'Book'
+Book.displayName = "Book";
