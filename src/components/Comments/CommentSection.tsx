@@ -1,7 +1,10 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { X } from 'lucide-react'
+import Button from '../ui/Button'
 import CommentEditor, { Attachment } from './CommentEditor'
 import CommentItem from './CommentItem'
 
@@ -21,14 +24,19 @@ interface Comment {
 interface CommentSectionProps {
     recipeId: number
     userId?: string
-    recipeName?: string
+    nonnaName?: string
+    photoUrl?: string | null
+    onClose?: () => void
 }
 
 export default function CommentSection({
     recipeId,
     userId,
-    recipeName,
+    nonnaName = 'Nonna',
+    photoUrl,
+    onClose,
 }: CommentSectionProps) {
+    const router = useRouter()
     const [comments, setComments] = useState<Comment[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -109,60 +117,98 @@ export default function CommentSection({
         })
     }
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center gap-3 py-8">
-                <div className="w-6 h-6 border-2 border-gray-200 border-t-[#6BA8A3] rounded-full animate-spin" />
-                <span className="text-[#6BA8A3] font-['Inter'] text-sm">
-                    Loading comments...
-                </span>
-            </div>
-        )
-    }
-
     return (
-        <div className="flex flex-col h-full w-full relative">
-            {/* Recipe Name Section */}
-            <div className="flex items-start w-full mb-6 px-6 shrink-0">
-                <div className="flex items-center">
-                    <p className="font-['Inter'] font-semibold text-lg leading-7 text-[#4A7C7A]">
-                        Recipe Name: {recipeName}
-                    </p>
-                </div>
-            </div>
-
-            {/* Comments List */}
-            <div className="flex-1 overflow-y-auto px-6 pb-32">
-                <div className="flex flex-col gap-4 w-full">
-                    {comments.map((comment) => (
-                        <CommentItem
-                            key={comment.id}
-                            comment={comment}
-                            userId={userId}
-                            onAddReply={handleAddReply}
-                            onDelete={handleDeleteComment}
-                        />
-                    ))}
-                </div>
-            </div>
-
-            {/* Empty State - shown when no comments and not logged in */}
-            {comments.length === 0 && !userId && (
-                <div className="text-center py-8 px-6 shrink-0">
-                    <p className="text-[#6BA8A3] text-sm">No comments yet. Sign in to join the conversation!</p>
-                </div>
-            )}
-
-            {/* Comment Input - Fixed at bottom */}
-            {userId && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 pt-4 pb-6 shadow-lg">
-                    <div className="max-w-[400px] lg:max-w-[600px] mx-auto">
-                        <CommentEditor
-                            onSubmit={handleAddComment}
-                            onCancel={() => { }}
-                            placeholder="Share your thoughts about this recipe..."
-                        />
+        <div className="flex flex-col h-full w-full">
+            {/* Header — matches DiscussionPanel */}
+            <div className="border-b border-gray-200">
+                <div className="px-6 py-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {photoUrl && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={photoUrl}
+                                    alt={nonnaName}
+                                    className="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0"
+                                />
+                            )}
+                            <div className="min-w-0">
+                                <h2 className="text-xl font-semibold text-gray-900 truncate">
+                                    {nonnaName}
+                                </h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Discussion
+                                </p>
+                            </div>
+                        </div>
+                        {onClose && (
+                            <button
+                                onClick={onClose}
+                                className="text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                                aria-label="Close"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="overflow-y-auto flex-1 min-h-0">
+                <div className="p-6">
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Comments
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Share memories and stories about this Nonna&apos;s recipes
+                        </p>
+                        {!userId && (
+                            <Button
+                                onClick={() => router.push('/handler/sign-in')}
+                                className="w-full"
+                            >
+                                Sign In to Join
+                            </Button>
+                        )}
+                    </div>
+
+                    {loading ? (
+                        <div className="flex items-center justify-center gap-3 py-8">
+                            <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+                            <span className="text-gray-600 text-sm">
+                                Loading comments...
+                            </span>
+                        </div>
+                    ) : comments.length === 0 ? (
+                        <p className="text-center text-sm text-gray-500 py-8">
+                            No comments yet. Be the first to share.
+                        </p>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            {comments.map((comment) => (
+                                <CommentItem
+                                    key={comment.id}
+                                    comment={comment}
+                                    userId={userId}
+                                    onAddReply={handleAddReply}
+                                    onDelete={handleDeleteComment}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Composer — in-flow footer */}
+            {userId && (
+                <div className="border-t border-gray-200 bg-white px-6 py-4 shrink-0">
+                    <CommentEditor
+                        onSubmit={handleAddComment}
+                        onCancel={() => { }}
+                        placeholder="Share your thoughts about this recipe..."
+                    />
                 </div>
             )}
         </div>

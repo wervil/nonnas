@@ -973,6 +973,18 @@ export default function Earth3DPage() {
     countryCode: "",
   });
 
+  // Mutual exclusion: only one of the two right-side panels can be open at a time.
+  useEffect(() => {
+    if (commentSection.open) {
+      setPanel(prev => (prev.open ? { ...prev, open: false } : prev));
+    }
+  }, [commentSection.open]);
+  useEffect(() => {
+    if (panel.open) {
+      setCommentSection(prev => (prev.open ? { ...prev, open: false, recipeId: 0 } : prev));
+    }
+  }, [panel.open]);
+
   // In-Street-View popup card shown when clicking a nonna marker inside Street View.
   // This intentionally lives OUTSIDE the discussion tab, per Brendan's feedback.
   const [streetViewNonnaPopup, setStreetViewNonnaPopup] = useState<{
@@ -5276,60 +5288,19 @@ export default function Earth3DPage() {
         isLoading={panel.isLoading}
       />
 
-      {/* Comment Section for nonna-specific discussions */}
+      {/* Nonna comment panel — matches DiscussionPanel shell */}
       {commentSection.open && (
-        <div className="fixed top-0 right-0 h-screen w-full md:w-120 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col pt-[63px] sm:pt-[80px]">
-          {/* Enhanced Header with gradient */}
-          <div className="relative overflow-hidden">
-
-
-            <div className="relative px-6 py-6 border-b border-[#9BC9C3]/50">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/40 bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={
-                          commentSection.photo
-                          || generateAvatarSvgUri(commentSection.nonnaName, commentSection.countryCode)
-                        }
-                        alt={commentSection.nonnaName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                        Discussion with {commentSection.nonnaName}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Share memories and stories about this Nonna&apos;s recipes
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setCommentSection({ ...commentSection, open: false, recipeId: 0 })}
-                  className="shrink-0 w-5 h-5 rounded-xl "
-                  aria-label="Close discussion"
-                >
-                  <X className="w-5 items-center h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Content area with subtle background */}
-          <div className="flex-1 overflow-y-auto relative bg-linear-to-b from-white via-white to-[#9BC9C3]/20">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
-            <div className="relative px-2 p-3">
-              <CommentSection
-                recipeId={commentSection.recipeId}
-                userId={user?.id}
-                recipeName={commentSection.titleName}
-              />
-            </div>
-          </div>
+        <div className="fixed top-0 right-0 h-screen w-full md:w-125 bg-white shadow-lg z-[9999] border-l border-gray-200 flex flex-col pt-[63px] sm:pt-[80px]">
+          <CommentSection
+            recipeId={commentSection.recipeId}
+            userId={user?.id}
+            nonnaName={commentSection.nonnaName}
+            photoUrl={
+              commentSection.photo
+              || generateAvatarSvgUri(commentSection.nonnaName, commentSection.countryCode)
+            }
+            onClose={() => setCommentSection({ ...commentSection, open: false, recipeId: 0 })}
+          />
         </div>
       )}
     </div>

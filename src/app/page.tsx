@@ -192,7 +192,25 @@ export default function Recipes() {
             ) : null}
           </div>
           {loading ? (
-            <div></div>
+            <div className="h-[calc(100vh-80px)] w-full flex items-center justify-center px-4">
+              <div
+                className="relative rounded-md overflow-hidden bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] shadow-lg"
+                style={{
+                  width: "min(90vw, 900px)",
+                  height: "min(70vh, 600px)",
+                  animation: "book-shimmer 1.4s ease-in-out infinite",
+                }}
+                aria-label="Loading book"
+              >
+                <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300/70" />
+              </div>
+              <style jsx>{`
+                @keyframes book-shimmer {
+                  0% { background-position: 200% 0; }
+                  100% { background-position: -200% 0; }
+                }
+              `}</style>
+            </div>
           ) : (
             <Book
               ref={bookRef}

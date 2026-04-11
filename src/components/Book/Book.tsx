@@ -19,7 +19,7 @@ import { ImagesModal } from "../ui/ImagesModal";
 // import { generateTOCpages } from '@/utils/generateTOCpages'
 // import { Typography } from '../ui/Typography'
 import { useUser } from "@stackframe/stack";
-import { ArrowLeft, ArrowRight, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageCircle } from "lucide-react";
 import CommentSection from "../Comments/CommentSection";
 
 type Props = {
@@ -102,6 +102,11 @@ export const Book = forwardRef<BookHandle, Props>(
     // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
     const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
+    // Sequenced cover-open animation: slide container first, then flip hardcover.
+    // 'closed'  — book sits off-center (translateX(-35%)) with cover shut
+    // 'sliding' — 1000ms slide to center, flipbook is NOT asked to flip yet
+    // 'open'    — container is centered; flipbook cover flip may run
+    const [coverPhase, setCoverPhase] = useState<'closed' | 'sliding' | 'open'>('closed');
     const totalPages = 1 + recipes.length * 2;
 
     // Comment Section state for recipe-specific discussions
@@ -210,19 +215,51 @@ export const Book = forwardRef<BookHandle, Props>(
       lastPageRef.current = currentPage;
     }, [currentPage]);
 
+    // Guards against rapid clicks mid-animation, which caused abrupt cuts
+    // (both during the cover slide and during regular page flips).
+    // Duplicated as state so the arrow buttons can render a disabled style.
+    const isAnimatingRef = useRef(false);
+    const [isAnimating, setIsAnimating] = useState(false);
+    const FLIP_DURATION = 1000;
+    const COVER_SLIDE_DURATION = 500;
+    const lockAnimation = (ms: number) => {
+      isAnimatingRef.current = true;
+      setIsAnimating(true);
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+        setIsAnimating(false);
+      }, ms);
+    };
+
     const nextPage = () => {
       if (isNextDisabled) return;
+      if (isAnimatingRef.current) return;
+      // On the cover: slide first, then open. Single-page / mobile has no slide offset,
+      // so skip straight to the flip.
+      if (currentPage === 0 && coverPhase === 'closed' && !isSinglePage) {
+        lockAnimation(COVER_SLIDE_DURATION + FLIP_DURATION);
+        setCoverPhase('sliding');
+        setTimeout(() => {
+          setCoverPhase('open');
+          flipbookRef.current?.pageFlip()?.flipNext();
+        }, COVER_SLIDE_DURATION);
+        return;
+      }
+      lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipNext();
     };
 
     const prevPage = () => {
+      if (isAnimatingRef.current) return;
+      lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipPrev();
     };
 
-    const isPrevDisabled = currentPage === 0 || recipes.length === 0;
+    const isPrevDisabled = isAnimating || currentPage === 0 || recipes.length === 0;
     // Use ref (updated in onFlip) so double-page mode gets correct page immediately
     const pageForDisable = lastPageRef.current;
     const isNextDisabled =
+      isAnimating ||
       totalPages <= 1 ||
       (isSinglePage
         ? pageForDisable >= totalPages - 1
@@ -270,7 +307,8 @@ export const Book = forwardRef<BookHandle, Props>(
     // Handle initial recipe navigation
     useEffect(() => {
       if (initialRecipeId && recipes.length > 0) {
-        // Set the current recipe ID when navigating to a specific recipe
+        // Deep-link into a specific Nonna: skip the slide-then-open intro entirely.
+        setCoverPhase('open');
         setCurrentRecipeId(initialRecipeId);
         // Small delay to ensure flipbook is fully initialized
         const timer = setTimeout(() => {
@@ -289,6 +327,7 @@ export const Book = forwardRef<BookHandle, Props>(
         setCurrentPage(0);
       }
       setCurrentRecipeId(null);
+      setCoverPhase('closed');
     }, [recipes]); // Re-run whenever the recipes array reference changes (new filter)
 
     return (
@@ -323,9 +362,9 @@ export const Book = forwardRef<BookHandle, Props>(
               <div
                 className="book-container"
                 style={{
-                  transition: "transform 1000ms ease",
+                  transition: "transform 500ms ease",
                   transform:
-                    !isSinglePage && currentPage === 0
+                    !isSinglePage && coverPhase === 'closed'
                       ? "translateX(-35%)"
                       : "translateX(0)",
                   ...(isSinglePage
@@ -380,6 +419,21 @@ export const Book = forwardRef<BookHandle, Props>(
                       if (currentPageNum < PAGES_BEFORE_RECIPES) {
                         console.log("On cover page, clearing recipe");
                         setCurrentRecipeId(null);
+                        // Reverse intro: cover just closed — slide the book back off-center.
+                        setCoverPhase('closed');
+                        if (!isSinglePage) {
+                          // Extend lock so arrows stay disabled through the 500ms slide-back.
+                          isAnimatingRef.current = true;
+                          setIsAnimating(true);
+                          setTimeout(() => {
+                            isAnimatingRef.current = false;
+                            setIsAnimating(false);
+                          }, COVER_SLIDE_DURATION);
+                        }
+                      } else if (coverPhase !== 'open') {
+                        // Safety net: if the flipbook advanced past the cover by any path
+                        // (e.g. swipe/click), make sure the container is centered.
+                        setCoverPhase('open');
                       } else {
                         // In double-page mode, each flip advances by 2 pages but shows 1 recipe
                         // In single-page mode, each recipe spans 2 pages
@@ -478,10 +532,9 @@ export const Book = forwardRef<BookHandle, Props>(
           )}
         </div>
 
-        {/* Comment Panel - New Google Earth style */}
+        {/* Comment Panel — matches DiscussionPanel shell */}
         {commentSection.open && (
           <>
-            {/* Backdrop for click outside to close */}
             <div
               className="fixed inset-0 bg-black/20 z-[9998]"
               onClick={() =>
@@ -492,67 +545,27 @@ export const Book = forwardRef<BookHandle, Props>(
                 })
               }
             />
-            <div className="fixed top-0 right-0 h-screen w-full md:w-120 bg-white/98 backdrop-blur-2xl shadow-2xl z-[9999] border-l border-amber-100/60 animate-in slide-in-from-right duration-400 ease-out flex flex-col  pt-[20px]">
-              {/* Enhanced Header with gradient */}
-              <div className="relative overflow-hidden">
-                <div className="relative px-6 py-6 border-b border-[#9BC9C3]/50">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-3">
-                        <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-lg shadow-[#9BC9C3]/30 border border-[#9BC9C3]/40 bg-linear-to-br from-[#9BC9C3] via-[#7FB5B0] to-[#6BA8A3]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={
-                              commentSection.photo
-                                ? `/api/proxy-image?url=${encodeURIComponent(commentSection.photo)}`
-                                : generateAvatarSvgUri(
-                                  commentSection.nonnaName,
-                                  commentSection.countryCode,
-                                )
-                            }
-                            alt={commentSection.nonnaName}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                            Discussion with {commentSection.nonnaName}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Share memories and stories about this Nonna&apos;s
-                            recipes
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setCommentSection({
-                          ...commentSection,
-                          open: false,
-                          recipeId: 0,
-                        })
-                      }
-                      className="shrink-0 w-5 h-5 rounded-xl "
-                      aria-label="Close discussion"
-                    >
-                      <X className="w-5 items-center h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Content area with subtle background */}
-              <div className="flex-1 overflow-y-auto relative bg-gradient-to-b from-white via-white to-[#9BC9C3]/20">
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-[0.03]" />
-                <div className="relative px-2 p-3">
-                  <CommentSection
-                    recipeId={commentSection.recipeId}
-                    userId={user?.id}
-                    recipeName={commentSection.titleName}
-                  />
-                </div>
-              </div>
+            <div className="fixed top-0 right-0 h-screen w-full md:w-125 bg-white shadow-lg z-[9999] border-l border-gray-200 flex flex-col pt-[20px]">
+              <CommentSection
+                recipeId={commentSection.recipeId}
+                userId={user?.id}
+                nonnaName={commentSection.nonnaName}
+                photoUrl={
+                  commentSection.photo
+                    ? `/api/proxy-image?url=${encodeURIComponent(commentSection.photo)}`
+                    : generateAvatarSvgUri(
+                      commentSection.nonnaName,
+                      commentSection.countryCode,
+                    )
+                }
+                onClose={() =>
+                  setCommentSection({
+                    ...commentSection,
+                    open: false,
+                    recipeId: 0,
+                  })
+                }
+              />
             </div>
           </>
         )}
