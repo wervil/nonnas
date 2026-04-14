@@ -231,7 +231,18 @@ export const Book = forwardRef<BookHandle, Props>(
       }, ms);
     };
 
-    const nextPage = () => {
+    const isPrevDisabled = isAnimating || currentPage === 0 || recipes.length === 0;
+    // Use ref (updated in onFlip) so double-page mode gets correct page immediately
+    const pageForDisable = lastPageRef.current;
+    const isNextDisabled =
+      isAnimating ||
+      totalPages <= 1 ||
+      (isSinglePage
+        ? pageForDisable >= totalPages - 1
+        : pageForDisable >= totalPages - 2);
+
+    const nextPage = useCallback(() => {
+      console.log('nextPage called - currentPage:', currentPage, 'isNextDisabled:', isNextDisabled);
       if (isNextDisabled) return;
       if (isAnimatingRef.current) return;
       // On the cover: slide first, then open. Single-page / mobile has no slide offset,
@@ -244,9 +255,10 @@ export const Book = forwardRef<BookHandle, Props>(
       }
       lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipNext();
-    };
+    }, [isNextDisabled, currentPage, coverPhase, isSinglePage]);
 
-    const prevPage = () => {
+    const prevPage = useCallback(() => {
+      console.log('prevPage called - currentPage:', currentPage, 'isPrevDisabled:', isPrevDisabled);
       if (isAnimatingRef.current) return;
       // When about to flip back to the cover, start the slide-left BEFORE the flip
       // so it runs concurrently (mirrors how opening sets 'open' before flipNext)
@@ -255,17 +267,7 @@ export const Book = forwardRef<BookHandle, Props>(
       }
       lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipPrev();
-    };
-
-    const isPrevDisabled = isAnimating || currentPage === 0 || recipes.length === 0;
-    // Use ref (updated in onFlip) so double-page mode gets correct page immediately
-    const pageForDisable = lastPageRef.current;
-    const isNextDisabled =
-      isAnimating ||
-      totalPages <= 1 ||
-      (isSinglePage
-        ? pageForDisable >= totalPages - 1
-        : pageForDisable >= totalPages - 2);
+    }, [currentPage, coverPhase, isSinglePage, isPrevDisabled]);
 
     const goToPage = useCallback((pageNumber: number) => {
       console.log("Book: goToPage called with:", pageNumber);
