@@ -248,9 +248,13 @@ export const Book = forwardRef<BookHandle, Props>(
       // On the cover: slide first, then open. Single-page / mobile has no slide offset,
       // so skip straight to the flip.
       if (currentPage === 0 && coverPhase === 'closed' && !isSinglePage) {
-        lockAnimation(FLIP_DURATION);
-        setCoverPhase('open');
-
+        lockAnimation(COVER_SLIDE_DURATION + FLIP_DURATION);
+        setCoverPhase('sliding');
+        setTimeout(() => {
+          setCoverPhase('open');
+          flipbookRef.current?.pageFlip()?.flipNext();
+        }, COVER_SLIDE_DURATION);
+        return;
       }
       lockAnimation(FLIP_DURATION);
       const targetPage = isSinglePage ? currentPage + 1 : currentPage + 2;
@@ -260,11 +264,6 @@ export const Book = forwardRef<BookHandle, Props>(
     const prevPage = useCallback(() => {
       console.log('prevPage called - currentPage:', currentPage, 'isPrevDisabled:', isPrevDisabled);
       if (isAnimatingRef.current) return;
-      // When about to flip back to the cover, start the slide-left BEFORE the flip
-      // so it runs concurrently (mirrors how opening sets 'open' before flipNext)
-      if (currentPage <= 2 && coverPhase === 'open' && !isSinglePage) {
-        setCoverPhase('closed');
-      }
       lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipPrev();
     }, [currentPage, coverPhase, isSinglePage, isPrevDisabled]);
@@ -368,8 +367,8 @@ export const Book = forwardRef<BookHandle, Props>(
                 style={{
                   transition: "transform 500ms ease",
                   transform:
-                    coverPhase === 'closed' && !isSinglePage
-                      ? `translateX(-${(isMobile ? 300 : contentHeight * 0.75) / 2}px)`
+                    !isSinglePage && coverPhase === 'closed'
+                      ? "translateX(-35%)"
                       : "translateX(0)",
                   ...(isSinglePage
                     ? {
