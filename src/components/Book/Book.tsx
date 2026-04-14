@@ -248,12 +248,10 @@ export const Book = forwardRef<BookHandle, Props>(
       // On the cover: slide first, then open. Single-page / mobile has no slide offset,
       // so skip straight to the flip.
       if (currentPage === 0 && coverPhase === 'closed' && !isSinglePage) {
-        lockAnimation(COVER_SLIDE_DURATION + FLIP_DURATION);
-        setCoverPhase('sliding');
-        setTimeout(() => {
-          setCoverPhase('open');
-          flipbookRef.current?.pageFlip()?.flipNext();
-        }, COVER_SLIDE_DURATION);
+        lockAnimation(FLIP_DURATION);
+        setCoverPhase('open');
+        flipbookRef.current?.pageFlip()?.flipNext();
+
         return;
       }
       lockAnimation(FLIP_DURATION);
