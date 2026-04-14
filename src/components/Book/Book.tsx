@@ -250,11 +250,13 @@ export const Book = forwardRef<BookHandle, Props>(
       if (currentPage === 0 && coverPhase === 'closed' && !isSinglePage) {
         lockAnimation(FLIP_DURATION);
         setCoverPhase('open');
-        flipbookRef.current?.pageFlip()?.flipNext();
+        const targetPage = isSinglePage ? 1 : 2;
+        flipbookRef.current?.pageFlip()?.flip(targetPage);
         return;
       }
       lockAnimation(FLIP_DURATION);
-      flipbookRef.current?.pageFlip()?.flipNext();
+      const targetPage = isSinglePage ? currentPage + 1 : currentPage + 2;
+      flipbookRef.current?.pageFlip()?.flip(targetPage);
     }, [isNextDisabled, currentPage, coverPhase, isSinglePage]);
 
     const prevPage = useCallback(() => {
@@ -266,7 +268,8 @@ export const Book = forwardRef<BookHandle, Props>(
         setCoverPhase('closed');
       }
       lockAnimation(FLIP_DURATION);
-      flipbookRef.current?.pageFlip()?.flipPrev();
+      const targetPage = isSinglePage ? currentPage - 1 : currentPage - 2;
+      flipbookRef.current?.pageFlip()?.flip(Math.max(0, targetPage));
     }, [currentPage, coverPhase, isSinglePage, isPrevDisabled]);
 
     const goToPage = useCallback((pageNumber: number) => {
