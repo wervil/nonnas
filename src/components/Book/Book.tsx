@@ -262,6 +262,12 @@ export const Book = forwardRef<BookHandle, Props>(
     const prevPage = useCallback(() => {
       console.log('prevPage called - currentPage:', currentPage, 'isPrevDisabled:', isPrevDisabled);
       if (isAnimatingRef.current) return;
+      // When about to flip back to the cover, start the slide-left concurrently with the flip.
+      // Delay the setCoverPhase slightly so flipPrev() starts first — calling it synchronously
+      // before flipPrev() causes a re-render that breaks flip direction in production builds.
+      if (currentPage <= 2 && coverPhase === 'open' && !isSinglePage) {
+        setTimeout(() => setCoverPhase('closed'), 50);
+      }
       lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipPrev();
     }, [currentPage, coverPhase, isSinglePage, isPrevDisabled]);
