@@ -1,8 +1,8 @@
 import clsx from 'clsx'
-import { X } from 'lucide-react'
+import { Maximize2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { Dispatch, SetStateAction, useEffect, useState } from 'react'
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -29,6 +29,10 @@ export const RecipeSection = ({
   const [blockClose, setBlockClose] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [showButton, setShowButton] = useState(false)
+  const [fullscreenVideoUrl, setFullscreenVideoUrl] = useState<string | null>(null)
+  // Track which slide is active so the overlay button knows which src to open
+  const [activeIndex, setActiveIndex] = useState(0)
+  const portalVideoRef = useRef<HTMLVideoElement>(null)
   const b = useTranslations('buttons')
   const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v|ogg)$/i.test(url.split('?')[0])
   const hasVideo = Boolean(images?.some((image) => isVideoUrl(image)))
@@ -64,30 +68,51 @@ export const RecipeSection = ({
       if (document.fullscreenElement) {
         setBlockClose(true)
       } else {
-        // small delay prevents instant close on exit
         setTimeout(() => setBlockClose(false), 300)
       }
     }
-  
     document.addEventListener('fullscreenchange', handleFullscreenChange)
-  
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange)
-    }
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
+
+  // When the portal opens, immediately request OS-level native fullscreen on the
+  // video element. The portal lives in document.body — outside react-pageflip's
+  // transform-style:preserve-3d — so requestFullscreen() succeeds here.
+  // Also close the portal automatically when the user exits native fullscreen
+  // (e.g. presses Escape).
+  useEffect(() => {
+    if (!fullscreenVideoUrl) return
+
+    const video = portalVideoRef.current
+    if (!video) return
+
+    const timer = setTimeout(() => {
+      video.requestFullscreen?.().catch(() => {
+        // Fullscreen was denied (e.g. iOS Safari) — the portal overlay stays
+        // visible as a perfectly usable fallback.
+      })
+    }, 50)
+
+    const handleFullscreenExit = () => {
+      if (!document.fullscreenElement) {
+        setFullscreenVideoUrl(null)
+      }
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenExit)
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('fullscreenchange', handleFullscreenExit)
+    }
+  }, [fullscreenVideoUrl])
+
+  const currentVideoUrl = images?.[activeIndex] ?? images?.[0] ?? null
 
   return (
     <>
       <div
         className={`relative description-wrap cursor-pointer ${hasVideo ? 'min-h-[49%] h-auto' : 'h-[49%]'}`}
         style={hasVideo ? { overflow: 'visible', flex: 'unset' } : undefined}
-        // style={{
-        //   height: getHeight(
-        //     hasInfluences,
-        //     contentHeight,
-        //     window.innerWidth < 768
-        //   ),
-        // }}
         onClick={hasVideo ? undefined : handleCardClick}
         onMouseEnter={() => {
           if (!hasVideo) setShowButton(true)
@@ -105,40 +130,54 @@ export const RecipeSection = ({
             </h4>
           )}
           {images?.length && hasVideo ? (
-            <div className="relative w-full h-[170px] md:h-[220px] mx-auto mb-3 mt-2 overflow-hidden rounded-lg">
+            <div className="relative w-full h-[170px] md:h-[220px] mx-auto mb-3 mt-2 rounded-lg overflow-hidden">
               <Swiper
                 modules={[Navigation, Pagination]}
-                navigation
-                pagination={{ clickable: true }}
-                loop={images?.length > 1}
+                navigation={images.length > 1}
+                pagination={images.length > 1 ? { clickable: true } : false}
+                loop={images.length > 1}
                 className="w-full h-full rounded-lg [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
-                style={
-                  {
-                    '--swiper-navigation-sides-offset': '0px',
-                  } as React.CSSProperties
-                }
+                style={{ '--swiper-navigation-sides-offset': '0px' } as React.CSSProperties}
+                onSlideChange={(swiper) => setActiveIndex(swiper.realIndex)}
               >
-                {images?.map((image, index) => (
+                {images.map((image, index) => (
                   <SwiperSlide key={index}>
+                    {/* Video shown as a static thumbnail — no native controls.
+                        The play/fullscreen overlay below is the only interaction point,
+                        which opens the portal where native controls (incl. fullscreen)
+                        work perfectly (outside the book's 3D-transform context). */}
                     <video
                       src={image}
-                      controls
-                      controlsList="nofullscreen"
-                      disablePictureInPicture
                       preload="metadata"
-                      className="w-full h-full object-cover"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onMouseUp={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onPointerUp={(e) => e.stopPropagation()}
-                      onDoubleClick={(e) => e.stopPropagation()}
+                      className="w-full h-full object-cover pointer-events-none"
                     />
                   </SwiperSlide>
                 ))}
               </Swiper>
+
+              {/* Click overlay — opens portal on any tap/click */}
+              {currentVideoUrl && (
+                <button
+                  className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/30 hover:bg-black/45 transition-colors cursor-pointer"
+                  title="Watch video"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setFullscreenVideoUrl(currentVideoUrl)
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <span className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 shadow-lg">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-800 ml-0.5">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </span>
+                  <span className="flex items-center gap-1 bg-black/60 text-white rounded-md px-2 py-0.5 text-xs font-medium">
+                    <Maximize2 size={11} />
+                    Watch fullscreen
+                  </span>
+                </button>
+              )}
             </div>
           ) : null}
           {images?.length && !hasVideo ? (
@@ -221,6 +260,44 @@ export const RecipeSection = ({
           {b('seeMore')}
         </Button>
       </div>
+
+      {/* Portal fullscreen overlay — lives in document.body, completely outside
+          react-pageflip's transform-style:preserve-3d context.
+          Native browser fullscreen works here without any restrictions. */}
+      {fullscreenVideoUrl
+        ? createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+            onClick={() => {
+              if (document.fullscreenElement) document.exitFullscreen()
+              setFullscreenVideoUrl(null)
+            }}
+          >
+            <button
+              className="fixed top-4 right-4 text-white z-[10000] bg-black/50 rounded-full p-2 hover:bg-black/80 transition-colors"
+              title="Close"
+              onClick={() => {
+                if (document.fullscreenElement) document.exitFullscreen()
+                setFullscreenVideoUrl(null)
+              }}
+            >
+              <X size={24} />
+            </button>
+            <video
+              ref={portalVideoRef}
+              src={fullscreenVideoUrl}
+              controls
+              autoPlay
+              className="max-w-full max-h-full w-full h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body
+        )
+        : null}
+
       {isOpen
         ? createPortal(
           <div
@@ -233,6 +310,7 @@ export const RecipeSection = ({
           }`}>
             <button
               onClick={closeModal}
+              title="Close"
               className="fixed  top-4 right-12  text-white text-3xl font-bold z-1050"
             >
               <X size={30} />
@@ -263,6 +341,8 @@ export const RecipeSection = ({
                           <video
                             src={image}
                             controls
+                            // portal — fullscreen works fine here (no 3D transform ancestor)
+                            data-portal="true"
                             preload="metadata"
                             className="w-full h-full object-cover"
                             onClick={(e) => e.stopPropagation()}
