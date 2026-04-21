@@ -11,7 +11,7 @@ import Image from "next/image";
 import { WelcomeOverlay } from "@/components/Book/WelcomeOverlay";
 import { Select } from "@/components/Select";
 import { countriesData } from "@/utils/countries";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { BookHandle } from "@/components/Book/Book";
@@ -30,18 +30,22 @@ export default function Recipes() {
   // const l = useTranslations('labels')
   // const countries = useCountries() // Removed dynamic hook
   const path = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const bookRef = useRef<BookHandle>(null);
 
   // Get recipe ID from URL parameter (from map "View Recipe" button)
   const [initialRecipeId, setInitialRecipeId] = useState<number | null>(null);
+  const [showReturnToStreetView, setShowReturnToStreetView] = useState(false);
 
   useEffect(() => {
     const recipeParam = searchParams?.get("recipe");
+    const fromStreetView = searchParams?.get("from") === "street-view";
     if (recipeParam) {
       const recipeId = parseInt(recipeParam, 10);
       if (!isNaN(recipeId)) {
         setInitialRecipeId(recipeId);
+        setShowReturnToStreetView(fromStreetView);
         // Clear the URL parameter after reading it (optional - keeps URL clean)
         window.history.replaceState({}, "", "/");
       }
@@ -147,6 +151,14 @@ export default function Recipes() {
         </div>
         <main className="grow flex flex-col w-full object-top object-cover  min-h-svh overflow-x-hidden">
           <WelcomeOverlay />
+          {showReturnToStreetView && (
+            <button
+              onClick={() => router.push("/explore?restoreStreetView=1")}
+              className="fixed z-[70] top-[104px] md:top-[112px] left-4 md:left-6 px-4 py-2 rounded-full bg-teal-700/95 backdrop-blur-sm text-white text-sm md:text-base font-medium shadow-[0_8px_24px_rgba(13,148,136,0.35)] ring-1 ring-teal-300/40 hover:bg-teal-600 transition-colors"
+            >
+              Return to Street View
+            </button>
+          )}
           {/* Fixed background so it doesn't shift when book/comment section changes */}
           <div
             className="fixed opacity-50 inset-0 z-[-1] pointer-events-none"

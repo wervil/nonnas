@@ -166,6 +166,61 @@ function loadGoogleMaps(apiKey: string) {
 }
 type LatLngLiteral = { lat: number; lng: number };
 type RemovableOverlay = { remove: () => void };
+const STREET_VIEW_RETURN_STORAGE_KEY = "nonnas.streetViewReturnState";
+type StreetViewReturnPayload = {
+  lat: number;
+  lng: number;
+  heading: number;
+  pitch: number;
+  zoom: number;
+  recipeId?: number;
+  nonnaName?: string;
+  nonnaTitle?: string;
+  nonnaPhoto?: string | null;
+  countryName?: string;
+  countryCode?: string;
+};
+
+function parseStreetViewReturnPayload(raw: string | null): StreetViewReturnPayload | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StreetViewReturnPayload>;
+    const lat = Number(parsed.lat);
+    const lng = Number(parsed.lng);
+    const heading = Number(parsed.heading);
+    const pitch = Number(parsed.pitch);
+    const zoom = Number(parsed.zoom);
+    const recipeId =
+      parsed.recipeId !== undefined ? Number(parsed.recipeId) : undefined;
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      !Number.isFinite(heading) ||
+      !Number.isFinite(pitch) ||
+      !Number.isFinite(zoom)
+    ) {
+      return null;
+    }
+    return {
+      lat,
+      lng,
+      heading,
+      pitch,
+      zoom,
+      ...(Number.isFinite(recipeId) ? { recipeId } : {}),
+      ...(typeof parsed.nonnaName === "string" ? { nonnaName: parsed.nonnaName } : {}),
+      ...(typeof parsed.nonnaTitle === "string" ? { nonnaTitle: parsed.nonnaTitle } : {}),
+      ...(typeof parsed.nonnaPhoto === "string" || parsed.nonnaPhoto === null
+        ? { nonnaPhoto: parsed.nonnaPhoto }
+        : {}),
+      ...(typeof parsed.countryName === "string" ? { countryName: parsed.countryName } : {}),
+      ...(typeof parsed.countryCode === "string" ? { countryCode: parsed.countryCode } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function extractLatLng(rawPos: unknown): LatLngLiteral | null {
   if (!rawPos || typeof rawPos !== "object") return null;
   const obj = rawPos as Record<string, unknown>;
@@ -1031,6 +1086,29 @@ export default function Earth3DPage() {
 
   const [streetViewToast, setStreetViewToast] = useState<string | null>(null);
   const streetViewPickModeRef = useRef(false);
+  const pendingStreetViewRestoreRef = useRef<StreetViewReturnPayload | null>(null);
+  const hasAppliedStreetViewRestoreRef = useRef(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldRestore = params.get("restoreStreetView") === "1";
+    if (!shouldRestore) return;
+
+    params.delete("restoreStreetView");
+    const nextQuery = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`,
+    );
+
+    const pending = parseStreetViewReturnPayload(
+      window.sessionStorage.getItem(STREET_VIEW_RETURN_STORAGE_KEY),
+    );
+    window.sessionStorage.removeItem(STREET_VIEW_RETURN_STORAGE_KEY);
+    if (!pending) return;
+    pendingStreetViewRestoreRef.current = pending;
+  }, []);
 
   // Street View button: at NONNA level we already know which nonna is in focus,
   // so re-enter Street View facing her with her marker preloaded. At CITY level,
@@ -1251,6 +1329,56 @@ export default function Earth3DPage() {
 
   const activateStreetViewAtRef = useRef(activateStreetViewAt);
   activateStreetViewAtRef.current = activateStreetViewAt;
+
+  useEffect(() => {
+    if (!mapReady || hasAppliedStreetViewRestoreRef.current) return;
+    const pending = pendingStreetViewRestoreRef.current;
+    if (!pending) return;
+
+    const matchingNonna = pending.recipeId
+      ? nonnaData.find((n) => Number.parseInt(n.recipeId, 10) === pending.recipeId)
+      : undefined;
+    // If we came from a specific nonna story, wait until nonna data is loaded
+    // so we can restore the popup card with "Read Her Story".
+    if (pending.recipeId && !matchingNonna) return;
+
+    hasAppliedStreetViewRestoreRef.current = true;
+    pendingStreetViewRestoreRef.current = null;
+
+    const targetNonna = matchingNonna
+      ? {
+        lat: matchingNonna.lat,
+        lng: matchingNonna.lng,
+        recipeId: Number.parseInt(matchingNonna.recipeId, 10),
+        name: pending.nonnaName ?? matchingNonna.representativeName,
+        title: pending.nonnaTitle ?? matchingNonna.representativeTitle,
+        photo: pending.nonnaPhoto ?? matchingNonna.representativePhoto,
+        countryName: pending.countryName ?? matchingNonna.countryName,
+        countryCode: pending.countryCode ?? matchingNonna.countryCode,
+      }
+      : null;
+
+    activateStreetViewAtRef.current(pending.lat, pending.lng, targetNonna);
+
+    let attempts = 0;
+    const applySavedPovTimer = window.setInterval(() => {
+      const panorama = streetViewPanoramaRef.current;
+      attempts += 1;
+      if (!panorama) {
+        if (attempts > 30) {
+          window.clearInterval(applySavedPovTimer);
+        }
+        return;
+      }
+      panorama.setPov({ heading: pending.heading, pitch: pending.pitch });
+      panorama.setZoom(pending.zoom);
+      window.clearInterval(applySavedPovTimer);
+    }, 120);
+
+    return () => {
+      window.clearInterval(applySavedPovTimer);
+    };
+  }, [mapReady, nonnaData]);
 
   // World view + no map selection: load all published nonnas for the Nonnas tab
   useEffect(() => {
@@ -4435,7 +4563,46 @@ export default function Earth3DPage() {
             )}
             <button
               onClick={() => {
-                window.location.href = `/?recipe=${streetViewNonnaPopup.recipeId}`;
+                const panorama = streetViewPanoramaRef.current;
+                if (panorama) {
+                  const position = panorama.getPosition?.();
+                  const pov = panorama.getPov?.();
+                  const zoom = Number(panorama.getZoom?.() ?? 1);
+                  if (position && pov) {
+                    const lat =
+                      typeof position.lat === "function" ? position.lat() : position.lat;
+                    const lng =
+                      typeof position.lng === "function" ? position.lng() : position.lng;
+                    const heading = Number(pov.heading ?? 0);
+                    const pitch = Number(pov.pitch ?? 0);
+                    if (
+                      Number.isFinite(lat) &&
+                      Number.isFinite(lng) &&
+                      Number.isFinite(heading) &&
+                      Number.isFinite(pitch) &&
+                      Number.isFinite(zoom)
+                    ) {
+                      const payload: StreetViewReturnPayload = {
+                        lat,
+                        lng,
+                        heading,
+                        pitch,
+                        zoom,
+                        recipeId: streetViewNonnaPopup.recipeId,
+                        nonnaName: streetViewNonnaPopup.name,
+                        nonnaTitle: streetViewNonnaPopup.title,
+                        nonnaPhoto: streetViewNonnaPopup.photo,
+                        countryName: streetViewNonnaPopup.countryName,
+                        countryCode: streetViewNonnaPopup.countryCode,
+                      };
+                      window.sessionStorage.setItem(
+                        STREET_VIEW_RETURN_STORAGE_KEY,
+                        JSON.stringify(payload),
+                      );
+                    }
+                  }
+                }
+                window.location.href = `/?recipe=${streetViewNonnaPopup.recipeId}&from=street-view`;
               }}
               style={{
                 marginTop: "8px",
