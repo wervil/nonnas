@@ -5,6 +5,9 @@ import { Typography } from '@/components/ui/Typography'
 import Button from '@/components/ui/Button'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { X } from 'lucide-react'
+
+const WELCOME_DISMISSED_KEY = 'welcome_dismissed_home_v2'
 
 export const WelcomeOverlay = () => {
     const l = useTranslations('labels')
@@ -12,25 +15,41 @@ export const WelcomeOverlay = () => {
 
     const handleEnter = () => {
         setIsVisible(false)
-        sessionStorage.setItem('welcome_dismissed', 'true')
+        sessionStorage.setItem(WELCOME_DISMISSED_KEY, 'true')
     }
 
     useEffect(() => {
-        if (sessionStorage.getItem('welcome_dismissed') === 'true') {
+        if (sessionStorage.getItem(WELCOME_DISMISSED_KEY) === 'true') {
             setIsVisible(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        const openOverlay = () => setIsVisible(true)
+        window.addEventListener('open-welcome-overlay', openOverlay)
+        return () => {
+            window.removeEventListener('open-welcome-overlay', openOverlay)
         }
     }, [])
 
     if (!isVisible) return null
 
     return (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-lg p-4 animate-in fade-in duration-500">
-            <div className="relative w-full max-w-[100vw] md:max-w-[500px] h-[90%] md:h-auto aspect-[3/4] animate-in  duration-500 ">
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-lg p-4 animate-in fade-in duration-500 overflow-hidden">
+            <div className="relative w-full max-w-[100vw] md:max-w-[500px] h-[90%] md:h-auto max-h-[calc(100vh-2rem)] aspect-[3/4] animate-in duration-500">
 
 
                 <div className="absolute inset-0 flex items-center justify-center ">
+                    <button
+                        type="button"
+                        onClick={handleEnter}
+                        className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
+                        aria-label="Close welcome overlay"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
 
-                    <div className="info-wrap flex flex-col items-center justify-center text-center !px-6 !rounded-[20px] w-full h-full ">
+                    <div className="info-wrap flex flex-col items-center justify-center text-center !px-6 !rounded-[20px] w-full h-full overflow-y-auto">
                         {/* Logo */}
                         <div className="mb-4 flex justify-center">
                             <Image
@@ -44,7 +63,7 @@ export const WelcomeOverlay = () => {
                         <Typography  weight="bold" color="white" className="mb-4 md:mb-6 font-imprint drop-shadow-lg sm:text-[24px] text-[17px]">
                             {l('infoTitle')}
                         </Typography>
-                        <div className="space-y-4 md:space-y-6 max-h-[50vh] overflow-y-auto scrollbar-hide">
+                        <div className="space-y-4 md:space-y-6 max-h-[50vh] overflow-y-auto">
                             <Typography size="body" color="white" className="leading-relaxed drop-shadow-md text-sm md:text-base">
                                 {l('infoDescr')}
                             </Typography>

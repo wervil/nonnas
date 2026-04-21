@@ -14,6 +14,7 @@ type Props = {
 }
 
 export const ImagesModal = ({ onClose, images }: Props) => {
+  const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v|ogg)$/i.test(url.split('?')[0])
 
   // Prevent background scroll
   useEffect(() => {
@@ -68,14 +69,23 @@ export const ImagesModal = ({ onClose, images }: Props) => {
               className="relative w-full h-full flex items-center justify-center"
               style={{ height: '100%', width: '100%' }}
             >
-              <Image
-                src={image}
-                alt={`photo ${index + 1}`}
-                fill
-                style={{ objectFit: 'contain' }}
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 70vw"
-              />
+              {isVideoUrl(image) ? (
+                <video
+                  src={image}
+                  controls
+                  preload="metadata"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <Image
+                  src={image}
+                  alt={`photo ${index + 1}`}
+                  fill
+                  style={{ objectFit: 'contain' }}
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, 70vw"
+                />
+              )}
             </SwiperSlide>
           ))}
         </Swiper>

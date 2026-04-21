@@ -48,6 +48,7 @@ const FileUpload = <T extends FieldValues>({
   const [uploading, setUploading] = useState(false)
   const fieldRef = useRef<ControllerRenderProps<T, Path<T>>>(null)
   const i = useTranslations('inputs')
+  const isVideoFile = (url: string) => /\.(mp4|webm|mov|m4v|ogg)$/i.test(url.split('?')[0])
 
   // const currentFiles = watch(name) || []
 
@@ -80,6 +81,23 @@ const FileUpload = <T extends FieldValues>({
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return
+
+      if (maxFiles === 1) {
+        const singleFile = acceptedFiles[acceptedFiles.length - 1]
+        try {
+          const [uploadedUrl] = await uploadFiles([singleFile])
+          if (fieldRef.current && uploadedUrl) {
+            fieldRef.current?.onChange([uploadedUrl])
+            toast.success(i('uploadSuccess'))
+          }
+        } catch (error) {
+          console.error('Failed to upload file:', error)
+          toast.error(i('uploadError'))
+        }
+        return
+      }
+
       // Calculate how many we can add
       const currentLength = watch(name)?.length || 0
       const remaining = Math.max(0, maxFiles - currentLength)
@@ -265,7 +283,7 @@ const FileUpload = <T extends FieldValues>({
                   </div>
                 </div>
               )} */}
-              {watch(name).length > 0 && (
+              {(watch(name)?.length || 0) > 0 && (
                 <div className="mt-4 space-y-2">
                   <Typography
                     size="bodyXS"
@@ -278,13 +296,22 @@ const FileUpload = <T extends FieldValues>({
                     {watch(name).map((file: string, index: number) => (
                       <div key={index} className="relative group">
                         <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                          <Image
-                            src={file}
-                            alt={file}
-                            className="w-full h-full object-cover"
-                            width={100}
-                            height={100}
-                          />
+                          {isVideoFile(file) ? (
+                            <video
+                              src={file}
+                              controls
+                              preload="metadata"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Image
+                              src={file}
+                              alt={file}
+                              className="w-full h-full object-cover"
+                              width={100}
+                              height={100}
+                            />
+                          )}
                         </div>
                         <button
                           type="button"
