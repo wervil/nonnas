@@ -577,10 +577,15 @@ export const AddRecipe = ({
 
                 <FileUpload
                   label={`${l('recipeImage')}*`}
-                  description={d('recipeImage')}
+                  description={`${d('recipeImage')} You can upload one image or one video.`}
                   name="recipe_image"
                   control={control}
                   maxFiles={1}
+                  maxSize={50 * 1024 * 1024}
+                  accept={{
+                    'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
+                    'video/*': ['.mp4', '.webm', '.mov', '.m4v', '.ogg'],
+                  }}
                   setValue={setValue}
                   watch={watch}
                   theme="light"

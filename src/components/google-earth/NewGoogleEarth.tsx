@@ -4450,7 +4450,7 @@ export default function Earth3DPage() {
                 boxShadow: `0 2px 8px ${TEAL.glow}`,
               }}
             >
-              Read Her Book →
+              Read Her Story →
             </button>
           </div>
           <button

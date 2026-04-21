@@ -19,7 +19,7 @@ import { ImagesModal } from "../ui/ImagesModal";
 // import { generateTOCpages } from '@/utils/generateTOCpages'
 // import { Typography } from '../ui/Typography'
 import { useUser } from "@stackframe/stack";
-import { ArrowLeft, ArrowRight, MessageCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleHelp, MessageCircle } from "lucide-react";
 import CommentSection from "../Comments/CommentSection";
 
 type Props = {
@@ -513,29 +513,62 @@ export const Book = forwardRef<BookHandle, Props>(
             </div>
           </div>
 
-          {/* Toggle Sidebar Button - Visible when sidebar is closed and we have a recipe */}
-          {!commentSection.open && currentRecipeId && (
-            <button
-              onClick={() => {
-                const currentRecipe = recipes.find(
-                  (r) => r.id === currentRecipeId,
-                );
-                if (currentRecipe) {
-                  setCommentSection({
-                    open: true,
-                    recipeId: currentRecipe.id,
-                    nonnaName: currentRecipe.grandmotherTitle || "Nonna",
-                    titleName: currentRecipe.recipeTitle,
-                    photo: currentRecipe.photo?.[0] || null,
-                    countryCode: currentRecipe.country || "",
-                  });
-                }
-              }}
-              className="absolute bottom-8 right-8 z-100 bg-[#CDD8F9] text-[#504DED] p-3 rounded-md shadow-lg hover:bg-[#B8C5F5] transition-colors border-2 border-[#A8B8F0] flex items-center gap-2"
-            >
-              <MessageCircle size={24} />
-              <span className="font-serif hidden">Discussions</span>
-            </button>
+          {/* Home floating actions: Help always visible, Discussion on recipe pages */}
+          {!commentSection.open && (
+            <div className="absolute bottom-8 right-8 z-100 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("open-welcome-overlay"))}
+                className="inline-flex items-center justify-center rounded-full"
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  background: "rgba(13,148,136,0.85)",
+                  border: "1.5px solid rgba(94,234,212,0.6)",
+                  backdropFilter: "blur(10px)",
+                  boxShadow: "0 4px 20px rgba(13,148,136,0.35)",
+                  color: "white",
+                }}
+                aria-label="Open welcome guide"
+                title="Open welcome guide"
+              >
+                <CircleHelp size={20} />
+              </button>
+              {currentRecipeId && (
+                <button
+                  onClick={() => {
+                    const currentRecipe = recipes.find(
+                      (r) => r.id === currentRecipeId,
+                    );
+                    if (currentRecipe) {
+                      setCommentSection({
+                        open: true,
+                        recipeId: currentRecipe.id,
+                        nonnaName: currentRecipe.grandmotherTitle || "Nonna",
+                        titleName: currentRecipe.recipeTitle,
+                        photo: currentRecipe.photo?.[0] || null,
+                        countryCode: currentRecipe.country || "",
+                      });
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-white transition-all"
+                  style={{
+                    background: "rgba(13,148,136,0.85)",
+                    border: "1.5px solid rgba(94,234,212,0.6)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 4px 20px rgba(13,148,136,0.35)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                  }}
+                >
+                  <MessageCircle size={16} />
+                  <span>Discussion</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 

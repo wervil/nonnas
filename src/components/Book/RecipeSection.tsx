@@ -29,6 +29,8 @@ export const RecipeSection = ({
   const [isOpen, setIsOpen] = useState(false)
   const [showButton, setShowButton] = useState(false)
   const b = useTranslations('buttons')
+  const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v|ogg)$/i.test(url.split('?')[0])
+  const hasVideo = Boolean(images?.some((image) => isVideoUrl(image)))
 
   const openModal = () => {
     document.body.style.overflow = 'hidden'
@@ -43,7 +45,8 @@ export const RecipeSection = ({
   return (
     <>
       <div
-        className="relative description-wrap cursor-pointer h-[49%]"
+        className={`relative description-wrap cursor-pointer ${hasVideo ? 'min-h-[49%] h-auto' : 'h-[49%]'}`}
+        style={hasVideo ? { overflow: 'visible', flex: 'unset' } : undefined}
         // style={{
         //   height: getHeight(
         //     hasInfluences,
@@ -55,13 +58,46 @@ export const RecipeSection = ({
         onMouseEnter={() => setShowButton(true)}
         onMouseLeave={() => setShowButton(false)}
       >
-        <div className="relative overflow-hidden text-left">
-          <h4
-            className={`text-federant text-brown-light text-center text-m xl:text-xl`}
-          >
-            {title}
-          </h4>
-          {images?.length ? (
+        <div className={`relative text-left ${hasVideo ? 'overflow-visible' : 'overflow-hidden'}`}>
+          {!hasVideo && (
+            <h4
+              className={`text-federant text-brown-light text-center text-m xl:text-xl`}
+            >
+              {title}
+            </h4>
+          )}
+          {images?.length && hasVideo ? (
+            <div className="relative w-full h-[170px] md:h-[220px] mx-auto mb-3 mt-2 overflow-hidden rounded-lg">
+              <Swiper
+                modules={[Navigation, Pagination]}
+                navigation
+                pagination={{ clickable: true }}
+                loop={images?.length > 1}
+                className="w-full h-full rounded-lg cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
+                style={
+                  {
+                    '--swiper-navigation-sides-offset': '0px',
+                  } as React.CSSProperties
+                }
+              >
+                {images?.map((image, index) => (
+                  <SwiperSlide key={index}>
+                    <video
+                      src={image}
+                      controls
+                      preload="metadata"
+                      className="w-full h-full object-cover"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setImages(images)
+                      }}
+                    />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+          ) : null}
+          {images?.length && !hasVideo ? (
             <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 lg:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] xl:max-w-none xl:mx-0 2xl:w-[220px] 2xl:h-[200px] ">
               <Swiper
                 modules={[Navigation, Pagination]}
@@ -93,9 +129,16 @@ export const RecipeSection = ({
               </Swiper>
             </div>
           ) : null}
+          {hasVideo && (
+            <h4
+              className={`text-federant text-brown-light text-center text-m xl:text-xl mt-2`}
+            >
+              {title}
+            </h4>
+          )}
 
 
-          <div className="min-w-0 break-words !text-[12px] xl:!text-[16px]">
+          <div className={`min-w-0 break-words !text-[12px] xl:!text-[16px] ${hasVideo ? 'text-center' : ''}`}>
             <div
               className={clsx(
                 'text-description text-description--long !text-[12px] xl:!text-[16px]',
@@ -134,7 +177,7 @@ export const RecipeSection = ({
         ? createPortal(
           <div
             onClick={closeModal}
-            className="fixed   mx-auto inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.8)]">
+            className="fixed mx-auto inset-0 z-1000 flex items-start md:items-center justify-center bg-[rgba(0,0,0,0.8)] overflow-y-auto p-4">
             <button
               onClick={closeModal}
               className="fixed  top-4 right-12  text-white text-3xl font-bold z-1050"
@@ -145,9 +188,36 @@ export const RecipeSection = ({
               onClick={(e) => {
                 e.stopPropagation()
               }}
-              className="relative  description-wrap description-wrap--vertical  w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px]">
-              <div className="relative overflow-auto">
-                {images?.length ? (
+              className="relative description-wrap description-wrap--vertical w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px] my-4">
+              <div className="relative overflow-y-auto max-h-[calc(100vh-5rem)]">
+                {images?.length && hasVideo ? (
+                  <div className="relative w-full h-[260px] md:h-[340px] mx-auto mb-4 mt-2">
+                    <Swiper
+                      modules={[Navigation, Pagination]}
+                      navigation
+                      pagination={{ clickable: true }}
+                      loop={images?.length > 1}
+                      className="w-full h-full rounded-lg [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
+                      style={
+                        {
+                          '--swiper-navigation-sides-offset': '0px',
+                        } as React.CSSProperties
+                      }
+                    >
+                      {images?.map((image, index) => (
+                        <SwiperSlide key={index}>
+                          <video
+                            src={image}
+                            controls
+                            preload="metadata"
+                            className="w-full h-full object-cover"
+                          />
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                  </div>
+                ) : null}
+                {images?.length && !hasVideo ? (
                   <div className="relative w-[140px] max-w-[85vw] h-[100px] mx-auto mb-3 mt-2 xl:float-right xl:ml-4 xl:mr-0 xl:mb-2 xl:w-[170px] xl:h-[120px] lg:w-[250px] lg:h-[220px] xl:max-w-none xl:mx-0">
                     <Swiper
                       modules={[Navigation, Pagination]}
@@ -176,11 +246,11 @@ export const RecipeSection = ({
                   </div>
                 ) : null}
                 <h4
-                  className={`text-federant text-brown-light text-center text-m xl:text-xl`}
+                  className={`text-federant text-brown-light text-center text-m xl:text-xl ${hasVideo ? 'mt-1' : ''}`}
                 >
                   {title}
                 </h4>
-                <div className="min-w-0 break-words">
+                <div className={`min-w-0 break-words ${hasVideo ? 'text-center' : ''}`}>
                   <div
                     className="text-description text-description--long"
                     style={{ overflow: 'visible' }}
