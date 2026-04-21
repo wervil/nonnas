@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { Dispatch, SetStateAction, useState } from 'react'
+import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -26,6 +26,7 @@ export const RecipeSection = ({
   directionsText,
   setImages,
 }: Props) => {
+  const [blockClose, setBlockClose] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [showButton, setShowButton] = useState(false)
   const b = useTranslations('buttons')
@@ -38,9 +39,42 @@ export const RecipeSection = ({
   }
 
   const closeModal = () => {
+    if (document.fullscreenElement) return
     document.body.style.overflow = 'auto'
     setIsOpen(false)
   }
+
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (hasVideo) return
+    const target = e.target as HTMLElement
+    if (
+      target.closest('video')
+      || target.closest('.swiper-button-next')
+      || target.closest('.swiper-button-prev')
+      || target.closest('.swiper-pagination')
+      || target.closest('.swiper-pagination-bullet')
+    ) {
+      return
+    }
+    openModal()
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        setBlockClose(true)
+      } else {
+        // small delay prevents instant close on exit
+        setTimeout(() => setBlockClose(false), 300)
+      }
+    }
+  
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+  
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
 
   return (
     <>
@@ -54,9 +88,13 @@ export const RecipeSection = ({
         //     window.innerWidth < 768
         //   ),
         // }}
-        onClick={openModal}
-        onMouseEnter={() => setShowButton(true)}
-        onMouseLeave={() => setShowButton(false)}
+        onClick={hasVideo ? undefined : handleCardClick}
+        onMouseEnter={() => {
+          if (!hasVideo) setShowButton(true)
+        }}
+        onMouseLeave={() => {
+          if (!hasVideo) setShowButton(false)
+        }}
       >
         <div className={`relative text-left ${hasVideo ? 'overflow-visible' : 'overflow-hidden'}`}>
           {!hasVideo && (
@@ -73,7 +111,7 @@ export const RecipeSection = ({
                 navigation
                 pagination={{ clickable: true }}
                 loop={images?.length > 1}
-                className="w-full h-full rounded-lg cursor-pointer [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
+                className="w-full h-full rounded-lg [--swiper-navigation-size:20px] md:[--swiper-navigation-size:30px]"
                 style={
                   {
                     '--swiper-navigation-sides-offset': '0px',
@@ -85,12 +123,18 @@ export const RecipeSection = ({
                     <video
                       src={image}
                       controls
+                      controlsList="nofullscreen"
+                      disablePictureInPicture
                       preload="metadata"
                       className="w-full h-full object-cover"
                       onClick={(e) => {
                         e.stopPropagation()
-                        setImages(images)
                       }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseUp={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onPointerUp={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
                     />
                   </SwiperSlide>
                 ))}
@@ -165,9 +209,13 @@ export const RecipeSection = ({
         <Button
           variant="primary"
           size="shrink"
+          onClick={(e) => {
+            e.stopPropagation()
+            openModal()
+          }}
           className={clsx(
             'absolute bottom-4 right-4 z-20 text-[#6D2924] font-semibold rounded-lg px-3 py-1.5 text-xs hover:bg-[#FFB5B0] transition-colors',
-            showButton ? 'opacity-100' : 'opacity-0'
+            hasVideo ? 'opacity-100' : (showButton ? 'opacity-100' : 'opacity-0')
           )}
         >
           {b('seeMore')}
@@ -176,8 +224,13 @@ export const RecipeSection = ({
       {isOpen
         ? createPortal(
           <div
-            onClick={closeModal}
-            className="fixed mx-auto inset-0 z-1000 flex items-start md:items-center justify-center bg-[rgba(0,0,0,0.8)] overflow-y-auto p-4">
+          onClick={() => {
+            if (blockClose) return
+            closeModal()
+          }}
+          className={`fixed mx-auto inset-0 z-1000 flex items-start md:items-center justify-center bg-[rgba(0,0,0,0.8)] p-4 ${
+            hasVideo ? 'overflow-hidden' : 'overflow-y-auto'
+          }`}>
             <button
               onClick={closeModal}
               className="fixed  top-4 right-12  text-white text-3xl font-bold z-1050"
@@ -185,11 +238,12 @@ export const RecipeSection = ({
               <X size={30} />
             </button>
             <div
-              onClick={(e) => {
-                e.stopPropagation()
-              }}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}            
               className="relative description-wrap description-wrap--vertical w-[70vw]! h-[90vh] max-w-[85vw]! max-h-[1000px] min-w-[300px] min-h-[200px] my-4">
-              <div className="relative overflow-y-auto max-h-[calc(100vh-5rem)]">
+              <div className={`relative ${hasVideo ? '' : 'overflow-y-auto max-h-[calc(100vh-5rem)]'}`}>
                 {images?.length && hasVideo ? (
                   <div className="relative w-full h-[260px] md:h-[340px] mx-auto mb-4 mt-2">
                     <Swiper
@@ -211,6 +265,9 @@ export const RecipeSection = ({
                             controls
                             preload="metadata"
                             className="w-full h-full object-cover"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
                           />
                         </SwiperSlide>
                       ))}

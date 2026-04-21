@@ -35,8 +35,8 @@ export const WelcomeOverlay = () => {
     if (!isVisible) return null
 
     return (
-        <div className="fixed inset-0 z-[5000] flex items-start md:items-center justify-center bg-black/60 backdrop-blur-lg p-4 animate-in fade-in duration-500 overflow-y-auto">
-            <div className="relative w-full max-w-[100vw] md:max-w-[500px] h-[90%] md:h-auto aspect-[3/4] animate-in duration-500 my-4">
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-lg p-4 animate-in fade-in duration-500 overflow-hidden">
+            <div className="relative w-full max-w-[100vw] md:max-w-[500px] h-[90%] md:h-auto max-h-[calc(100vh-2rem)] aspect-[3/4] animate-in duration-500">
 
 
                 <div className="absolute inset-0 flex items-center justify-center ">
