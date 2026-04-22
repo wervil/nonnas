@@ -52,8 +52,10 @@ export async function middleware(request: NextRequest) {
     const expected = process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN ?? '' // server-only env
 
     if (!expected || inviteCookie !== expected) {
-      // Block signup page for non-invited users
-      return NextResponse.redirect(new URL('/404', request.url)) // or '/register'
+      const registerUrl = new URL('/register', request.url)
+      const inviteParam = request.nextUrl.searchParams.get('invite')?.trim()
+      if (inviteParam) registerUrl.searchParams.set('invite', inviteParam)
+      return NextResponse.redirect(registerUrl)
     }
   }
 
