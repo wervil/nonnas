@@ -3,6 +3,7 @@ import { stackServerApp } from "../../../stack";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import CloseOrBackButton from "./CloseOrBackButton";
 
 type HandlerProps = {
   params: Promise<{ stack?: string[] }>;
@@ -58,6 +59,13 @@ export default async function Handler(props: HandlerProps) {
             >
               Back to home
             </Link>
+
+            <CloseOrBackButton
+              fallbackHref="/"
+              className="inline-flex items-center justify-center rounded-md border px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 transition"
+            >
+              Close this window
+            </CloseOrBackButton>
           </div>
 
           {/* Optional OAuth-style helper text */}
@@ -112,6 +120,13 @@ export default async function Handler(props: HandlerProps) {
             >
               Back to home
             </Link>
+
+            <CloseOrBackButton
+              fallbackHref="/"
+              className="inline-flex items-center justify-center rounded-md border px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 transition"
+            >
+              Close this window
+            </CloseOrBackButton>
           </div>
         </div>
       </div>
@@ -182,6 +197,12 @@ export default async function Handler(props: HandlerProps) {
               },
             }}
           />
+          <CloseOrBackButton
+            fallbackHref="/"
+            className="mt-4 w-full inline-flex items-center justify-center rounded-md border px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 transition"
+          >
+            Close this window
+          </CloseOrBackButton>
         </div>
       ) : (
         <StackHandler
