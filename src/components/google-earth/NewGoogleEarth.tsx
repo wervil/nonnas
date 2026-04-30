@@ -1553,7 +1553,7 @@ export default function Earth3DPage() {
   }, []);
   const fetchIndividualNonnas = useCallback(async (level: "CITY" | "NONNA") => {
     try {
-      const res = await fetch(`/api/nonnas/clustering?level=${level}`);
+      const res = await fetch(`/api/nonnas/clustering?level=${level}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch individual nonnas");
       const data = await res.json();
       setNonnaData(data.clusters || []);
@@ -1590,7 +1590,7 @@ export default function Earth3DPage() {
     let mounted = true;
     const fetchAll = async () => {
       try {
-        const res = await fetch("/api/nonnas/clustering?level=ALL");
+        const res = await fetch("/api/nonnas/clustering?level=ALL", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch all clusters");
         const data = await res.json();
 

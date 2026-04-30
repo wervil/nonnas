@@ -23,6 +23,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { moderateContent } from "@/services/moderation";
 
+export const dynamic = "force-dynamic";
+
 // Database connection using Neon
 const db = drizzle(process.env.DATABASE_URL!);
 
@@ -303,12 +305,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      recipes: result.map((recipe) => ({
-        ...recipe,
-        continent: getCountryInfoWithFallback(recipe.country).continent,
-      })),
-    });
+    return NextResponse.json(
+      {
+        recipes: result.map((recipe) => ({
+          ...recipe,
+          continent: getCountryInfoWithFallback(recipe.country).continent,
+        })),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("Error fetching recipes:", error);
     return NextResponse.json(

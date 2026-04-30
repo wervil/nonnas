@@ -171,11 +171,14 @@ export async function GET(req: NextRequest) {
         });
       });
 
-      return NextResponse.json({
-        continents: Object.values(continentMap),
-        countries: Object.values(countryMap),
-        states: stateClusters,
-      });
+      return NextResponse.json(
+        {
+          continents: Object.values(continentMap),
+          countries: Object.values(countryMap),
+          states: stateClusters,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -371,7 +374,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ clusters });
+    return NextResponse.json(
+      { clusters },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("Clustering API Error:", error);
     return NextResponse.json(
