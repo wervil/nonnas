@@ -57,6 +57,7 @@ export const DashboardRecipe = ({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: Number(id), published: !recipe.published }),
+      cache: "no-store",
     });
     setRecipe({ ...recipe, published: !recipe.published });
   };

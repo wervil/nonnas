@@ -36,7 +36,9 @@ export const useRecipes = () => {
     const url = `/api/recipes?published=true&lang=${lang}`;
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        cache: "no-store",
+      });
       const data = await res.json();
 
       if (Array.isArray(data.recipes)) {

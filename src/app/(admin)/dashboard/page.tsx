@@ -170,6 +170,7 @@ function DashboardInner({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, role }),
+        cache: "no-store",
       });
 
       if (!res.ok) {

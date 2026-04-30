@@ -1,57 +1,91 @@
-'use client'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import Image from 'next/image'
-import { useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
-import { FieldPath, FieldValues, useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { z } from 'zod'
+"use client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { FieldPath, FieldValues, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 
-import Checkbox from '@/components/ui/Checkbox'
-import FileUpload from '@/components/ui/FileUpload'
-import Input from '@/components/ui/Input'
-import { TextEditor } from '@/components/ui/TextEditor'
-import { Recipe } from '@/db/schema'
-import { sanitizeHtml } from '@/utils/utils'
-import { allCountries } from 'country-region-data'
-import CountryStateCitySelector from './ui/CountryStateCitySelector'
-import Textarea from './ui/Textarea'
-import { Typography } from './ui/Typography'
+import Checkbox from "@/components/ui/Checkbox";
+import FileUpload from "@/components/ui/FileUpload";
+import Input from "@/components/ui/Input";
+import { TextEditor } from "@/components/ui/TextEditor";
+import { Recipe } from "@/db/schema";
+import { sanitizeHtml } from "@/utils/utils";
+import { allCountries } from "country-region-data";
+import CountryStateCitySelector from "./ui/CountryStateCitySelector";
+import Textarea from "./ui/Textarea";
+import { Typography } from "./ui/Typography";
 
 // Helper function to strip HTML tags and get text content
 const getTextContent = (html: string): string => {
-  if (typeof window === 'undefined') return html // Server-side fallback
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-  return doc.body.textContent || ''
-}
+  if (typeof window === "undefined") return html; // Server-side fallback
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return doc.body.textContent || "";
+};
 
 const recipeSchema = z.object({
-  grandmotherTitle: z.string().min(1, 'Grandmother Title is required').max(80, 'Grandmother Title must be 80 characters or less').regex(/^[^0-9]*$/, 'Grandmother Title cannot contain numbers'),
-  firstName: z.string().min(1, 'First Name is required').max(60, 'First Name must be 60 characters or less').regex(/^[^0-9]*$/, 'First Name cannot contain numbers'),
-  lastName: z.string().min(1, 'Last Name is required').max(60, 'Last Name must be 60 characters or less').regex(/^[^0-9]*$/, 'Last Name cannot contain numbers'),
-  country: z.string().min(1, 'Country is required'),
-  state: z.string().min(1, 'State is required'),
-  city: z.string().min(1, 'City is required'),
+  grandmotherTitle: z
+    .string()
+    .min(1, "Grandmother Title is required")
+    .max(80, "Grandmother Title must be 80 characters or less")
+    .regex(/^[^0-9]*$/, "Grandmother Title cannot contain numbers"),
+  firstName: z
+    .string()
+    .min(1, "First Name is required")
+    .max(60, "First Name must be 60 characters or less")
+    .regex(/^[^0-9]*$/, "First Name cannot contain numbers"),
+  lastName: z
+    .string()
+    .min(1, "Last Name is required")
+    .max(60, "Last Name must be 60 characters or less")
+    .regex(/^[^0-9]*$/, "Last Name cannot contain numbers"),
+  country: z.string().min(1, "Country is required"),
+  state: z.string().min(1, "State is required"),
+  city: z.string().min(1, "City is required"),
   coordinates: z.string().optional(),
-  history: z.string().min(1, 'Biography is required').max(700, 'Biography must be 700 characters or less'),
-  recipeTitle: z.string().min(1, 'Recipe Title is required').max(80, 'Recipe Title must be 80 characters or less').regex(/^[^0-9]*$/, 'Recipe Title cannot contain numbers'),
-  recipe: z.string().min(1, 'Ingredients are required').refine((val) => getTextContent(val).length <= 1000, {
-    message: 'Ingredients must be 1000 characters or less',
-  }),
-  directions: z.string().min(1, 'Directions are required').refine((val) => getTextContent(val).length <= 500, {
-    message: 'Directions must be 500 characters or less',
-  }),
-  traditions: z.string().min(1, 'Traditions is required').max(500, 'Traditions must be 500 characters or less'),
-  geo_history: z.string().min(1, 'Regional History is required').max(600, 'Regional History must be 600 characters or less'),
-  influences: z.string().min(1, 'Influences is required').max(400, 'Influences must be 400 characters or less'),
+  history: z
+    .string()
+    .min(1, "Biography is required")
+    .max(700, "Biography must be 700 characters or less"),
+  recipeTitle: z
+    .string()
+    .min(1, "Recipe Title is required")
+    .max(80, "Recipe Title must be 80 characters or less")
+    .regex(/^[^0-9]*$/, "Recipe Title cannot contain numbers"),
+  recipe: z
+    .string()
+    .min(1, "Ingredients are required")
+    .refine((val) => getTextContent(val).length <= 1000, {
+      message: "Ingredients must be 1000 characters or less",
+    }),
+  directions: z
+    .string()
+    .min(1, "Directions are required")
+    .refine((val) => getTextContent(val).length <= 500, {
+      message: "Directions must be 500 characters or less",
+    }),
+  traditions: z
+    .string()
+    .min(1, "Traditions is required")
+    .max(500, "Traditions must be 500 characters or less"),
+  geo_history: z
+    .string()
+    .min(1, "Regional History is required")
+    .max(600, "Regional History must be 600 characters or less"),
+  influences: z
+    .string()
+    .min(1, "Influences is required")
+    .max(400, "Influences must be 400 characters or less"),
   photo: z.any().refine((val) => val && val.length > 0, {
-    message: 'Photo of your Grandmother is required',
+    message: "Photo of your Grandmother is required",
   }),
   recipe_image: z.any().refine((val) => val && val.length > 0, {
-    message: 'Recipe Photo is required',
+    message: "Recipe Photo is required",
   }),
   dish_image: z.any().optional(),
   avatar_image: z.string().optional(),
@@ -60,9 +94,9 @@ const recipeSchema = z.object({
     .boolean()
     .default(true)
     .refine((val) => val === true, {
-      message: 'You must agree to release your signature',
+      message: "You must agree to release your signature",
     }),
-})
+});
 
 type FormData = z.infer<typeof recipeSchema>;
 
@@ -70,18 +104,20 @@ export const AddRecipe = ({
   userId,
   recipe,
 }: {
-  userId?: string
-  recipe?: Recipe
+  userId?: string;
+  recipe?: Recipe;
 }) => {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(recipe?.avatar_image || null)
-  const lastGeneratedSource = React.useRef<string | null>(null)
-  const b = useTranslations('buttons')
-  const l = useTranslations('labels')
-  const d = useTranslations('descriptions')
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    recipe?.avatar_image || null,
+  );
+  const lastGeneratedSource = React.useRef<string | null>(null);
+  const b = useTranslations("buttons");
+  const l = useTranslations("labels");
+  const d = useTranslations("descriptions");
 
   const {
     handleSubmit,
@@ -93,67 +129,75 @@ export const AddRecipe = ({
     formState: { errors },
   } = useForm({
     defaultValues: {
-      grandmotherTitle: '',
-      firstName: '',
-      traditions: '',
-      lastName: '',
-      country: '',
-      state: '',
-      city: '',
-      coordinates: '',
-      history: '',
-      geo_history: '',
-      recipeTitle: '',
-      recipe: '',
-      directions: '',
-      influences: '',
+      grandmotherTitle: "",
+      firstName: "",
+      traditions: "",
+      lastName: "",
+      country: "",
+      state: "",
+      city: "",
+      coordinates: "",
+      history: "",
+      geo_history: "",
+      recipeTitle: "",
+      recipe: "",
+      directions: "",
+      influences: "",
       photo: [],
       recipe_image: [],
       dish_image: [],
-      avatar_image: '',
+      avatar_image: "",
       release_signature: false,
-      userId: userId || '',
+      userId: userId || "",
     },
     resolver: zodResolver(recipeSchema),
-  })
+  });
 
   // Steps configuration
   const steps = [
     {
-      id: 'identity',
-      title: l('grandmotherTitle'), // Using existing label as title roughly fitting
-      fields: ['grandmotherTitle', 'firstName', 'lastName', 'country', 'state', 'city', 'coordinates'],
-      description: 'Tell us about your grandmother.'
+      id: "identity",
+      title: l("grandmotherTitle"), // Using existing label as title roughly fitting
+      fields: [
+        "grandmotherTitle",
+        "firstName",
+        "lastName",
+        "country",
+        "state",
+        "city",
+        "coordinates",
+      ],
+      description: "Tell us about your grandmother.",
     },
     {
-      id: 'story',
-      title: 'Her Story',
-      fields: ['history', 'geo_history'],
-      description: d('bio')
+      id: "story",
+      title: "Her Story",
+      fields: ["history", "geo_history"],
+      description: d("bio"),
     },
     {
-      id: 'recipe',
-      title: 'The Recipe',
-      fields: ['recipeTitle', 'recipe', 'directions'],
-      description: 'Details of the dish.'
+      id: "recipe",
+      title: "The Recipe",
+      fields: ["recipeTitle", "recipe", "directions"],
+      description: "Details of the dish.",
     },
     {
-      id: 'culture',
-      title: l('traditions'),
-      fields: ['traditions', 'influences'],
-      description: 'Cultural background and influences.'
+      id: "culture",
+      title: l("traditions"),
+      fields: ["traditions", "influences"],
+      description: "Cultural background and influences.",
     },
     {
-      id: 'media',
-      title: 'Media & Review',
-      fields: ['photo', 'recipe_image', 'release_signature'],
-      description: 'Upload photos and review.'
-    }
-  ]
+      id: "media",
+      title: "Media & Review",
+      fields: ["photo", "recipe_image", "release_signature"],
+      description: "Upload photos and review.",
+    },
+  ];
 
-  const [currentStep, setCurrentStep] = useState(0)
+  const [currentStep, setCurrentStep] = useState(0);
 
-  const uploadedPhoto = watch('photo')
+  const uploadedPhoto = watch("photo");
 
   useEffect(() => {
     const handleAvatarGen = async () => {
@@ -171,15 +215,17 @@ export const AddRecipe = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            input_image: sourceUrl, // 
-            prompt: "Make this a 90s cartoon avatar, clean outlines, vibrant colors",
+            input_image: sourceUrl, //
+            prompt:
+              "Make this a 90s cartoon avatar, clean outlines, vibrant colors",
             output_format: "jpg",
           }),
+          cache: "no-store",
         });
 
         const data = await response.json();
 
-        // 
+        //
         const avatarUrl = data?.avatarUrl ?? data?.url;
 
         if (response.ok && avatarUrl) {
@@ -200,20 +246,20 @@ export const AddRecipe = ({
 
   const nextStep = async (e?: React.MouseEvent) => {
     if (e) {
-      e.preventDefault()
+      e.preventDefault();
     }
-    const fields = steps[currentStep].fields
-    const isValid = await trigger(fields as unknown as FieldPath<FormData>[])
+    const fields = steps[currentStep].fields;
+    const isValid = await trigger(fields as unknown as FieldPath<FormData>[]);
     if (isValid) {
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
-      window.scrollTo(0, 0)
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+      window.scrollTo(0, 0);
     }
-  }
+  };
 
   const prevStep = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 0))
-    window.scrollTo(0, 0)
-  }
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
+    window.scrollTo(0, 0);
+  };
 
   useEffect(() => {
     if (recipe) {
@@ -223,31 +269,33 @@ export const AddRecipe = ({
         lastName: recipe.lastName,
         recipeTitle: recipe.recipeTitle,
         country:
-          allCountries.find((country) => country[0] === recipe.country || country[1] === recipe.country)?.[1] ||
-          recipe.country,
-        state: recipe.region || '',
-        city: recipe.city || '',
-        coordinates: recipe.coordinates || '',
+          allCountries.find(
+            (country) =>
+              country[0] === recipe.country || country[1] === recipe.country,
+          )?.[1] || recipe.country,
+        state: recipe.region || "",
+        city: recipe.city || "",
+        coordinates: recipe.coordinates || "",
         history: sanitizeHtml(recipe.history),
-        geo_history: sanitizeHtml(recipe.geo_history || ''),
+        geo_history: sanitizeHtml(recipe.geo_history || ""),
         recipe: sanitizeHtml(recipe.recipe),
         directions: sanitizeHtml(recipe.directions),
-        influences: sanitizeHtml(recipe.influences || ''),
-        traditions: sanitizeHtml(recipe.traditions || ''),
+        influences: sanitizeHtml(recipe.influences || ""),
+        traditions: sanitizeHtml(recipe.traditions || ""),
         photo: recipe.photo || [],
         dish_image: recipe.dish_image || [],
         recipe_image: recipe.recipe_image || [],
-        avatar_image: recipe.avatar_image || '',
+        avatar_image: recipe.avatar_image || "",
         release_signature: recipe.release_signature || false,
         userId,
-      })
+      });
     }
-  }, [recipe, reset, userId])
+  }, [recipe, reset, userId]);
 
   const onSubmit = async (data: FieldValues) => {
     try {
-      setIsSubmitting(true)
-      setError(null)
+      setIsSubmitting(true);
+      setError(null);
 
       // Sanitize HTML content
       const sanitizedData = {
@@ -273,53 +321,54 @@ export const AddRecipe = ({
         avatar_image: avatarUrl || data.avatar_image || null,
         release_signature: data.release_signature || false,
         user_id: data.userId,
-      }
+      };
 
       const response = recipe
-        ? await fetch('/api/recipes', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...sanitizedData,
-            id: recipe.id,
-            published: recipe.published,
-          }),
-        })
-        : await fetch('/api/recipes', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(sanitizedData),
-        })
+        ? await fetch("/api/recipes", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...sanitizedData,
+              id: recipe.id,
+              published: recipe.published,
+            }),
+            cache: "no-store",
+          })
+        : await fetch("/api/recipes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(sanitizedData),
+          });
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData = await response.json();
 
         // Handle moderation/validation errors gracefully
         if (response.status === 400) {
-          toast.error(errorData.message || 'Invalid request')
-          setIsSubmitting(false)
-          return
+          toast.error(errorData.message || "Invalid request");
+          setIsSubmitting(false);
+          return;
         }
 
-        throw new Error(errorData.message || 'Failed to save recipe')
+        throw new Error(errorData.message || "Failed to save recipe");
       }
 
       // Redirect to the recipe list page or show success message
-      router.push(recipe ? `/profile/${recipe.id}` : '/')
+      router.push(recipe ? `/profile/${recipe.id}` : "/");
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message || 'An error occurred while saving the recipe')
-        toast.error(err.message || 'An error occurred while saving the recipe')
+        setError(err.message || "An error occurred while saving the recipe");
+        toast.error(err.message || "An error occurred while saving the recipe");
       }
-      console.error('Error saving recipe:', err)
+      console.error("Error saving recipe:", err);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center py-20 sm:py-25 lg:py-30 px-4">
@@ -358,8 +407,9 @@ export const AddRecipe = ({
                   {steps.map((_, index) => (
                     <div
                       key={index}
-                      className={`${index === 0 ? 'w-50 sm:w-70 shrink-0' : 'flex-1 min-h-px min-w-px'} h-2 sm:h-3 rounded-[16777200px] ${index <= currentStep ? 'bg-[#ffccc8]' : 'bg-white'
-                        }`}
+                      className={`${index === 0 ? "w-50 sm:w-70 shrink-0" : "flex-1 min-h-px min-w-px"} h-2 sm:h-3 rounded-[16777200px] ${
+                        index <= currentStep ? "bg-[#ffccc8]" : "bg-white"
+                      }`}
                     />
                   ))}
                 </div>
@@ -378,7 +428,10 @@ export const AddRecipe = ({
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 w-full  mx-auto">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-4 w-full  mx-auto"
+          >
             {/* Step 1: Identity */}
             {currentStep === 0 && (
               <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
@@ -386,13 +439,13 @@ export const AddRecipe = ({
                 <div className="flex flex-col gap-3 w-full">
                   <div className="flex items-center w-full">
                     <p className="font-semibold leading-normal text-[#2c2c2c] text-[16px] sm:text-[18px] tracking-[-0.4395px]">
-                      {l('grandmotherTitle')}*
+                      {l("grandmotherTitle")}*
                     </p>
                   </div>
                   <div className="flex flex-col gap-1.5 w-full">
                     <div className="bg-white h-11.25 sm:h-12.25 w-full rounded-[inherit]">
                       <Input
-                        label={l('grandmotherTitle')}
+                        label={l("grandmotherTitle")}
                         hideLabel={true}
                         hideCharacterCount={true}
                         name="grandmotherTitle"
@@ -405,7 +458,7 @@ export const AddRecipe = ({
 
                     <div className="flex flex-col items-start mt-4">
                       <p className=" font-semibold leading-6 text-[#2c2c2c] text-[15px] tracking-[-0.3125px]">
-                        {d('grandmotherDesc')}
+                        {d("grandmotherDesc")}
                       </p>
                     </div>
                   </div>
@@ -416,10 +469,10 @@ export const AddRecipe = ({
                   {/* First Name */}
                   <div className="flex-1 flex flex-col gap-1">
                     <p className="font-semibold leading-normal text-[#2c2c2c] text-[16px] sm:text-[18px] tracking-[-0.4395px]">
-                      {l('firstName')}*
+                      {l("firstName")}*
                     </p>
                     <Input
-                      label={l('firstName')}
+                      label={l("firstName")}
                       hideLabel={true}
                       name="firstName"
                       control={control}
@@ -427,16 +480,15 @@ export const AddRecipe = ({
                       maxLength={60}
                       className="w-full h-full px-3 sm:px-4 py-2 sm:py-3 items-center  font-normal leading-normal text-[13px] sm:text-[14px] text-[#2D2D2D80]! tracking-[-0.1504px] bg-transparent border-none outline-none"
                     />
-
                   </div>
 
                   {/* Last Name */}
                   <div className="flex-1 flex flex-col gap-1">
                     <p className="font-semibold leading-normal text-[#2c2c2c] text-[16px] sm:text-[18px] tracking-[-0.4395px]">
-                      {l('lastName')}*
+                      {l("lastName")}*
                     </p>
                     <Input
-                      label={l('lastName')}
+                      label={l("lastName")}
                       hideLabel={true}
                       name="lastName"
                       control={control}
@@ -444,7 +496,6 @@ export const AddRecipe = ({
                       maxLength={60}
                       className="w-full h-full px-3 sm:px-4 py-2 sm:py-3  font-normal leading-normal text-[13px] sm:text-[14px] text-[#2D2D2D80]! tracking-[-0.1504px] bg-transparent border-none outline-none"
                     />
-
                   </div>
                 </div>
 
@@ -464,8 +515,8 @@ export const AddRecipe = ({
             {currentStep === 1 && (
               <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
                 <Textarea
-                  label={`${l('bio')}*`}
-                  description={d('bio')}
+                  label={`${l("bio")}*`}
+                  description={d("bio")}
                   name="history"
                   control={control}
                   error={errors.history?.message}
@@ -473,8 +524,8 @@ export const AddRecipe = ({
                   theme="light"
                 />
                 <Textarea
-                  label={`${l('geoHistory')}*`}
-                  description={d('geoHistory')}
+                  label={`${l("geoHistory")}*`}
+                  description={d("geoHistory")}
                   name="geo_history"
                   control={control}
                   error={errors.geo_history?.message}
@@ -488,24 +539,23 @@ export const AddRecipe = ({
             {currentStep === 2 && (
               <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
                 <Input
-                  label={`${l('recipeTitle')}*`}
+                  label={`${l("recipeTitle")}*`}
                   name="recipeTitle"
                   control={control}
                   error={errors.recipeTitle?.message}
                   maxLength={80}
-
                 />
                 <TextEditor
-                  title={`${l('ingredients')}*`}
-                  description={d('ingredientsDesc')}
+                  title={`${l("ingredients")}*`}
+                  description={d("ingredientsDesc")}
                   name="recipe"
                   control={control}
                   maxLength={1000}
                   theme="light"
                 />
                 <TextEditor
-                  title={`${l('directions')}*`}
-                  description={d('directionsDesc')}
+                  title={`${l("directions")}*`}
+                  description={d("directionsDesc")}
                   name="directions"
                   control={control}
                   maxLength={500}
@@ -518,16 +568,16 @@ export const AddRecipe = ({
             {currentStep === 3 && (
               <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
                 <Textarea
-                  label={`${l('traditions')}*`}
-                  description={d('traditions')}
+                  label={`${l("traditions")}*`}
+                  description={d("traditions")}
                   name="traditions"
                   control={control}
                   maxLength={500}
                   theme="light"
                 />
                 <Textarea
-                  label={`${l('influences')}*`}
-                  description={d('influences')}
+                  label={`${l("influences")}*`}
+                  description={d("influences")}
                   name="influences"
                   control={control}
                   maxLength={400}
@@ -540,8 +590,8 @@ export const AddRecipe = ({
             {currentStep === 4 && (
               <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-right-4 duration-300">
                 <FileUpload
-                  label={`${l('photo')}*`}
-                  description={d('photoDesc')}
+                  label={`${l("photo")}*`}
+                  description={d("photoDesc")}
                   name="photo"
                   control={control}
                   maxFiles={5}
@@ -553,11 +603,19 @@ export const AddRecipe = ({
                 {/* AI Avatar Display Section */}
                 {(isGeneratingAvatar || avatarUrl) && (
                   <div className="flex flex-col gap-2 p-4 bg-white/50 rounded-xl border border-primary-border/20">
-                    <Typography size="body" className="font-semibold text-brown-dark">
+                    <Typography
+                      size="body"
+                      className="font-semibold text-brown-dark"
+                    >
                       Generated Avatar
                     </Typography>
-                    <Typography size="bodyXS" className="text-brown-pale/80 mb-2">
-                      {isGeneratingAvatar ? 'Generating your 3D Pixar style avatar...' : 'This beautiful 3D avatar was created automatically for the 3D map!'}
+                    <Typography
+                      size="bodyXS"
+                      className="text-brown-pale/80 mb-2"
+                    >
+                      {isGeneratingAvatar
+                        ? "Generating your 3D Pixar style avatar..."
+                        : "This beautiful 3D avatar was created automatically for the 3D map!"}
                     </Typography>
                     <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center bg-gray-100/50 backdrop-blur-md">
                       {isGeneratingAvatar ? (
@@ -576,15 +634,15 @@ export const AddRecipe = ({
                 )}
 
                 <FileUpload
-                  label={`${l('recipeImage')}*`}
-                  description={`${d('recipeImage')} You can upload one image or one video.`}
+                  label={`${l("recipeImage")}*`}
+                  description={`${d("recipeImage")} You can upload one image or one video.`}
                   name="recipe_image"
                   control={control}
                   maxFiles={1}
                   maxSize={50 * 1024 * 1024}
                   accept={{
-                    'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
-                    'video/*': ['.mp4', '.webm', '.mov', '.m4v', '.ogg'],
+                    "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
+                    "video/*": [".mp4", ".webm", ".mov", ".m4v", ".ogg"],
                   }}
                   setValue={setValue}
                   watch={watch}
@@ -599,18 +657,15 @@ export const AddRecipe = ({
                       color="black"
                       className="mt-2 cursor-pointer"
                     >
-                      {l('releaseSignature')}
-                      <a
-                        href="/terms-of-use"
-                        target="_blank"
-                      >
-                        {l('termsAndConditions')}
+                      {l("releaseSignature")}
+                      <a href="/terms-of-use" target="_blank">
+                        {l("termsAndConditions")}
                       </a>
                     </Typography>
                   }
                   name="release_signature"
                   control={control}
-                  description={d('releaseSignature')}
+                  description={d("releaseSignature")}
                   theme="dark"
                 />
               </div>
@@ -625,17 +680,19 @@ export const AddRecipe = ({
                   disabled={isSubmitting}
                   className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
                 >
-                  {b('prevPage')}
+                  {b("prevPage")}
                 </button>
               )}
-              <div className={`${currentStep === 0 ? 'sm:ml-auto' : ''} w-full sm:w-auto`}>
+              <div
+                className={`${currentStep === 0 ? "sm:ml-auto" : ""} w-full sm:w-auto`}
+              >
                 {currentStep < steps.length - 1 ? (
                   <button
                     type="button"
                     onClick={nextStep}
                     className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
                   >
-                    {b('nextPage')}
+                    {b("nextPage")}
                   </button>
                 ) : (
                   <button
@@ -643,7 +700,7 @@ export const AddRecipe = ({
                     disabled={isSubmitting}
                     className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors disabled:opacity-50"
                   >
-                    {isSubmitting ? b('submitting') : b('submit')}
+                    {isSubmitting ? b("submitting") : b("submit")}
                   </button>
                 )}
               </div>
@@ -652,5 +709,5 @@ export const AddRecipe = ({
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
