@@ -105,6 +105,8 @@ interface TabContentProps {
   deleteUserId: string | null
   setDeleteUserId: (id: string | null) => void
   togglePublished: (id: number, published: boolean) => void
+  deleteRecipe: (id: number) => Promise<void>
+  deletingRecipeId: number | null
   updateUserRole: (userId: string, role: 'team_member' | 'client') => void
   l: (key: string) => string
   d: (key: string) => string
@@ -136,6 +138,8 @@ export function TabContent({
   roleUpdatingId,
   setDeleteUserId,
   togglePublished,
+  deleteRecipe,
+  deletingRecipeId,
   updateUserRole,
   l,
   b,
@@ -387,7 +391,12 @@ export function TabContent({
             </div>
           </div>
         ) : (
-          <RecipesList recipes={recipes} togglePublished={togglePublished} />
+          <RecipesList
+            recipes={recipes}
+            togglePublished={togglePublished}
+            deleteRecipe={deleteRecipe}
+            deletingRecipeId={deletingRecipeId}
+          />
         )}
       </div>
     )

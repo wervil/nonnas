@@ -15,11 +15,11 @@ export const WelcomeOverlay = () => {
 
     const handleEnter = () => {
         setIsVisible(false)
-        sessionStorage.setItem(WELCOME_DISMISSED_KEY, 'true')
+        sessionStorage?.setItem(WELCOME_DISMISSED_KEY, 'true')
     }
 
     useEffect(() => {
-        if (sessionStorage.getItem(WELCOME_DISMISSED_KEY) === 'true') {
+        if (sessionStorage?.getItem(WELCOME_DISMISSED_KEY) === 'true') {
             setIsVisible(false)
         }
     }, [])
