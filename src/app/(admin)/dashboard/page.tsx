@@ -51,7 +51,8 @@ const fetchStackUsers = async (page: number = 1, limit: number = 5) => {
 
 const fetchRecipes = async (country: string) => {
   const res = await fetch(
-    `/api/recipes${country ? `?country=${country}` : ''}`
+    `/api/recipes${country ? `?country=${country}` : ''}`,
+    { cache: 'no-store' }
   )
   const data = await res.json()
   return data.recipes ?? []
@@ -121,6 +122,7 @@ function DashboardInner({
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null)
 
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
+  const [deletingRecipeId, setDeletingRecipeId] = useState<number | null>(null)
 
   const l = useTranslations('labels')
   const d = useTranslations('descriptions')
@@ -191,17 +193,38 @@ function DashboardInner({
         throw new Error('Failed to update recipe')
       }
 
-      // Update the local state
-      setRecipes((prevRecipes) =>
-        prevRecipes.map((recipe) =>
-          recipe.id === id ? { ...recipe, published } : recipe
-        )
-      )
+      // Re-fetch from API to avoid stale/cached state drift.
+      const refreshed = await fetchRecipes(selectedCountry)
+      setRecipes(refreshed)
 
       toast.success(published ? 'Recipe published' : 'Recipe unpublished')
     } catch (error) {
       console.error('Error updating recipe:', error)
       toast.error('Failed to update recipe')
+    }
+  }
+
+  const deleteRecipe = async (id: number) => {
+    try {
+      setDeletingRecipeId(id)
+
+      const res = await fetch(`/api/recipes?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to delete recipe')
+      }
+
+      toast.success('Recipe deleted successfully')
+      setRecipes((prevRecipes) => prevRecipes.filter((recipe) => recipe.id !== id))
+    } catch (error) {
+      console.error('Error deleting recipe:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete recipe')
+    } finally {
+      setDeletingRecipeId(null)
     }
   }
 
@@ -319,6 +342,8 @@ function DashboardInner({
                 deleteUserId={deleteUserId}
                 setDeleteUserId={setDeleteUserId}
                 togglePublished={togglePublished}
+                deleteRecipe={deleteRecipe}
+                deletingRecipeId={deletingRecipeId}
                 updateUserRole={updateUserRole}
                 l={l as (key: string) => string}
                 d={d as (key: string) => string}

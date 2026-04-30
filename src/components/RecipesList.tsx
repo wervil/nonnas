@@ -1,19 +1,32 @@
 'use client'
 import { Recipe } from '@/db/schema'
+import Button from '@/components/ui/Button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 type Props = {
   recipes: Recipe[]
   togglePublished?: (id: number, published: boolean) => void
+  deleteRecipe?: (id: number) => Promise<void>
+  deletingRecipeId?: number | null
 }
 
-export const RecipesList = ({ recipes, togglePublished }: Props) => {
+export const RecipesList = ({ recipes, togglePublished, deleteRecipe, deletingRecipeId }: Props) => {
   const b = useTranslations('buttons')
   const d = useTranslations('descriptions')
   const pathname = usePathname()
+  const [recipeToDelete, setRecipeToDelete] = useState<number | null>(null)
 
   return (
     <ul className="space-y-4">
@@ -54,20 +67,58 @@ export const RecipesList = ({ recipes, togglePublished }: Props) => {
               </Link>
 
               {togglePublished && (
-                <button
-                  className={`px-8 py-4 rounded-lg text-sm font-medium transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-lg border ${recipe.published
-                    ? 'bg-[#FFCCC8] text-[#85312B] border-[#FFCCC8] hover:bg-[#FFCCC8]'
-                    : 'bg-[#9BC9C3] text-[#26786E] border-[#9BC9C3] hover:bg-[#8AB8B1]'
-                    }`}
-                  onClick={() => togglePublished(recipe.id, !recipe.published)}
-                >
-                  {recipe.published ? b('unpublish') : b('publish')}
-                </button>
+                <>
+                  <button
+                    className={`px-8 py-4 rounded-lg text-sm font-medium transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-lg border ${recipe.published
+                      ? 'bg-[#FFCCC8] text-[#85312B] border-[#FFCCC8] hover:bg-[#FFCCC8]'
+                      : 'bg-[#9BC9C3] text-[#26786E] border-[#9BC9C3] hover:bg-[#8AB8B1]'
+                      }`}
+                    onClick={() => togglePublished(recipe.id, !recipe.published)}
+                  >
+                    {recipe.published ? b('unpublish') : b('publish')}
+                  </button>
+                  {deleteRecipe && (
+                    <Button
+                      className='px-6 py-4 rounded-lg text-sm bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                      onClick={() => setRecipeToDelete(recipe.id)}
+                      disabled={deletingRecipeId === recipe.id}
+                    >
+                      {deletingRecipeId === recipe.id ? 'Deleting...' : b('delete')}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
         </li>
       ))}
+      <Dialog open={recipeToDelete !== null} onOpenChange={(open) => !open && setRecipeToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete recipe?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this recipe? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2">
+            <Button onClick={() => setRecipeToDelete(null)} className="bg-gray-100 text-gray-900 hover:bg-gray-200">
+              Cancel
+            </Button>
+            <Button
+              className='bg-red-600 text-white hover:bg-red-700'
+              disabled={recipeToDelete === null || deletingRecipeId === recipeToDelete}
+              onClick={async () => {
+                if (recipeToDelete === null || !deleteRecipe) return
+                await deleteRecipe(recipeToDelete)
+                setRecipeToDelete(null)
+              }}
+            >
+              {deletingRecipeId === recipeToDelete ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ul>
   )
 }

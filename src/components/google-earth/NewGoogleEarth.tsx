@@ -1103,9 +1103,9 @@ export default function Earth3DPage() {
     );
 
     const pending = parseStreetViewReturnPayload(
-      window.sessionStorage.getItem(STREET_VIEW_RETURN_STORAGE_KEY),
+      window.sessionStorage?.getItem(STREET_VIEW_RETURN_STORAGE_KEY),
     );
-    window.sessionStorage.removeItem(STREET_VIEW_RETURN_STORAGE_KEY);
+    window.sessionStorage?.removeItem(STREET_VIEW_RETURN_STORAGE_KEY);
     if (!pending) return;
     pendingStreetViewRestoreRef.current = pending;
   }, []);
@@ -4595,7 +4595,7 @@ export default function Earth3DPage() {
                         countryName: streetViewNonnaPopup.countryName,
                         countryCode: streetViewNonnaPopup.countryCode,
                       };
-                      window.sessionStorage.setItem(
+                      window.sessionStorage?.setItem(
                         STREET_VIEW_RETURN_STORAGE_KEY,
                         JSON.stringify(payload),
                       );
