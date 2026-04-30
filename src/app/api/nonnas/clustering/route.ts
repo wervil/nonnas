@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const db = drizzle(process.env.DATABASE_URL!);
 
+export const dynamic = "force-dynamic";
+
 type GlobeNonna = {
   id: string;
   lat: number;
