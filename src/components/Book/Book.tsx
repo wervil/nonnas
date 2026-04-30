@@ -103,7 +103,6 @@ export const Book = forwardRef<BookHandle, Props>(
     const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
     const hasAppliedInitialRecipeRef = useRef(false);
-    const pendingInitialJumpRef = useRef(false);
     // Sequenced cover-open animation: slide container first, then flip hardcover.
     // 'closed'  — book sits off-center (translateX(-35%)) with cover shut
     // 'sliding' — 1000ms slide to center, flipbook is NOT asked to flip yet
@@ -317,32 +316,19 @@ export const Book = forwardRef<BookHandle, Props>(
     useEffect(() => {
       if (initialRecipeId && recipes.length > 0) {
         hasAppliedInitialRecipeRef.current = true;
-        pendingInitialJumpRef.current = true;
         // Deep-link into a specific Nonna: skip the slide-then-open intro entirely.
         setCoverPhase('open');
         setCurrentRecipeId(initialRecipeId);
-
-        // Retry a few times because flipbook init can lag on first mount.
-        let attempts = 0;
-        const maxAttempts = 8;
-        const timer = setInterval(() => {
-          attempts += 1;
+        // Small delay to ensure flipbook is fully initialized
+        const timer = setTimeout(() => {
           goToRecipe(initialRecipeId);
-
-          const targetPage = getPageNumberForRecipe(initialRecipeId);
-          if (lastPageRef.current === targetPage || attempts >= maxAttempts) {
-            pendingInitialJumpRef.current = false;
-            clearInterval(timer);
-          }
-        }, 250);
-
-        return () => clearInterval(timer);
+        }, 500);
+        return () => clearTimeout(timer);
       }
-    }, [initialRecipeId, recipes.length, goToRecipe, getPageNumberForRecipe]); // Added recipes.length to dependency to retry if loaded late
+    }, [initialRecipeId, recipes.length, goToRecipe]); // Added recipes.length to dependency to retry if loaded late
 
     // Handle updates to the recipe list (e.g. search/filter)
     useEffect(() => {
-      if (pendingInitialJumpRef.current) return;
       // If we just deep-linked to a recipe from globe/search params,
       // skip the automatic reset so we stay on that recipe page.
       if (hasAppliedInitialRecipeRef.current && initialRecipeId) {
@@ -352,7 +338,9 @@ export const Book = forwardRef<BookHandle, Props>(
       // When the recipe list changes (search/filter), effectively "reload" the book.
       // Always reset to the cover (Page 0) and clear the active recipe.
       console.log("Book: Recipes list changed, resetting to cover");
-      setCurrentPage((prev) => (prev === 0 ? prev : 0));
+      if (currentPage !== 0) {
+        setCurrentPage(0);
+      }
       setCurrentRecipeId(null);
       setCoverPhase('closed');
     }, [recipes, initialRecipeId]); // Re-run whenever the recipes array reference changes (new filter)
