@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add sample recipe ID
         })
         .from(recipes)
-        .where(isNotNull(recipes.country))
+        .where(and(isNotNull(recipes.country), eq(recipes.published, true)))
         .groupBy(recipes.country, recipes.region);
 
       const continentMap: Record<string, GlobeNonna> = {};
@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
-        .where(isNotNull(recipes.country))
+        .where(and(isNotNull(recipes.country), eq(recipes.published, true)))
         .groupBy(recipes.country);
 
       const continentMap: Record<string, GlobeNonna> = {};
@@ -229,7 +229,7 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
-        .where(isNotNull(recipes.country))
+        .where(and(isNotNull(recipes.country), eq(recipes.published, true)))
         .groupBy(recipes.country);
 
       clusters = rows.map((r, i) => {
@@ -248,7 +248,7 @@ export async function GET(req: NextRequest) {
         };
       });
     } else if (level === "COUNTRY" || level === "STATE") {
-      const conditions = [];
+      const conditions = [eq(recipes.published, true)];
       if (countryParam) {
         conditions.push(
           eq(sql`lower(${recipes.country})`, countryParam.toLowerCase()),
@@ -308,7 +308,7 @@ export async function GET(req: NextRequest) {
       });
     } else {
       // CITY or NONNA level: show individual Nonnas
-      const conditions = [];
+      const conditions = [eq(recipes.published, true)];
       if (countryParam) {
         conditions.push(
           eq(sql`lower(${recipes.country})`, countryParam.toLowerCase()),
