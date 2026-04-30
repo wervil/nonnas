@@ -102,7 +102,6 @@ export const Book = forwardRef<BookHandle, Props>(
     // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
     const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
-    const hasAppliedInitialRecipeRef = useRef(false);
     // Sequenced cover-open animation: slide container first, then flip hardcover.
     // 'closed'  — book sits off-center (translateX(-35%)) with cover shut
     // 'sliding' — 1000ms slide to center, flipbook is NOT asked to flip yet
@@ -315,7 +314,6 @@ export const Book = forwardRef<BookHandle, Props>(
     // Handle initial recipe navigation
     useEffect(() => {
       if (initialRecipeId && recipes.length > 0) {
-        hasAppliedInitialRecipeRef.current = true;
         // Deep-link into a specific Nonna: skip the slide-then-open intro entirely.
         setCoverPhase('open');
         setCurrentRecipeId(initialRecipeId);
@@ -329,12 +327,6 @@ export const Book = forwardRef<BookHandle, Props>(
 
     // Handle updates to the recipe list (e.g. search/filter)
     useEffect(() => {
-      // If we just deep-linked to a recipe from globe/search params,
-      // skip the automatic reset so we stay on that recipe page.
-      if (hasAppliedInitialRecipeRef.current && initialRecipeId) {
-        hasAppliedInitialRecipeRef.current = false;
-        return;
-      }
       // When the recipe list changes (search/filter), effectively "reload" the book.
       // Always reset to the cover (Page 0) and clear the active recipe.
       console.log("Book: Recipes list changed, resetting to cover");
@@ -343,7 +335,7 @@ export const Book = forwardRef<BookHandle, Props>(
       }
       setCurrentRecipeId(null);
       setCoverPhase('closed');
-    }, [recipes, initialRecipeId]); // Re-run whenever the recipes array reference changes (new filter)
+    }, [recipes]); // Re-run whenever the recipes array reference changes (new filter)
 
     return (
       <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
