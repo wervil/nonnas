@@ -58,7 +58,11 @@ export const RecipesList = ({
   const toggleOne = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -177,11 +181,13 @@ export const RecipesList = ({
                         </span>
                       )}
                       {/* Unpublished badge (submitted but not yet published) */}
-                      {!recipe.is_draft && !recipe.published && editBasePath && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200 font-(--font-bell) shrink-0">
-                          Pending review
-                        </span>
-                      )}
+                      {!recipe.is_draft &&
+                        !recipe.published &&
+                        editBasePath && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200 font-(--font-bell) shrink-0">
+                            Pending review
+                          </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                       <span>{recipe.country}</span>
@@ -214,8 +220,10 @@ export const RecipesList = ({
                     href={`${editBasePath}/${recipe.id}/edit`}
                     className="flex items-center gap-1.5 px-4 py-4 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-sm font-medium transition-all hover:scale-105 active:scale-95"
                   >
-                    <FileEdit className="w-3.5 h-3.5" />
-                    {recipe.is_draft ? "Continue Editing" : b("edit")}
+                    <FileEdit className="w-3.5 h-3.5 text-brown-dark" />
+                    <span className="text-brown-dark">
+                      {recipe.is_draft ? "Continue Editing" : b("edit")}
+                    </span>
                   </Link>
                 )}
 

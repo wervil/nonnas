@@ -1,74 +1,75 @@
-'use client'
+"use client";
 
-import { Header } from '@/components/Header'
-import { ProfileForm } from '@/components/ProfileForm'
-import { ProfileTabSwitcher } from '@/components/ProfileTabSwitcher'
-import { RecipesList } from '@/components/RecipesList'
-import { SavedRecipesModal } from '@/components/SavedRecipesModal'
-import ThreadList from '@/components/Threads/ThreadList'
-import { Recipe } from '@/db/schema'
-import { CurrentInternalUser, CurrentUser, useUser } from '@stackframe/stack'
-import { Heart, Loader2, PlusCircle } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Header } from "@/components/Header";
+import { ProfileForm } from "@/components/ProfileForm";
+import { ProfileTabSwitcher } from "@/components/ProfileTabSwitcher";
+import { RecipesList } from "@/components/RecipesList";
+import { SavedRecipesModal } from "@/components/SavedRecipesModal";
+import ThreadList from "@/components/Threads/ThreadList";
+import { Recipe } from "@/db/schema";
+import { CurrentInternalUser, CurrentUser, useUser } from "@stackframe/stack";
+import { Heart, Loader2, PlusCircle } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function Profile() {
-  const user = useUser()
-  const router = useRouter()
+  const user = useUser();
+  const router = useRouter();
 
   // Redirect when logged out (do it in an effect)
   useEffect(() => {
-    if (!user) router.replace('/handler/sign-in')
-  }, [user, router])
+    if (!user) router.replace("/handler/sign-in");
+  }, [user, router]);
 
-  if (!user) return null
+  if (!user) return null;
 
   // Only render this when user exists
-  return <ProfileAuthed user={user} />
+  return <ProfileAuthed user={user} />;
 }
 
 function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
-  const [myRecipes, setMyRecipes] = useState<Recipe[]>([])
-  const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
-  const [loading, setLoading] = useState(false)
-  const [isSavedRecipesModalOpen, setIsSavedRecipesModalOpen] = useState(false)
+  const [myRecipes, setMyRecipes] = useState<Recipe[]>([]);
+  const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isSavedRecipesModalOpen, setIsSavedRecipesModalOpen] = useState(false);
 
   // SAFE: this component only mounts when user exists,
   // so these hooks are never "skipped"
-  const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || '')
-  const hasPermissions = team ? !!user.usePermission(team, 'team_member') : false
+  const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || "");
+  const hasPermissions = team
+    ? !!user.usePermission(team, "team_member")
+    : false;
 
   useEffect(() => {
-    loadMyRecipes(user.id)
-    loadSavedRecipes(user.id)
-  }, [user.id])
+    loadMyRecipes(user.id);
+    loadSavedRecipes(user.id);
+  }, [user.id]);
 
   const loadMyRecipes = async (userId: string) => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await fetch(`/api/recipes?userId=${userId}`)
-      const data = await res.json()
-      setMyRecipes(data.recipes || [])
+      const res = await fetch(`/api/recipes?userId=${userId}`);
+      const data = await res.json();
+      setMyRecipes(data.recipes || []);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const loadSavedRecipes = async (userId: string) => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await fetch(`/api/recipes?savedByUserId=${userId}`)
-      const data = await res.json()
-      setSavedRecipes(data.recipes || [])
+      const res = await fetch(`/api/recipes?savedByUserId=${userId}`);
+      const data = await res.json();
+      setSavedRecipes(data.recipes || []);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex flex-col min-h-svh w-full relative bg-white">
-
       <div className="relative z-10 w-full ">
         <Header
           hasAdminAccess={hasPermissions}
@@ -81,30 +82,34 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         {/* Tab Switcher */}
         <ProfileTabSwitcher>
           {(activeTab) => {
-            if (activeTab === 'profile') {
-              return <ProfileForm user={user} />
+            if (activeTab === "profile") {
+              return <ProfileForm user={user} />;
             }
 
-            if (activeTab === 'recipes') {
-              const draftCount = myRecipes.filter(r => r.is_draft).length
+            if (activeTab === "recipes") {
+              const draftCount = myRecipes.filter((r) => r.is_draft).length;
               return (
                 <>
                   <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
                     <div>
-                      <h3 className="text-xl font-(--font-bell) text-gray-900">My Recipes</h3>
+                      <h3 className="text-xl font-(--font-bell) text-gray-900">
+                        My Recipes
+                      </h3>
                       {draftCount > 0 && (
                         <p className="text-sm text-amber-600 font-(--font-bell) mt-0.5">
-                          {draftCount} unsaved draft{draftCount !== 1 ? 's' : ''} — click "Continue Editing" to finish
+                          {draftCount} unsaved draft
+                          {draftCount !== 1 ? "s" : ""} — click "Continue
+                          Editing" to finish
                         </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Link
                         href="/add-recipe"
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFCCC8] hover:bg-[#FFB8B3] text-[#6D2924] text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                        className="flex items-center  gap-2 px-4 py-2 rounded-xl bg-[#FFCCC8] hover:bg-[#FFB8B3] text-[#6D2924] text-sm font-medium transition-all hover:scale-105 active:scale-95"
                       >
-                        <PlusCircle className="w-4 h-4" />
-                        Add Entry
+                        <PlusCircle className="w-4 h-4 text-brown-dark" />
+                        <span className="text-brown-dark">Add Entry</span>
                       </Link>
                       <button
                         onClick={() => setIsSavedRecipesModalOpen(true)}
@@ -120,22 +125,21 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
                       <Loader2 className="animate-spin text-(--color-yellow-light) w-8 h-8" />
                     </div>
                   ) : (
-                    <RecipesList
-                      recipes={myRecipes}
-                      editBasePath="/profile"
-                    />
+                    <RecipesList recipes={myRecipes} editBasePath="/profile" />
                   )}
                 </>
-              )
+              );
             }
 
-            if (activeTab === 'activity') {
+            if (activeTab === "activity") {
               return (
                 <div className="mx-auto md:mx-0">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6 font-[var(--font-bell)">Values & Discussions</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-6 font-[var(--font-bell)">
+                    Values & Discussions
+                  </h3>
                   <ThreadList userId={user.id} />
                 </div>
-              )
+              );
             }
           }}
         </ProfileTabSwitcher>
@@ -148,5 +152,5 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
         savedRecipes={savedRecipes}
       />
     </div>
-  )
+  );
 }
