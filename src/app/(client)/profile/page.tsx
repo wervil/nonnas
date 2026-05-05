@@ -8,7 +8,8 @@ import { SavedRecipesModal } from '@/components/SavedRecipesModal'
 import ThreadList from '@/components/Threads/ThreadList'
 import { Recipe } from '@/db/schema'
 import { CurrentInternalUser, CurrentUser, useUser } from '@stackframe/stack'
-import { Heart, Loader2 } from 'lucide-react'
+import { Heart, Loader2, PlusCircle } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -85,24 +86,44 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
             }
 
             if (activeTab === 'recipes') {
+              const draftCount = myRecipes.filter(r => r.is_draft).length
               return (
                 <>
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-(--font-bell) text-gray-900">My Recipes</h3>
-                    <button
-                      onClick={() => setIsSavedRecipesModalOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-[#F5F5F5]  text-sm font-medium transition-all hover:scale-105 active:scale-95"
-                    >
-                      <Heart className="w-4 h-4" />
-                      Saved
-                    </button>
+                  <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
+                    <div>
+                      <h3 className="text-xl font-(--font-bell) text-gray-900">My Recipes</h3>
+                      {draftCount > 0 && (
+                        <p className="text-sm text-amber-600 font-(--font-bell) mt-0.5">
+                          {draftCount} unsaved draft{draftCount !== 1 ? 's' : ''} — click "Continue Editing" to finish
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href="/add-recipe"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFCCC8] hover:bg-[#FFB8B3] text-[#6D2924] text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        Add Entry
+                      </Link>
+                      <button
+                        onClick={() => setIsSavedRecipesModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-[#F5F5F5] text-sm font-medium transition-all hover:scale-105 active:scale-95"
+                      >
+                        <Heart className="w-4 h-4" />
+                        Saved
+                      </button>
+                    </div>
                   </div>
                   {loading ? (
                     <div className="flex justify-center py-12">
                       <Loader2 className="animate-spin text-(--color-yellow-light) w-8 h-8" />
                     </div>
                   ) : (
-                    <RecipesList recipes={myRecipes} />
+                    <RecipesList
+                      recipes={myRecipes}
+                      editBasePath="/profile"
+                    />
                   )}
                 </>
               )

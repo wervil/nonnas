@@ -38,6 +38,12 @@ async function applyMigration() {
     `);
     console.log('Created deleted_at index');
 
+    // --- Draft support ---
+    await client.query(`
+      ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "is_draft" boolean DEFAULT false;
+    `);
+    console.log('Added is_draft column');
+
     console.log('Migration applied successfully!');
   } catch (error) {
     console.error('Error applying migration:', error);

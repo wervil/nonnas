@@ -1,6 +1,6 @@
 import { recipes } from "@/db/schema";
 import { stackServerApp } from "@/stack";
-import { inArray, isNotNull } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 

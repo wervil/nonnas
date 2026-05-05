@@ -46,6 +46,7 @@ export const recipes = pgTable("recipes", {
   createdAt: timestamp("created_at").defaultNow(),
   deleted_at: timestamp("deleted_at"),
   deleted_by: text("deleted_by"),
+  is_draft: boolean("is_draft").default(false),
   search_vector: tsvector("search_vector").generatedAlwaysAs(
     (): SQL =>
       sql`to_tsvector('simple', coalesce(recipe_title, '') || ' ' || coalesce(region, '') || ' ' || coalesce(history, '') || ' ' || coalesce(recipe, '') || ' ' || coalesce(geo_history, ''))`,

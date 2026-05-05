@@ -33,47 +33,56 @@ const db = drizzle(process.env.DATABASE_URL!);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const isDraft = body.is_draft === true;
 
-    // Validate required fields
-    if (
-      !body.grandmotherTitle ||
-      !body.country ||
-      !body.firstName ||
-      !body.lastName ||
-      !body.recipeTitle ||
-      !body.recipe ||
-      !body.directions ||
-      !body.history ||
-      !body.user_id
-    ) {
+    // Drafts only need a user_id; full submissions need all required fields
+    if (!body.user_id) {
       return NextResponse.json(
-        { message: "Fill all required fields" },
+        { message: "user_id is required" },
         { status: 400 },
       );
     }
 
-    // Content Moderation
-    const contentToCheck = [
-      body.grandmotherTitle,
-      body.firstName,
-      body.lastName,
-      body.recipeTitle,
-      body.history,
-      body.geo_history,
-      body.recipe,
-      body.directions,
-      body.influences,
-      body.traditions,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    if (!isDraft) {
+      if (
+        !body.grandmotherTitle ||
+        !body.country ||
+        !body.firstName ||
+        !body.lastName ||
+        !body.recipeTitle ||
+        !body.recipe ||
+        !body.directions ||
+        !body.history
+      ) {
+        return NextResponse.json(
+          { message: "Fill all required fields" },
+          { status: 400 },
+        );
+      }
 
-    const isFlagged = await moderateContent(contentToCheck);
-    if (isFlagged) {
-      return NextResponse.json(
-        { message: "Content flagged as inappropriate." },
-        { status: 400 },
-      );
+      // Content Moderation only for full submissions
+      const contentToCheck = [
+        body.grandmotherTitle,
+        body.firstName,
+        body.lastName,
+        body.recipeTitle,
+        body.history,
+        body.geo_history,
+        body.recipe,
+        body.directions,
+        body.influences,
+        body.traditions,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const isFlagged = await moderateContent(contentToCheck);
+      if (isFlagged) {
+        return NextResponse.json(
+          { message: "Content flagged as inappropriate." },
+          { status: 400 },
+        );
+      }
     }
 
     // Check for admin permissions to auto-publish
@@ -81,29 +90,32 @@ export async function POST(request: NextRequest) {
     const isAdmin = user ? await checkAdminPermission(user) : false;
 
     // Insert the recipe into the database
+    // For drafts, use empty strings for NOT NULL columns that may not be filled yet
     const newRecipe = await db
       .insert(recipes)
       .values({
-        user_id: body.user_id || "12",
-        grandmotherTitle: body.grandmotherTitle,
-        firstName: body.firstName,
-        lastName: body.lastName,
-        recipeTitle: body.recipeTitle,
-        country: body.country || null,
+        user_id: body.user_id,
+        grandmotherTitle: body.grandmotherTitle || "",
+        firstName: body.firstName || "",
+        lastName: body.lastName || "",
+        recipeTitle: body.recipeTitle || "",
+        country: body.country || "",
         region: body.region || null,
         city: body.city || null,
         coordinates: body.coordinates || null,
-        history: body.history || null,
+        history: body.history || "",
         geo_history: body.geo_history || null,
-        recipe: body.recipe,
-        directions: body.directions || null,
+        recipe: body.recipe || "",
+        directions: body.directions || "",
         influences: body.influences || null,
         traditions: body.traditions || null,
         photo: body.photo || null,
         recipe_image: body.recipe_image || null,
         dish_image: body.dish_image || null,
+        avatar_image: body.avatar_image || null,
         release_signature: body.release_signature || false,
-        published: isAdmin, // Auto-publish if admin
+        published: isDraft ? false : isAdmin, // Drafts are never published
+        is_draft: isDraft,
       })
       .returning();
 
@@ -188,6 +200,7 @@ export async function GET(request: NextRequest) {
       recipeTitle: recipes.recipeTitle,
       release_signature: recipes.release_signature,
       published: recipes.published,
+      is_draft: recipes.is_draft,
       createdAt: recipes.createdAt,
       traditions: recipes.traditions,
       history: recipes.history,
@@ -320,68 +333,78 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, published } = body;
-    if (typeof id !== "number" || typeof published !== "boolean") {
+    const { id } = body;
+    if (typeof id !== "number") {
       return NextResponse.json(
-        { message: "Invalid id or published value" },
+        { message: "Invalid id" },
         { status: 400 },
       );
     }
 
-    // Content Moderation for Updates
-    const contentToCheck = [
-      body.grandmotherTitle,
-      body.firstName,
-      body.lastName,
-      body.recipeTitle,
-      body.history,
-      body.geo_history,
-      body.recipe,
-      body.directions,
-      body.influences,
-      body.traditions,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const isDraftSave = body.is_draft === true;
 
-    if (contentToCheck) {
-      const isFlagged = await moderateContent(contentToCheck);
-      if (isFlagged) {
-        return NextResponse.json(
-          { message: "Content flagged as inappropriate." },
-          { status: 400 },
-        );
+    // Skip moderation for draft saves; run it for full edits
+    if (!isDraftSave) {
+      const contentToCheck = [
+        body.grandmotherTitle,
+        body.firstName,
+        body.lastName,
+        body.recipeTitle,
+        body.history,
+        body.geo_history,
+        body.recipe,
+        body.directions,
+        body.influences,
+        body.traditions,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      if (contentToCheck) {
+        const isFlagged = await moderateContent(contentToCheck);
+        if (isFlagged) {
+          return NextResponse.json(
+            { message: "Content flagged as inappropriate." },
+            { status: 400 },
+          );
+        }
       }
     }
 
-    const updatedRecipe = {
-      published,
-      ...(body.grandmotherTitle && { grandmotherTitle: body.grandmotherTitle }),
-      ...(body.firstName && { firstName: body.firstName }),
-      ...(body.lastName && { lastName: body.lastName }),
-      ...(body.recipeTitle && { recipeTitle: body.recipeTitle }),
-      ...(body.country && { country: body.country }),
-      ...(body.region && { region: body.region }),
-      ...(body.city && { city: body.city }),
-      ...(body.coordinates && { coordinates: body.coordinates }),
-      ...(body.history && { history: body.history }),
-      ...(body.geo_history && { geo_history: body.geo_history }),
-      ...(body.recipe && { recipe: body.recipe }),
-      ...(body.directions && { directions: body.directions }),
-      ...(body.influences && { influences: body.influences }),
-      ...(body.traditions && { traditions: body.traditions }),
-      ...(body.photo && { photo: body.photo }),
-      ...(body.recipe_image && { recipe_image: body.recipe_image }),
-      ...(body.dish_image && { dish_image: body.dish_image }),
-      ...(body.release_signature && {
-        release_signature: body.release_signature,
-      }),
-    };
+    // Build the update object — only set fields that were provided
+    const updatedRecipe: Record<string, unknown> = {};
+
+    // published: use explicit value if provided, otherwise leave unchanged
+    if (typeof body.published === "boolean") updatedRecipe.published = body.published;
+    // is_draft: explicit flag for draft saves / final submission
+    if (typeof body.is_draft === "boolean") updatedRecipe.is_draft = body.is_draft;
+
+    if (body.grandmotherTitle !== undefined) updatedRecipe.grandmotherTitle = body.grandmotherTitle;
+    if (body.firstName !== undefined) updatedRecipe.firstName = body.firstName;
+    if (body.lastName !== undefined) updatedRecipe.lastName = body.lastName;
+    if (body.recipeTitle !== undefined) updatedRecipe.recipeTitle = body.recipeTitle;
+    if (body.country !== undefined) updatedRecipe.country = body.country;
+    if (body.region !== undefined) updatedRecipe.region = body.region;
+    if (body.city !== undefined) updatedRecipe.city = body.city;
+    if (body.coordinates !== undefined) updatedRecipe.coordinates = body.coordinates;
+    if (body.history !== undefined) updatedRecipe.history = body.history;
+    if (body.geo_history !== undefined) updatedRecipe.geo_history = body.geo_history;
+    if (body.recipe !== undefined) updatedRecipe.recipe = body.recipe;
+    if (body.directions !== undefined) updatedRecipe.directions = body.directions;
+    if (body.influences !== undefined) updatedRecipe.influences = body.influences;
+    if (body.traditions !== undefined) updatedRecipe.traditions = body.traditions;
+    if (body.photo !== undefined) updatedRecipe.photo = body.photo;
+    if (body.recipe_image !== undefined) updatedRecipe.recipe_image = body.recipe_image;
+    if (body.dish_image !== undefined) updatedRecipe.dish_image = body.dish_image;
+    if (body.avatar_image !== undefined) updatedRecipe.avatar_image = body.avatar_image;
+    if (body.release_signature !== undefined) updatedRecipe.release_signature = body.release_signature;
+
     const updated = await db
       .update(recipes)
       .set(updatedRecipe)
       .where(eq(recipes.id, id))
       .returning();
+
     if (!updated.length) {
       return NextResponse.json(
         { message: "Recipe not found" },

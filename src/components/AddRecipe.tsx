@@ -1,10 +1,10 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { BookOpen, Loader2, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FieldPath, FieldValues, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -111,11 +111,14 @@ export const AddRecipe = ({
 }) => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     recipe?.avatar_image || null,
   );
+  // Tracks the ID of a newly-created draft so subsequent saves PATCH rather than POST
+  const draftIdRef = useRef<number | null>(recipe?.is_draft ? recipe.id : null);
   const lastGeneratedSource = React.useRef<string | null>(null);
   const b = useTranslations("buttons");
   const l = useTranslations("labels");
@@ -128,6 +131,7 @@ export const AddRecipe = ({
     setValue,
     watch,
     trigger,
+    getValues,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -294,73 +298,111 @@ export const AddRecipe = ({
     }
   }, [recipe, reset, userId]);
 
+  const buildPayload = (data: FieldValues) => ({
+    grandmotherTitle: data.grandmotherTitle || "",
+    firstName: data.firstName || "",
+    lastName: data.lastName || "",
+    recipeTitle: data.recipeTitle || "",
+    country:
+      allCountries.find((c) => c[1] === data.country)?.[0] ||
+      data.country ||
+      "",
+    region: data.state || null,
+    city: data.city || null,
+    coordinates: data.coordinates || null,
+    history: sanitizeHtml(data.history || ""),
+    geo_history: sanitizeHtml(data.geo_history || ""),
+    recipe: sanitizeHtml(data.recipe || ""),
+    directions: sanitizeHtml(data.directions || ""),
+    influences: sanitizeHtml(data.influences || ""),
+    traditions: sanitizeHtml(data.traditions || ""),
+    photo: data.photo || [],
+    dish_image: data.dish_image || [],
+    recipe_image: data.recipe_image || [],
+    avatar_image: avatarUrl || data.avatar_image || null,
+    release_signature: data.release_signature || false,
+    user_id: data.userId || userId,
+  });
+
+  const saveDraft = async () => {
+    try {
+      setIsSavingDraft(true);
+      const values = getValues();
+      const payload = buildPayload(values);
+      const existingId = draftIdRef.current ?? recipe?.id;
+
+      const response = existingId
+        ? await fetch("/api/recipes", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, id: existingId, is_draft: true }),
+            cache: "no-store",
+          })
+        : await fetch("/api/recipes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, is_draft: true }),
+          });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to save draft");
+      }
+
+      const data = await response.json();
+      // Store the draft ID so the next save PATCHes the same row
+      if (!existingId && data.recipe?.id) {
+        draftIdRef.current = data.recipe.id;
+      }
+
+      toast.success("Draft saved — you can continue later from your profile.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save draft");
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
   const onSubmit = async (data: FieldValues) => {
     try {
       setIsSubmitting(true);
       setError(null);
 
-      // Sanitize HTML content
-      const sanitizedData = {
-        grandmotherTitle: data.grandmotherTitle,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        recipeTitle: data.recipeTitle,
-        country:
-          allCountries.find((country) => country[1] === data.country)?.[0] ||
-          data.country,
-        region: data.state || null,
-        city: data.city || null,
-        coordinates: data.coordinates || null,
-        history: sanitizeHtml(data.history),
-        geo_history: sanitizeHtml(data.geo_history),
-        recipe: sanitizeHtml(data.recipe),
-        directions: sanitizeHtml(data.directions),
-        influences: sanitizeHtml(data.influences),
-        traditions: sanitizeHtml(data.traditions),
-        photo: data.photo || [],
-        dish_image: data.dish_image || [],
-        recipe_image: data.recipe_image || [],
-        avatar_image: avatarUrl || data.avatar_image || null,
-        release_signature: data.release_signature || false,
-        user_id: data.userId,
-      };
+      const sanitizedData = buildPayload(data);
+      // Use the draft ID (if we created one mid-session) or the existing recipe ID
+      const existingId = draftIdRef.current ?? recipe?.id;
 
-      const response = recipe
+      const response = existingId
         ? await fetch("/api/recipes", {
             method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               ...sanitizedData,
-              id: recipe.id,
-              published: recipe.published,
+              id: existingId,
+              published: recipe?.published ?? false,
+              is_draft: false, // finalise the draft on full submit
             }),
             cache: "no-store",
           })
         : await fetch("/api/recipes", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(sanitizedData),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...sanitizedData, is_draft: false }),
           });
 
       if (!response.ok) {
         const errorData = await response.json();
-
-        // Handle moderation/validation errors gracefully
         if (response.status === 400) {
           toast.error(errorData.message || "Invalid request");
           setIsSubmitting(false);
           return;
         }
-
         throw new Error(errorData.message || "Failed to save recipe");
       }
 
-      // Redirect to the recipe list page or show success message
-      router.push(recipe ? `/profile/${recipe.id}` : "/");
+      const saved = await response.json();
+      const savedId = saved.recipe?.id ?? existingId;
+      router.push(savedId ? `/profile/${savedId}` : "/");
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message || "An error occurred while saving the recipe");
@@ -423,6 +465,18 @@ export const AddRecipe = ({
               </p>
             </div>
           </div>
+
+          {/* Draft banner */}
+          {(recipe?.is_draft || draftIdRef.current) && (
+            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <BookOpen className="w-4 h-4 text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-800 font-(--font-bell)">
+                {recipe?.is_draft
+                  ? "You're editing a saved draft. Fill in all fields and submit when ready."
+                  : "Draft in progress — your changes have been saved."}
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -675,32 +729,60 @@ export const AddRecipe = ({
 
             {/* Navigation Buttons */}
             <div className="flex flex-col sm:flex-row justify-between items-center w-full mt-4 gap-4">
-              {currentStep > 0 && (
+              {/* Left side: Previous + Cancel */}
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                {currentStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    disabled={isSubmitting || isSavingDraft}
+                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px] font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
+                  >
+                    {b("prevPage")}
+                  </button>
+                )}
+                {recipe && (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/profile")}
+                    disabled={isSubmitting || isSavingDraft}
+                    className="w-full sm:w-auto border border-gray-300 bg-white px-5 h-10 rounded-[2px] font-medium text-[16px] text-[#121212] hover:bg-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              {/* Right side: Save Draft + Next/Submit */}
+              <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
                 <button
                   type="button"
-                  onClick={prevStep}
-                  disabled={isSubmitting}
-                  className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
+                  onClick={saveDraft}
+                  disabled={isSavingDraft || isSubmitting}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 border border-[#ffccc8] bg-white px-5 h-10 rounded-[2px] font-medium text-[16px] text-[#121212] hover:bg-[#ffccc8]/20 transition-colors disabled:opacity-50"
                 >
-                  {b("prevPage")}
+                  {isSavingDraft ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  {isSavingDraft ? "Saving…" : "Save Draft"}
                 </button>
-              )}
-              <div
-                className={`${currentStep === 0 ? "sm:ml-auto" : ""} w-full sm:w-auto`}
-              >
+
                 {currentStep < steps.length - 1 ? (
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
+                    disabled={isSavingDraft}
+                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px] font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors"
                   >
                     {b("nextPage")}
                   </button>
                 ) : (
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px]  font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors disabled:opacity-50"
+                    disabled={isSubmitting || isSavingDraft}
+                    className="w-full sm:w-auto bg-[#ffccc8] px-5 h-10 rounded-[2px] font-medium text-[16px] text-[#121212] hover:bg-[#ffb8b3] transition-colors disabled:opacity-50"
                   >
                     {isSubmitting ? b("submitting") : b("submit")}
                   </button>

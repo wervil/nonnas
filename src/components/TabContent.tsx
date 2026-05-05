@@ -186,7 +186,6 @@ export function TabContent({
   bulkDeleteRecipes,
   updateUserRole,
   l,
-  b,
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_SEC_EMAIL,
   loadTabData,
@@ -723,22 +722,24 @@ export function TabContent({
       )}
 
       {/* Active recipes */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="text-gray-500 text-xl font-(--font-bell)">
-            {b("loading")}
+      {/* Active recipes — always mounted so checkbox state is never reset */}
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 rounded-xl">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#FF7D73]"></div>
           </div>
+        )}
+        <div className={loading ? "opacity-40 pointer-events-none" : ""}>
+          <RecipesList
+            recipes={recipes}
+            isAdminView={!!isSuperAdmin}
+            togglePublished={togglePublished}
+            deleteRecipe={deleteRecipe}
+            deletingRecipeId={deletingRecipeId}
+            bulkDeleteRecipes={bulkDeleteRecipes}
+          />
         </div>
-      ) : (
-        <RecipesList
-          recipes={recipes}
-          togglePublished={togglePublished}
-          deleteRecipe={deleteRecipe}
-          deletingRecipeId={deletingRecipeId}
-          bulkDeleteRecipes={bulkDeleteRecipes}
-          isSuperAdmin={isSuperAdmin}
-        />
-      )}
+      </div>
 
       {/* ── Restore confirmation ── */}
       <Dialog
