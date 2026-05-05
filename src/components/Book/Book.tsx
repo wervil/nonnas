@@ -113,14 +113,16 @@ export const Book = forwardRef<BookHandle, Props>(
     const [commentSection, setCommentSection] = useState<{
       open: boolean;
       recipeId: number;
-      nonnaName: string;
+      nonnaTitle: string;
+      nonnaFullName: string;
       titleName: string;
       photo: string | null;
       countryCode: string;
     }>({
       open: false,
       recipeId: 0,
-      nonnaName: "",
+      nonnaTitle: "",
+      nonnaFullName: "",
       titleName: "",
       photo: null,
       countryCode: "",
@@ -541,10 +543,14 @@ export const Book = forwardRef<BookHandle, Props>(
                       (r) => r.id === currentRecipeId,
                     );
                     if (currentRecipe) {
+                      const first = String(currentRecipe.firstName ?? "").trim();
+                      const last = String(currentRecipe.lastName ?? "").trim();
+                      const fullName = [first, last].filter(Boolean).join(" ").trim();
                       setCommentSection({
                         open: true,
                         recipeId: currentRecipe.id,
-                        nonnaName: currentRecipe.grandmotherTitle || "Nonna",
+                        nonnaTitle: currentRecipe.grandmotherTitle || "Nonna",
+                        nonnaFullName: fullName,
                         titleName: currentRecipe.recipeTitle,
                         photo: currentRecipe.photo?.[0] || null,
                         countryCode: currentRecipe.country || "",
@@ -589,12 +595,16 @@ export const Book = forwardRef<BookHandle, Props>(
               <CommentSection
                 recipeId={commentSection.recipeId}
                 userId={user?.id}
-                nonnaName={commentSection.nonnaName}
+                nonnaTitle={commentSection.nonnaTitle}
+                nonnaFullName={commentSection.nonnaFullName}
                 photoUrl={
                   commentSection.photo
                     ? `/api/proxy-image?url=${encodeURIComponent(commentSection.photo)}`
                     : generateAvatarSvgUri(
-                      commentSection.nonnaName,
+                      [commentSection.nonnaTitle, commentSection.nonnaFullName]
+                        .filter(Boolean)
+                        .join(" ")
+                        .trim(),
                       commentSection.countryCode,
                     )
                 }

@@ -1015,14 +1015,14 @@ export default function Earth3DPage() {
   const [commentSection, setCommentSection] = useState<{
     open: boolean;
     recipeId: number;
-    nonnaName: string;
+    nonnaDisplayName: string;
     titleName: string;
     photo: string | null;
     countryCode: string;
   }>({
     open: false,
     recipeId: 0,
-    nonnaName: "",
+    nonnaDisplayName: "",
     titleName: "",
     photo: null,
     countryCode: "",
@@ -1185,7 +1185,7 @@ export default function Earth3DPage() {
           setCommentSection({
             open: true,
             recipeId: targetNonna.recipeId,
-            nonnaName: targetNonna.name,
+            nonnaDisplayName: targetNonna.name,
             titleName: targetNonna.title,
             photo: targetNonna.photo,
             countryCode: targetNonna.countryCode,
@@ -5461,10 +5461,10 @@ export default function Earth3DPage() {
           <CommentSection
             recipeId={commentSection.recipeId}
             userId={user?.id}
-            nonnaName={commentSection.nonnaName}
+            nonnaDisplayName={commentSection.nonnaDisplayName}
             photoUrl={
               commentSection.photo
-              || generateAvatarSvgUri(commentSection.nonnaName, commentSection.countryCode)
+              || generateAvatarSvgUri(commentSection.nonnaDisplayName, commentSection.countryCode)
             }
             onClose={() => setCommentSection({ ...commentSection, open: false, recipeId: 0 })}
           />
