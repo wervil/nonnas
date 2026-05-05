@@ -100,6 +100,8 @@ const recipeSchema = z.object({
 
 type FormData = z.infer<typeof recipeSchema>;
 
+const MAX_LENGTH = 2000;
+
 export const AddRecipe = ({
   userId,
   recipe,
@@ -520,7 +522,7 @@ export const AddRecipe = ({
                   name="history"
                   control={control}
                   error={errors.history?.message}
-                  maxLength={700}
+                  maxLength={MAX_LENGTH}
                   theme="light"
                 />
                 <Textarea
@@ -529,7 +531,7 @@ export const AddRecipe = ({
                   name="geo_history"
                   control={control}
                   error={errors.geo_history?.message}
-                  maxLength={700}
+                  maxLength={MAX_LENGTH}
                   theme="light"
                 />
               </div>
@@ -550,7 +552,7 @@ export const AddRecipe = ({
                   description={d("ingredientsDesc")}
                   name="recipe"
                   control={control}
-                  maxLength={1000}
+                  maxLength={MAX_LENGTH}
                   theme="light"
                 />
                 <TextEditor
@@ -558,7 +560,7 @@ export const AddRecipe = ({
                   description={d("directionsDesc")}
                   name="directions"
                   control={control}
-                  maxLength={500}
+                  maxLength={MAX_LENGTH}
                   theme="light"
                 />
               </div>
@@ -572,7 +574,7 @@ export const AddRecipe = ({
                   description={d("traditions")}
                   name="traditions"
                   control={control}
-                  maxLength={500}
+                  maxLength={MAX_LENGTH}
                   theme="light"
                 />
                 <Textarea
@@ -580,7 +582,7 @@ export const AddRecipe = ({
                   description={d("influences")}
                   name="influences"
                   control={control}
-                  maxLength={400}
+                  maxLength={MAX_LENGTH}
                   theme="light"
                 />
               </div>
