@@ -3,7 +3,7 @@ import {
   getCountryInfoWithFallback,
   getRegionCoordinates,
 } from "@/lib/countryData";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add sample recipe ID
         })
         .from(recipes)
-        .where(and(isNotNull(recipes.country), eq(recipes.published, true)))
+        .where(and(isNotNull(recipes.country), eq(recipes.published, true), isNull(recipes.deleted_at)))
         .groupBy(recipes.country, recipes.region);
 
       const continentMap: Record<string, GlobeNonna> = {};
@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
-        .where(and(isNotNull(recipes.country), eq(recipes.published, true)))
+        .where(and(isNotNull(recipes.country), eq(recipes.published, true), isNull(recipes.deleted_at)))
         .groupBy(recipes.country);
 
       const continentMap: Record<string, GlobeNonna> = {};
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
-        .where(and(isNotNull(recipes.country), eq(recipes.published, true)))
+        .where(and(isNotNull(recipes.country), eq(recipes.published, true), isNull(recipes.deleted_at)))
         .groupBy(recipes.country);
 
       clusters = rows.map((r, i) => {
@@ -253,7 +253,7 @@ export async function GET(req: NextRequest) {
         };
       });
     } else if (level === "COUNTRY" || level === "STATE") {
-      const conditions = [eq(recipes.published, true)];
+      const conditions = [eq(recipes.published, true), isNull(recipes.deleted_at)];
       if (countryParam) {
         conditions.push(
           eq(sql`lower(${recipes.country})`, countryParam.toLowerCase()),
@@ -313,7 +313,7 @@ export async function GET(req: NextRequest) {
       });
     } else {
       // CITY or NONNA level: show individual Nonnas
-      const conditions = [eq(recipes.published, true)];
+      const conditions = [eq(recipes.published, true), isNull(recipes.deleted_at)];
       if (countryParam) {
         conditions.push(
           eq(sql`lower(${recipes.country})`, countryParam.toLowerCase()),

@@ -5,7 +5,7 @@ import {
 } from "@/lib/countryData";
 import { stackServerApp } from "@/stack";
 import { checkAdminPermission } from "@/utils/checkAdminPermission";
-import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 // import * as deepl from 'deepl-node'
@@ -200,15 +200,18 @@ export async function GET(request: NextRequest) {
     let result;
 
     if (idParam) {
-      // Get specific recipe by ID
+      // Get specific recipe by ID (exclude soft-deleted)
       result = await db
         .select(selectFields)
         .from(recipes)
-        .where(eq(recipes.id, Number(idParam)))
+        .where(and(eq(recipes.id, Number(idParam)), isNull(recipes.deleted_at)))
         .orderBy(recipes.recipeTitle);
     } else {
       // Build where conditions based on search and country parameters
       const whereConditions = [];
+
+      // Always exclude soft-deleted recipes from public/admin listing
+      whereConditions.push(isNull(recipes.deleted_at));
 
       // Handle published filter
       let published: boolean | undefined = undefined;
@@ -283,26 +286,17 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Build and execute the query based on conditions
-      if (whereConditions.length === 0) {
-        // No filters - get all recipes
-        result = await db
-          .select(selectFields)
-          .from(recipes)
-          .orderBy(recipes.recipeTitle);
-      } else {
-        // Apply all conditions
-        const orderBy =
-          published !== undefined && !search && !country && !savedByUserId
-            ? sql`RANDOM()`
-            : recipes.recipeTitle;
+      // Always has at least the deleted_at IS NULL filter, so always use the where path
+      const orderBy =
+        published !== undefined && !search && !country && !savedByUserId
+          ? sql`RANDOM()`
+          : recipes.recipeTitle;
 
-        result = await db
-          .select(selectFields)
-          .from(recipes)
-          .where(and(...whereConditions))
-          .orderBy(orderBy);
-      }
+      result = await db
+        .select(selectFields)
+        .from(recipes)
+        .where(and(...whereConditions))
+        .orderBy(orderBy);
     }
 
     return NextResponse.json(
@@ -424,11 +418,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if recipe exists before deleting
+    // Resolve who is deleting (for audit trail)
+    const user = await stackServerApp.getUser();
+    const deletedByEmail = user?.primaryEmail ?? "unknown";
+
+    // Check if recipe exists and is not already soft-deleted
     const existingRecipe = await db
       .select({ id: recipes.id })
       .from(recipes)
-      .where(eq(recipes.id, id));
+      .where(and(eq(recipes.id, id), isNull(recipes.deleted_at)));
 
     if (!existingRecipe.length) {
       return NextResponse.json(
@@ -437,15 +435,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete the recipe
-    const deletedRecipe = await db
-      .delete(recipes)
+    // Soft-delete: mark as deleted and unpublish so it vanishes from the public site immediately
+    const softDeleted = await db
+      .update(recipes)
+      .set({ deleted_at: new Date(), deleted_by: deletedByEmail, published: false })
       .where(eq(recipes.id, id))
       .returning();
 
     return NextResponse.json({
       message: "Recipe deleted successfully",
-      recipe: deletedRecipe[0],
+      recipe: softDeleted[0],
     });
   } catch (error) {
     console.error("Error deleting recipe:", error);

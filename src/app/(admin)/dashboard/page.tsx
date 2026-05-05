@@ -230,7 +230,7 @@ function DashboardInner({
         throw new Error(errorData.message || "Failed to delete recipe");
       }
 
-      toast.success("Recipe deleted successfully");
+      toast.success("Recipe moved to Trash");
       setRecipes((prevRecipes) =>
         prevRecipes.filter((recipe) => recipe.id !== id),
       );
@@ -241,6 +241,32 @@ function DashboardInner({
       );
     } finally {
       setDeletingRecipeId(null);
+    }
+  };
+
+  const bulkDeleteRecipes = async (ids: number[]) => {
+    try {
+      const res = await fetch("/api/admin/recipes/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to delete recipes");
+      }
+
+      const data = await res.json();
+      toast.success(data.message || `${ids.length} recipe(s) moved to Trash`);
+      setRecipes((prev) => prev.filter((r) => !ids.includes(r.id)));
+    } catch (error) {
+      console.error("Error bulk-deleting recipes:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete recipes",
+      );
+      throw error;
     }
   };
 
@@ -361,6 +387,7 @@ function DashboardInner({
                 togglePublished={togglePublished}
                 deleteRecipe={deleteRecipe}
                 deletingRecipeId={deletingRecipeId}
+                bulkDeleteRecipes={bulkDeleteRecipes}
                 updateUserRole={updateUserRole}
                 l={l as (key: string) => string}
                 d={d as (key: string) => string}

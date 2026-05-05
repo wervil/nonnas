@@ -1,5 +1,5 @@
 const { Client } = require('pg');
-require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 
 async function applyMigration() {
   const client = new Client({
@@ -20,6 +20,23 @@ async function applyMigration() {
       ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "region" text;
     `);
     console.log('Added region column');
+
+    // --- Soft-delete support ---
+    await client.query(`
+      ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
+    `);
+    console.log('Added deleted_at column');
+
+    await client.query(`
+      ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "deleted_by" text;
+    `);
+    console.log('Added deleted_by column');
+
+    // Index for fast trash queries
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS "recipes_deleted_at_idx" ON "recipes" ("deleted_at");
+    `);
+    console.log('Created deleted_at index');
 
     console.log('Migration applied successfully!');
   } catch (error) {

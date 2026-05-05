@@ -1,6 +1,6 @@
 import { recipes } from "@/db/schema";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextResponse } from "next/server";
 
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
     const published = publishedParam !== "false"; // Default to true
 
     // Get count of nonnas (recipes) grouped by country
-    const conditions = [isNotNull(recipes.country)];
+    const conditions = [isNotNull(recipes.country), isNull(recipes.deleted_at)];
 
     if (published) {
       conditions.push(eq(recipes.published, true));
@@ -140,6 +140,7 @@ export async function GET(request: Request) {
           WHERE r2.country = recipes.country
             AND r2.photo IS NOT NULL
             AND array_length(r2.photo, 1) > 0
+            AND r2.deleted_at IS NULL
             ${published ? sql.raw(`AND r2.published = true`) : sql.raw(``)}
           LIMIT 1
         )`,

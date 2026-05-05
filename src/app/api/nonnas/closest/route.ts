@@ -5,7 +5,7 @@ import {
   getCountryInfoWithFallback,
   getRegionCoordinates,
 } from "@/lib/countryData";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const whereConditions = [isNotNull(recipes.country)];
+    const whereConditions = [isNotNull(recipes.country), isNull(recipes.deleted_at)];
 
     if (clusterLevel === "continent") {
       // Get all countries that belong to this continent

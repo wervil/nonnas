@@ -2,7 +2,7 @@ import { recipes } from "@/db/schema";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
 import { getStateCentroid } from "@/lib/stateCoordinates";
 import { countriesData } from "@/utils/countries";
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextResponse } from "next/server";
 
@@ -306,7 +306,7 @@ export async function GET(
     const published = publishedParam !== "false";
 
     // Build conditions to match the country
-    const conditions = [];
+    const conditions = [isNull(recipes.deleted_at)];
 
     if (published) {
       conditions.push(eq(recipes.published, true));

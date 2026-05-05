@@ -1,6 +1,6 @@
 import { recipes } from "@/db/schema";
 import { getCountryInfoWithFallback } from "@/lib/countryData";
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextResponse } from "next/server";
 
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     const countryInfo = getCountryInfoWithFallback(country);
 
     // Build conditions
-    const conditions = [];
+    const conditions = [isNull(recipes.deleted_at)];
 
     if (published) {
       conditions.push(eq(recipes.published, true));

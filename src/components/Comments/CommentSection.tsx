@@ -53,11 +53,11 @@ export default function CommentSection({
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Resolve the name part: prefer nonnaFullName, then nonnaDisplayName, then nonnaName
+  const namePart = (nonnaFullName || nonnaDisplayName || nonnaName || "").trim();
+  // Combine title + name if both exist, otherwise use whichever is available
   const headerName =
-    nonnaDisplayName ||
-    [nonnaTitle, nonnaFullName].map((s) => s?.trim()).filter(Boolean).join(" ") ||
-    nonnaName ||
-    "Nonna";
+    [nonnaTitle?.trim(), namePart].filter(Boolean).join(" ") || "Nonna";
 
   const fetchComments = useCallback(async () => {
     try {
