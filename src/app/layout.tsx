@@ -41,11 +41,6 @@ export default async function RootLayout({
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`}
           strategy="beforeInteractive"
         />
-
-        <Script
-          src="https://2a77-182-182-135-208.ngrok-free.app/pixel/cmouc8cb50002imy1p61yyj05.js"
-          strategy="afterInteractive"
-        />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <StackProvider app={stackServerApp}>
             <StackTheme>
