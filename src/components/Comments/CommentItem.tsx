@@ -1,8 +1,11 @@
 'use client'
 
-import { Reply, Trash2, User } from 'lucide-react'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin'
+import { Reply, ShieldAlert, Trash2, User } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import CommentEditor, { Attachment } from './CommentEditor'
 
 interface Comment {
@@ -33,6 +36,12 @@ export default function CommentItem({
 }: CommentItemProps) {
     const [showReplyEditor, setShowReplyEditor] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    const isSuperAdmin = useIsSuperAdmin()
+    const isOwner = !!userId && userId === comment.user_id
+    const canDelete = isOwner || isSuperAdmin
+    const canReply = (comment.depth || 0) < 3
 
     const handleReply = async (content: string, attachments?: Attachment[]) => {
         try {
@@ -59,26 +68,30 @@ export default function CommentItem({
     }
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this comment?')) return
-
         try {
             setIsDeleting(true)
-            const res = await fetch(`/api/recipe-comments?id=${comment.id}`, {
+            const query = userId ? `?user_id=${encodeURIComponent(userId)}` : ''
+            const res = await fetch(`/api/recipe-comments/${comment.id}${query}`, {
                 method: 'DELETE',
             })
 
             if (res.ok) {
                 onDelete(comment.id)
+                setShowDeleteConfirm(false)
+                if (isSuperAdmin && !isOwner) {
+                    toast.success('Comment deleted')
+                }
+            } else {
+                const data = await res.json().catch(() => ({}))
+                toast.error(data?.error || 'Failed to delete comment')
             }
         } catch (error) {
             console.error('Error deleting comment:', error)
+            toast.error('Failed to delete comment')
         } finally {
             setIsDeleting(false)
         }
     }
-
-    const canDelete = userId === comment.user_id
-    const canReply = (comment.depth || 0) < 3
 
     return (
         <div className="w-full">
@@ -124,22 +137,34 @@ export default function CommentItem({
                     )}
 
                     {/* Actions */}
-                    <div className="flex gap-4 items-start opacity-80">
+                    <div className="flex gap-4 items-center opacity-80">
                         {canReply && (
                             <button
                                 onClick={() => setShowReplyEditor(!showReplyEditor)}
-                                className="flex gap-2.5 items-start hover:opacity-60 transition-opacity"
+                                className="flex gap-2.5 items-center hover:opacity-60 transition-opacity"
+                                title="Reply"
                             >
                                 <Reply size={16} className="text-black" />
                             </button>
                         )}
                         {canDelete && (
                             <button
-                                onClick={handleDelete}
+                                onClick={() => setShowDeleteConfirm(true)}
                                 disabled={isDeleting}
-                                className="flex gap-2.5 items-start hover:opacity-60 transition-opacity disabled:opacity-40"
+                                className="flex gap-1.5 items-center hover:opacity-60 transition-opacity disabled:opacity-40"
+                                title={
+                                    isSuperAdmin && !isOwner
+                                        ? 'Delete (Super Admin)'
+                                        : 'Delete'
+                                }
                             >
                                 <Trash2 size={16} className="text-[#D93832]" />
+                                {isSuperAdmin && !isOwner && (
+                                    <ShieldAlert
+                                        size={12}
+                                        className="text-[#D93832]"
+                                    />
+                                )}
                             </button>
                         )}
                     </div>
@@ -171,6 +196,25 @@ export default function CommentItem({
                     ))}
                 </div>
             )}
+
+            {/* Confirmation Modal */}
+            <ConfirmDeleteDialog
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+                onConfirm={handleDelete}
+                title={
+                    isSuperAdmin && !isOwner
+                        ? "Delete this user's comment?"
+                        : 'Delete this comment?'
+                }
+                description={
+                    isSuperAdmin && !isOwner
+                        ? `You're deleting this comment as Super Admin. The comment and any replies to it will be permanently removed.`
+                        : 'This will permanently remove your comment and any replies to it. This action cannot be undone.'
+                }
+                confirmLabel={isDeleting ? 'Deleting…' : 'Delete'}
+                isLoading={isDeleting}
+            />
         </div>
     )
 }

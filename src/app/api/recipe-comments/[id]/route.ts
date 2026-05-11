@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { recipe_comments } from "@/db/schema";
+import { getCurrentUserWithSuperAdmin } from "@/lib/super-admin";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
@@ -55,9 +56,26 @@ export async function DELETE(
 ) {
   try {
     const params = await props.params;
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get("user_id");
     const commentId = parseInt(params.id);
+
+    if (isNaN(commentId)) {
+      return NextResponse.json(
+        { error: "Invalid comment ID" },
+        { status: 400 },
+      );
+    }
+
+    // Authenticate caller via Stack (server-trusted identity)
+    const { user, isSuperAdmin } = await getCurrentUserWithSuperAdmin();
+
+    // Backward compatibility: also accept ?user_id= for callers that still
+    // identify themselves via a query string (existing client behavior).
+    const queryUserId = request.nextUrl.searchParams.get("user_id");
+    const requesterId = user?.id ?? queryUserId ?? null;
+
+    if (!requesterId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Fetch existing comment
     const [existing] = await db
@@ -70,15 +88,19 @@ export async function DELETE(
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     }
 
-    // Check ownership
-    if (existing.user_id !== userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    // Super Admin can delete any comment. Otherwise enforce ownership.
+    const isOwner = existing.user_id === requesterId;
+    if (!isSuperAdmin && !isOwner) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete (cascade will handle replies)
     await db.delete(recipe_comments).where(eq(recipe_comments.id, commentId));
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      deleted_by_super_admin: isSuperAdmin && !isOwner,
+    });
   } catch (error) {
     console.error("Error deleting comment:", error);
     return NextResponse.json(

@@ -1,4 +1,5 @@
 import { likes, posts, threads } from "@/db/schema";
+import { isSuperAdminEmail } from "@/lib/super-admin";
 import { stackServerApp } from "@/stack";
 import { and, count, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -134,7 +135,7 @@ export async function GET(
   }
 }
 
-// DELETE /api/threads/[id] - Delete a thread
+// DELETE /api/threads/[id] - Delete a thread (owner or Super Admin)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -147,6 +148,7 @@ export async function DELETE(
     }
 
     const userId = user.id;
+    const isSuperAdmin = isSuperAdminEmail(user.primaryEmail);
 
     const { id } = await params;
     const threadId = parseInt(id);
@@ -155,7 +157,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid thread ID" }, { status: 400 });
     }
 
-    // Check ownership
+    // Check ownership / super admin
     const [thread] = await db
       .select()
       .from(threads)
@@ -165,14 +167,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    if (thread.user_id !== userId) {
+    const isOwner = thread.user_id === userId;
+    if (!isOwner && !isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete thread (cascade will delete posts)
     await db.delete(threads).where(eq(threads.id, threadId));
 
-    return NextResponse.json({ message: "Thread deleted successfully" });
+    return NextResponse.json({
+      message: "Thread deleted successfully",
+      deleted_by_super_admin: isSuperAdmin && !isOwner,
+    });
   } catch (error) {
     console.error("Error deleting thread:", error);
     return NextResponse.json(

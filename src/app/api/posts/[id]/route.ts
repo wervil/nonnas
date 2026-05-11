@@ -1,4 +1,5 @@
 import { posts } from "@/db/schema";
+import { isSuperAdminEmail } from "@/lib/super-admin";
 import { moderateContent } from "@/services/moderation";
 import { stackServerApp } from "@/stack";
 import { eq } from "drizzle-orm";
@@ -83,7 +84,7 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/posts/[id] - Delete a post
+// DELETE /api/posts/[id] - Delete a post (owner or Super Admin)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -96,6 +97,7 @@ export async function DELETE(
     }
 
     const userId = user.id;
+    const isSuperAdmin = isSuperAdminEmail(user.primaryEmail);
 
     const { id } = await params;
     const postId = parseInt(id);
@@ -104,21 +106,25 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
 
-    // Check ownership
+    // Check ownership / super admin
     const [post] = await db.select().from(posts).where(eq(posts.id, postId));
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    if (post.user_id !== userId) {
+    const isOwner = post.user_id === userId;
+    if (!isOwner && !isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete post (cascade will delete child posts)
     await db.delete(posts).where(eq(posts.id, postId));
 
-    return NextResponse.json({ message: "Post deleted successfully" });
+    return NextResponse.json({
+      message: "Post deleted successfully",
+      deleted_by_super_admin: isSuperAdmin && !isOwner,
+    });
   } catch (error) {
     console.error("Error deleting post:", error);
     return NextResponse.json(

@@ -1,12 +1,14 @@
 "use client";
 
 import { Post } from "@/db/schema";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import {
   Check,
   Edit2,
   Loader2,
   MessageSquare,
   Reply,
+  ShieldAlert,
   Trash2,
   X,
 } from "lucide-react";
@@ -16,6 +18,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import CommentEditor, { Attachment } from "../Comments/CommentEditor";
 import LikeButton from "../LikeButton";
+import ConfirmDeleteDialog from "../ui/ConfirmDeleteDialog";
 import AudioPlayer from "../ui/AudioPlayer";
 
 interface PostItemProps {
@@ -51,6 +54,8 @@ export default function PostItem({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const isSuperAdmin = useIsSuperAdmin();
+
   // Inline reply form state
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [localReplies, setLocalReplies] = useState<Post[]>(post.replies || []);
@@ -77,6 +82,7 @@ export default function PostItem({
   }, [post.content]);
 
   const isOwner = currentUserId === post.user_id;
+  const canDelete = isOwner || isSuperAdmin;
   const canReply = (post.depth || 0) < 3;
 
   const handleEdit = async () => {
@@ -123,13 +129,28 @@ export default function PostItem({
         cache: "no-store",
       });
 
-      if (!response.ok) throw new Error("Failed to delete post");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to delete post");
+      }
+
+      if (isOwner) {
+        toast.success("Post deleted");
+      } else if (isSuperAdmin) {
+        toast.success("Reply deleted");
+      }
 
       if (onDelete) {
         onDelete(post.id);
       }
+
+      setShowDeleteConfirm(false);
     } catch (error) {
       console.error("Error deleting post:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete post",
+      );
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -251,55 +272,37 @@ export default function PostItem({
             </div>
 
             {/* Actions */}
-            {isOwner && !isEditing ? (
+            {canDelete && !isEditing ? (
               <div className="flex items-center gap-0.5">
-                {!((post.attachments || []) as Attachment[]).some(
-                  (a) => a.type === "audio",
-                ) && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-all"
-                    title="Edit"
-                    type="button"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {showDeleteConfirm ? (
-                  <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200 bg-[var(--color-brown-light)]/20 rounded-md px-2 py-1 ml-1">
-                    <span className="text-xs text-[var(--color-danger-main)] font-[var(--font-bell)] whitespace-nowrap">
-                      Delete?
-                    </span>
+                {isOwner &&
+                  !((post.attachments || []) as Attachment[]).some(
+                    (a) => a.type === "audio",
+                  ) && (
                     <button
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="px-2 py-0.5 text-xs bg-[var(--color-danger-main)] text-white rounded hover:bg-[var(--color-danger-hover)] transition-colors font-[var(--font-bell)] flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setIsEditing(true)}
+                      className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-all"
+                      title="Edit"
                       type="button"
                     >
-                      {isDeleting ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        "Yes"
-                      )}
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-2 py-0.5 text-xs text-[var(--color-text-pale)] hover:bg-[var(--color-brown-light)]/50 rounded transition-colors font-[var(--font-bell)]"
-                      type="button"
-                    >
-                      No
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                    title="Delete"
-                    type="button"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                  )}
+
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all inline-flex items-center gap-0.5"
+                  title={
+                    isSuperAdmin && !isOwner
+                      ? "Delete (Super Admin)"
+                      : "Delete"
+                  }
+                  type="button"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {isSuperAdmin && !isOwner && (
+                    <ShieldAlert className="w-3 h-3 text-red-500" />
+                  )}
+                </button>
               </div>
             ) : null}
           </div>
@@ -428,6 +431,8 @@ export default function PostItem({
             onClick={() => setSelectedImage(null)}
           >
             <button
+              type="button"
+              aria-label="Close image preview"
               onClick={() => setSelectedImage(null)}
               className="fixed top-4 right-4 p-2 text-white/70 hover:text-white bg-black/50 rounded-full transition-colors z-[110]"
             >
@@ -447,6 +452,24 @@ export default function PostItem({
           </div>,
           document.body,
         )}
+
+      <ConfirmDeleteDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        onConfirm={handleDelete}
+        title={
+          isSuperAdmin && !isOwner
+            ? "Delete this reply?"
+            : "Delete this post?"
+        }
+        description={
+          isSuperAdmin && !isOwner
+            ? "You are deleting this reply as Super Admin. Nested replies will also be removed. This cannot be undone."
+            : "This will permanently remove your post and any nested replies. This cannot be undone."
+        }
+        confirmLabel={isDeleting ? "Deleting…" : "Delete"}
+        isLoading={isDeleting}
+      />
     </>
   );
 }
