@@ -492,6 +492,7 @@ export const Book = forwardRef<BookHandle, Props>(
                       contentHeight,
                       setImages,
                       setNonnaVideoUrl,
+                      user?.id ?? null,
                     )}
                   </HTMLFlipBook>
                 )}

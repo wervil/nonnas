@@ -1,9 +1,9 @@
 import { Recipe } from '@/db/schema'
 
 import { Description } from '@/components/Book/Description'
+import NonnaVideoActions from '@/components/Book/NonnaVideoActions'
 import { RecipeSection } from '@/components/Book/RecipeSection'
 import { ClickableHoverCard } from '@/components/ClickableHoverCard'
-import { PlayCircle } from 'lucide-react'
 import Image from 'next/image'
 import { Dispatch, SetStateAction } from 'react'
 import { FlagIcon, FlagIconCode } from 'react-flag-kit'
@@ -57,12 +57,16 @@ export const convertRecipesToPages = (
   l: unknown,
   contentHeight: number,
   setImages: Dispatch<SetStateAction<string[] | null>>,
-  setVideoUrl: Dispatch<SetStateAction<string | null>>
+  setVideoUrl: Dispatch<SetStateAction<string | null>>,
+  currentUserId: string | null
 ) =>
   recipes?.map((recipe, index) => {
     const nonnaVideoUrl = resolveNonnaVideoUrl(recipe)
     const photoOnlyRecipeImages = (recipe.recipe_image ?? []).filter(
       (u) => !isVideoUrl(u)
+    )
+    const isOwner = Boolean(
+      currentUserId && recipe.user_id && currentUserId === recipe.user_id
     )
 
     return [
@@ -95,22 +99,12 @@ export const convertRecipesToPages = (
               <p className={`text-federant text-yellow-light text-center`}>
                 ({recipe.region})
               </p>
-              {nonnaVideoUrl ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setVideoUrl(nonnaVideoUrl)
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[#6D2924] text-white px-3 py-1.5 text-[11px] xl:text-xs font-semibold shadow-md hover:bg-[#561e1a] transition-colors"
-                  title="Watch a video of Nonna in the kitchen"
-                >
-                  <PlayCircle size={14} />
-                  Watch Video
-                </button>
-              ) : null}
+              <NonnaVideoActions
+                recipeId={recipe.id}
+                isOwner={isOwner}
+                initialVideoUrl={nonnaVideoUrl}
+                onWatch={setVideoUrl}
+              />
             </div>
             <div className="relative w-[57%] min-w-0 h-[100%] overflow-hidden shrink">
               {recipe.photo && recipe.photo.length > 0 && (
