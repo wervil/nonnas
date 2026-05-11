@@ -64,6 +64,9 @@ export default function DiscussionPanel({
     const [activeTab, setActiveTab] = useState<"discussion" | "nonnas">(initialTab);
     const [viewMode, setViewMode] = useState<"list" | "create" | "thread">("list");
     const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
+    // Incremented after a thread is created/deleted so ThreadList re-fetches
+    // even if it has cached results from an earlier visit.
+    const [threadListRefreshKey, setThreadListRefreshKey] = useState(0);
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -90,10 +93,14 @@ export default function DiscussionPanel({
     const handleBackToList = () => {
         setViewMode("list");
         setSelectedThreadId(null);
+        // Coming back from a thread view (incl. after a delete) — force a
+        // refetch so the list reflects any changes.
+        setThreadListRefreshKey((k) => k + 1);
     };
 
     const handleCreateSuccess = () => {
         setViewMode("list");
+        setThreadListRefreshKey((k) => k + 1);
     };
 
     if (!isOpen) return null;
@@ -223,6 +230,7 @@ export default function DiscussionPanel({
                                     region={region}
                                     scope={scope}
                                     onThreadClick={handleThreadClick}
+                                    refreshKey={threadListRefreshKey}
                                 />
                             </>
                         )}

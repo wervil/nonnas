@@ -5,6 +5,12 @@ import { and, count, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
 
+// Discussion threads must never be cached at the Route Handler layer —
+// a brand-new thread has to show up the moment ThreadList re-fetches.
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
+
 const db = drizzle(process.env.DATABASE_URL!);
 
 // GET /api/threads - Fetch threads with filters
@@ -89,12 +95,12 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await query;
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("Error fetching threads:", error);
     return NextResponse.json(
       { error: "Failed to fetch threads" },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }
@@ -169,12 +175,15 @@ export async function POST(request: NextRequest) {
 
     const [thread] = await db.insert(threads).values(newThread).returning();
 
-    return NextResponse.json(thread, { status: 201 });
+    return NextResponse.json(thread, {
+      status: 201,
+      headers: NO_STORE_HEADERS,
+    });
   } catch (error) {
     console.error("Error creating thread:", error);
     return NextResponse.json(
       { error: "Failed to create thread" },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }

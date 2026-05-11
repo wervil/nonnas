@@ -6,6 +6,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { drizzle } from "drizzle-orm/neon-serverless";
 
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
+
 const db = drizzle(process.env.DATABASE_URL!);
 
 // GET /api/threads/[id] - Fetch a single thread by ID with likes and posts
@@ -120,12 +124,15 @@ export async function GET(
     }
 
     // Return enriched thread data
-    return NextResponse.json({
-      ...thread,
-      like_count: likeCount,
-      user_has_liked: userHasLiked,
-      posts: threadPosts,
-    });
+    return NextResponse.json(
+      {
+        ...thread,
+        like_count: likeCount,
+        user_has_liked: userHasLiked,
+        posts: threadPosts,
+      },
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (error) {
     console.error("Error fetching thread:", error);
     return NextResponse.json(

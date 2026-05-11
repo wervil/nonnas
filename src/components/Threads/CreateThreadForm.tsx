@@ -109,6 +109,7 @@ export default function CreateThreadForm({
         try {
             const response = await fetch('/api/threads', {
                 method: 'POST',
+                cache: 'no-store',
                 headers: {
                     'Content-Type': 'application/json',
                 },

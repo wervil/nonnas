@@ -11,6 +11,12 @@ interface ThreadListProps {
     sort?: 'newest' | 'top' | 'relevant'
     userId?: string
     onThreadClick?: (threadId: number) => void
+    /**
+     * Bump this from the parent to force a re-fetch (e.g. after creating a
+     * new thread). Acts as an external cache-invalidation trigger so the list
+     * refreshes even if the component itself never unmounts.
+     */
+    refreshKey?: number
 }
 
 export default function ThreadList({
@@ -19,6 +25,7 @@ export default function ThreadList({
     sort = 'newest',
     userId,
     onThreadClick,
+    refreshKey = 0,
 }: ThreadListProps) {
     const [threads, setThreads] = useState<Thread[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -36,7 +43,10 @@ export default function ThreadList({
                 if (sort) params.append('sort', sort)
                 if (userId) params.append('userId', userId)
 
-                const response = await fetch(`/api/threads?${params.toString()}`)
+                const response = await fetch(
+                    `/api/threads?${params.toString()}`,
+                    { cache: 'no-store' },
+                )
 
                 if (!response.ok) {
                     throw new Error('Failed to fetch threads')
@@ -53,7 +63,7 @@ export default function ThreadList({
         }
 
         fetchThreads()
-    }, [region, scope, sort, userId])
+    }, [region, scope, sort, userId, refreshKey])
 
     if (isLoading) {
         return (
