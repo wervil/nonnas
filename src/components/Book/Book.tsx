@@ -19,7 +19,7 @@ import { ImagesModal } from "../ui/ImagesModal";
 // import { generateTOCpages } from '@/utils/generateTOCpages'
 // import { Typography } from '../ui/Typography'
 import { useUser } from "@stackframe/stack";
-import { ArrowLeft, ArrowRight, CircleHelp, MessageCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleHelp, MessageCircle, X } from "lucide-react";
 import CommentSection from "../Comments/CommentSection";
 
 type Props = {
@@ -99,6 +99,7 @@ export const Book = forwardRef<BookHandle, Props>(
     const [contentHeight, setContentHeight] = useState(0);
 
     const [images, setImages] = useState<string[] | null>(null);
+    const [nonnaVideoUrl, setNonnaVideoUrl] = useState<string | null>(null);
     // const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
     const [currentRecipeId, setCurrentRecipeId] = useState<number | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
@@ -490,6 +491,7 @@ export const Book = forwardRef<BookHandle, Props>(
                       l,
                       contentHeight,
                       setImages,
+                      setNonnaVideoUrl,
                     )}
                   </HTMLFlipBook>
                 )}
@@ -621,6 +623,34 @@ export const Book = forwardRef<BookHandle, Props>(
         )}
 
         <ImagesModal images={images} onClose={() => setImages(null)} />
+
+        {nonnaVideoUrl && (
+          <div
+            className="fixed inset-0 z-[1000000] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setNonnaVideoUrl(null)}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setNonnaVideoUrl(null);
+              }}
+              className="absolute top-4 right-4 text-white bg-black/60 hover:bg-black/80 rounded-full p-2 transition-colors"
+              aria-label="Close video"
+              title="Close"
+            >
+              <X size={24} />
+            </button>
+            <video
+              src={nonnaVideoUrl}
+              controls
+              autoPlay
+              playsInline
+              className="max-w-full max-h-full w-auto h-auto rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
       </div>
     );
   },

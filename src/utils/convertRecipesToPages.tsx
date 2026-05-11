@@ -3,6 +3,7 @@ import { Recipe } from '@/db/schema'
 import { Description } from '@/components/Book/Description'
 import { RecipeSection } from '@/components/Book/RecipeSection'
 import { ClickableHoverCard } from '@/components/ClickableHoverCard'
+import { PlayCircle } from 'lucide-react'
 import Image from 'next/image'
 import { Dispatch, SetStateAction } from 'react'
 import { FlagIcon, FlagIconCode } from 'react-flag-kit'
@@ -12,6 +13,18 @@ import 'swiper/css/pagination'
 import { Navigation, Pagination } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { countriesReverseMap } from './countries'
+
+const isVideoUrl = (url: string) =>
+  /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url)
+
+// Legacy recipes may have stored a video URL in `recipe_image`. Prefer the
+// dedicated `nonna_video` column, fall back to any video URL detected in the
+// legacy field so older entries still expose a "Watch Video" button.
+const resolveNonnaVideoUrl = (recipe: Recipe): string | null => {
+  if (recipe.nonna_video) return recipe.nonna_video
+  const legacy = (recipe.recipe_image ?? []).find((u) => isVideoUrl(u))
+  return legacy ?? null
+}
 
 const getLeftSizeDescriptionHeight = (
   hasGeoHistory: boolean,
@@ -43,9 +56,16 @@ export const convertRecipesToPages = (
   recipes: Recipe[],
   l: unknown,
   contentHeight: number,
-  setImages: Dispatch<SetStateAction<string[] | null>>
+  setImages: Dispatch<SetStateAction<string[] | null>>,
+  setVideoUrl: Dispatch<SetStateAction<string | null>>
 ) =>
-  recipes?.map((recipe, index) => [
+  recipes?.map((recipe, index) => {
+    const nonnaVideoUrl = resolveNonnaVideoUrl(recipe)
+    const photoOnlyRecipeImages = (recipe.recipe_image ?? []).filter(
+      (u) => !isVideoUrl(u)
+    )
+
+    return [
     <div className="page" key={`${index}-1`}>
       <div className="page-content relative">
         <div className="pokemon-container h-[100%]">
@@ -75,6 +95,22 @@ export const convertRecipesToPages = (
               <p className={`text-federant text-yellow-light text-center`}>
                 ({recipe.region})
               </p>
+              {nonnaVideoUrl ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setVideoUrl(nonnaVideoUrl)
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[#6D2924] text-white px-3 py-1.5 text-[11px] xl:text-xs font-semibold shadow-md hover:bg-[#561e1a] transition-colors"
+                  title="Watch a video of Nonna in the kitchen"
+                >
+                  <PlayCircle size={14} />
+                  Watch Video
+                </button>
+              ) : null}
             </div>
             <div className="relative w-[57%] min-w-0 h-[100%] overflow-hidden shrink">
               {recipe.photo && recipe.photo.length > 0 && (
@@ -154,7 +190,7 @@ export const convertRecipesToPages = (
           {/* <div className='h-[50%]'>  */}
           <RecipeSection
             title={recipe.recipeTitle}
-            images={recipe.recipe_image}
+            images={photoOnlyRecipeImages}
             ingredientsText={recipe.recipe}
             directionsText={recipe.directions}
             setImages={setImages}
@@ -197,4 +233,5 @@ export const convertRecipesToPages = (
         </div>
       </div>
     </div>,
-  ])
+  ]
+  })

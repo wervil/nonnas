@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
         recipe_image: body.recipe_image || null,
         dish_image: body.dish_image || null,
         avatar_image: body.avatar_image || null,
+        nonna_video: body.nonna_video || null,
         release_signature: body.release_signature || false,
         published: isDraft ? false : isAdmin, // Drafts are never published
         is_draft: isDraft,
@@ -197,6 +198,7 @@ export async function GET(request: NextRequest) {
       photo: recipes.photo,
       recipe_image: recipes.recipe_image,
       dish_image: recipes.dish_image,
+      nonna_video: recipes.nonna_video,
       recipeTitle: recipes.recipeTitle,
       release_signature: recipes.release_signature,
       published: recipes.published,
@@ -397,6 +399,7 @@ export async function PATCH(request: NextRequest) {
     if (body.recipe_image !== undefined) updatedRecipe.recipe_image = body.recipe_image;
     if (body.dish_image !== undefined) updatedRecipe.dish_image = body.dish_image;
     if (body.avatar_image !== undefined) updatedRecipe.avatar_image = body.avatar_image;
+    if (body.nonna_video !== undefined) updatedRecipe.nonna_video = body.nonna_video;
     if (body.release_signature !== undefined) updatedRecipe.release_signature = body.release_signature;
 
     const updated = await db

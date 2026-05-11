@@ -44,6 +44,37 @@ async function applyMigration() {
     `);
     console.log('Added is_draft column');
 
+    // --- Dedicated "Video of Nonna in the kitchen" support ---
+    await client.query(`
+      ALTER TABLE "recipes" ADD COLUMN IF NOT EXISTS "nonna_video" text;
+    `);
+    console.log('Added nonna_video column');
+
+    // Backfill: move any legacy video URL out of recipe_image into nonna_video
+    await client.query(`
+      UPDATE "recipes"
+      SET "nonna_video" = sub.video_url,
+          "recipe_image" = (
+            SELECT COALESCE(array_agg(elem), ARRAY[]::text[])
+            FROM unnest("recipe_image") AS elem
+            WHERE elem !~* '\\.(mp4|webm|mov|m4v|ogg)(\\?.*)?$'
+          )
+      FROM (
+        SELECT id,
+               (
+                 SELECT elem
+                 FROM unnest("recipe_image") AS elem
+                 WHERE elem ~* '\\.(mp4|webm|mov|m4v|ogg)(\\?.*)?$'
+                 LIMIT 1
+               ) AS video_url
+        FROM "recipes"
+      ) AS sub
+      WHERE "recipes".id = sub.id
+        AND sub.video_url IS NOT NULL
+        AND ("recipes"."nonna_video" IS NULL OR "recipes"."nonna_video" = '');
+    `);
+    console.log('Backfilled nonna_video from legacy recipe_image entries');
+
     console.log('Migration applied successfully!');
   } catch (error) {
     console.error('Error applying migration:', error);

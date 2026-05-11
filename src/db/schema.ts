@@ -41,6 +41,7 @@ export const recipes = pgTable("recipes", {
   recipe_image: text("recipe_image").array(),
   dish_image: text("dish_image").array(),
   avatar_image: text("avatar_image"),
+  nonna_video: text("nonna_video"),
   release_signature: boolean("release_signature").default(false),
   published: boolean("published").default(false),
   createdAt: timestamp("created_at").defaultNow(),

@@ -51,7 +51,7 @@ const recipeSchema = z.object({
   history: z
     .string()
     .min(1, "Biography is required")
-    .max(700, "Biography must be 700 characters or less"),
+    .max(2000, "Biography must be 2000 characters or less"),
   recipeTitle: z
     .string()
     .min(1, "Recipe Title is required")
@@ -60,27 +60,27 @@ const recipeSchema = z.object({
   recipe: z
     .string()
     .min(1, "Ingredients are required")
-    .refine((val) => getTextContent(val).length <= 1000, {
-      message: "Ingredients must be 1000 characters or less",
+    .refine((val) => getTextContent(val).length <= 2000, {
+      message: "Ingredients must be 2000 characters or less",
     }),
   directions: z
     .string()
     .min(1, "Directions are required")
-    .refine((val) => getTextContent(val).length <= 500, {
-      message: "Directions must be 500 characters or less",
+    .refine((val) => getTextContent(val).length <= 2000, {
+      message: "Directions must be 2000 characters or less",
     }),
   traditions: z
     .string()
     .min(1, "Traditions is required")
-    .max(500, "Traditions must be 500 characters or less"),
+    .max(2000, "Traditions must be 2000 characters or less"),
   geo_history: z
     .string()
     .min(1, "Regional History is required")
-    .max(600, "Regional History must be 600 characters or less"),
+    .max(2000, "Regional History must be 2000 characters or less"),
   influences: z
     .string()
     .min(1, "Influences is required")
-    .max(400, "Influences must be 400 characters or less"),
+    .max(2000, "Influences must be 2000 characters or less"),
   photo: z.any().refine((val) => val && val.length > 0, {
     message: "Photo of your Grandmother is required",
   }),
@@ -89,6 +89,7 @@ const recipeSchema = z.object({
   }),
   dish_image: z.any().optional(),
   avatar_image: z.string().optional(),
+  nonna_video: z.any().optional(),
   userId: z.string().optional(),
   release_signature: z
     .boolean()
@@ -153,6 +154,7 @@ export const AddRecipe = ({
       recipe_image: [],
       dish_image: [],
       avatar_image: "",
+      nonna_video: [],
       release_signature: false,
       userId: userId || "",
     },
@@ -196,7 +198,7 @@ export const AddRecipe = ({
     {
       id: "media",
       title: "Media & Review",
-      fields: ["photo", "recipe_image", "release_signature"],
+      fields: ["photo", "recipe_image", "nonna_video", "release_signature"],
       description: "Upload photos and review.",
     },
   ];
@@ -292,6 +294,7 @@ export const AddRecipe = ({
         dish_image: recipe.dish_image || [],
         recipe_image: recipe.recipe_image || [],
         avatar_image: recipe.avatar_image || "",
+        nonna_video: recipe.nonna_video ? [recipe.nonna_video] : [],
         release_signature: recipe.release_signature || false,
         userId,
       });
@@ -320,6 +323,10 @@ export const AddRecipe = ({
     dish_image: data.dish_image || [],
     recipe_image: data.recipe_image || [],
     avatar_image: avatarUrl || data.avatar_image || null,
+    nonna_video:
+      Array.isArray(data.nonna_video) && data.nonna_video.length > 0
+        ? data.nonna_video[0]
+        : data.nonna_video || null,
     release_signature: data.release_signature || false,
     user_id: data.userId || userId,
   });
@@ -335,7 +342,11 @@ export const AddRecipe = ({
         ? await fetch("/api/recipes", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...payload, id: existingId, is_draft: true }),
+            body: JSON.stringify({
+              ...payload,
+              id: existingId,
+              is_draft: true,
+            }),
             cache: "no-store",
           })
         : await fetch("/api/recipes", {
@@ -691,13 +702,26 @@ export const AddRecipe = ({
 
                 <FileUpload
                   label={`${l("recipeImage")}*`}
-                  description={`${d("recipeImage")} You can upload one image or one video.`}
+                  description={d("recipeImage")}
                   name="recipe_image"
+                  control={control}
+                  maxFiles={1}
+                  accept={{
+                    "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
+                  }}
+                  setValue={setValue}
+                  watch={watch}
+                  theme="light"
+                />
+
+                <FileUpload
+                  label="Upload a Video of Nonna in the kitchen"
+                  description="Share a short video of Nonna cooking or passing down some time-honored wisdom. This appears as a separate “Watch Video” button on her page."
+                  name="nonna_video"
                   control={control}
                   maxFiles={1}
                   maxSize={50 * 1024 * 1024}
                   accept={{
-                    "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
                     "video/*": [".mp4", ".webm", ".mov", ".m4v", ".ogg"],
                   }}
                   setValue={setValue}
