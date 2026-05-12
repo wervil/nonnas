@@ -24,25 +24,32 @@ export default function NonnaModal({
   scope?: "country" | "state";
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"recipes" | "community">("recipes");
+  const [activeTab, setActiveTab] = useState<"recipes" | "community">(
+    "recipes",
+  );
 
-  const handleViewRecipe = useCallback((recipeId: string | number) => {
-    // Close the modal first
-    onClose();
-    // Navigate to home page with recipe ID to open flipbook at that recipe's page
-    router.push(`/?recipe=${recipeId}`);
-  }, [onClose, router]);
+  const handleViewRecipe = useCallback(
+    (recipeId: string | number) => {
+      // Close the modal first
+      onClose();
+      // Navigate to home page with recipe ID to open flipbook at that recipe's page
+      router.push(`/?recipe=${recipeId}`);
+    },
+    [onClose, router],
+  );
 
   const handleStartDiscussion = useCallback(() => {
     if (!region) return;
-    router.push(`/community/create?region=${encodeURIComponent(region)}&scope=${scope}`);
+    router.push(
+      `/community/create?region=${encodeURIComponent(region)}&scope=${scope}`,
+    );
   }, [region, scope, router]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     },
-    [onClose]
+    [onClose],
   );
 
   useEffect(() => {
@@ -88,8 +95,18 @@ export default function NonnaModal({
               className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white shadow-sm border border-white/10 transition-all duration-150"
               aria-label="Close"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -99,19 +116,21 @@ export default function NonnaModal({
         <div className="flex border-b border-white/10 bg-black/30">
           <button
             onClick={() => setActiveTab("recipes")}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${activeTab === "recipes"
+            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+              activeTab === "recipes"
                 ? "text-amber-500 border-b-2 border-amber-500 bg-white/5"
                 : "text-gray-400 hover:text-gray-300"
-              }`}
+            }`}
           >
             Recipes ({nonnas.length})
           </button>
           <button
             onClick={() => setActiveTab("community")}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${activeTab === "community"
+            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+              activeTab === "community"
                 ? "text-amber-500 border-b-2 border-amber-500 bg-white/5"
                 : "text-gray-400 hover:text-gray-300"
-              }`}
+            }`}
           >
             Community
           </button>
@@ -124,7 +143,9 @@ export default function NonnaModal({
               {nonnas.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-4xl mb-3">🍝</div>
-                  <p className="text-gray-400">No nonnas found in this area.</p>
+                  <p className="text-gray-400">
+                    No Grandmothers found in this area.
+                  </p>
                 </div>
               ) : (
                 <div className="grid gap-4">
@@ -154,9 +175,14 @@ export default function NonnaModal({
                         <div className="flex-1 p-4 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <h3 className="font-bold text-white">{nonna.name}</h3>
+                              <h3 className="font-bold text-white">
+                                {nonna.name}
+                              </h3>
                               {nonna.recipeTitle && (
-                                <p className="text-sm font-medium mt-0.5" style={{ color: themeColor }}>
+                                <p
+                                  className="text-sm font-medium mt-0.5"
+                                  style={{ color: themeColor }}
+                                >
                                   {nonna.recipeTitle}
                                 </p>
                               )}

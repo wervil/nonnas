@@ -5,7 +5,7 @@ import ExploreContent from "./ExploreContent";
 
 // Preload critical resources for faster globe rendering
 export const metadata = {
-  title: "Nonnas of the World - Interactive Globe",
+  title: "Grandmothers of the World - Interactive Globe",
 };
 
 

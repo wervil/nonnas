@@ -12,7 +12,7 @@ type LatLng = { lat: number; lng: number };
 
 type GeoFeature = {
   type: "Feature";
-  properties: { CONTINENT?: string;[k: string]: unknown };
+  properties: { CONTINENT?: string; [k: string]: unknown };
   geometry: {
     type: "Polygon" | "MultiPolygon";
     coordinates: number[][][] | number[][][][];
@@ -26,7 +26,9 @@ type ThreeGlobeInstance = THREE.Object3D & {
   atmosphereColor: (c: string) => ThreeGlobeInstance;
   atmosphereAltitude: (a: number) => ThreeGlobeInstance;
   polygonsData: (data: object[]) => ThreeGlobeInstance;
-  polygonAltitude: (alt: number | ((d: object) => number)) => ThreeGlobeInstance;
+  polygonAltitude: (
+    alt: number | ((d: object) => number),
+  ) => ThreeGlobeInstance;
   polygonStrokeColor: (fn: (d: object) => string) => ThreeGlobeInstance;
   polygonSideColor: (fn: (d: object) => string) => ThreeGlobeInstance;
   polygonCapColor: (fn: (d: object) => string) => ThreeGlobeInstance;
@@ -142,7 +144,7 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function normalizeLng(lng: number) {
-  return ((((lng % 360) + 540) % 360) - 180);
+  return (((lng % 360) + 540) % 360) - 180;
 }
 
 function createRingTextTexture(text: string, fontSize = 64): THREE.Texture {
@@ -185,7 +187,8 @@ function pointInRing(p: LatLng, ring: number[][]) {
     const xj = ring[j][0];
     const yj = ring[j][1];
 
-    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -249,7 +252,9 @@ export default function NaturalStyledGlobe({
   const activeRef = useRef(active);
   const onClickRef = useRef(onContinentClick);
 
-  const [geoStatus, setGeoStatus] = useState<"loading" | "ok" | "fail">("loading");
+  const [geoStatus, setGeoStatus] = useState<"loading" | "ok" | "fail">(
+    "loading",
+  );
   const [hoveredContinent, setHoveredContinent] = useState<string | null>(null);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [canvasOpacity, setCanvasOpacity] = useState(0);
@@ -337,17 +342,22 @@ export default function NaturalStyledGlobe({
 
   const getAsiaSubRegion = useCallback(
     (countryName: string | undefined, lat: number, lng: number): string => {
-      if (countryName && COUNTRY_TO_REGION[countryName]) return COUNTRY_TO_REGION[countryName];
+      if (countryName && COUNTRY_TO_REGION[countryName])
+        return COUNTRY_TO_REGION[countryName];
 
-      if (lat >= 12 && lat <= 45 && lng >= 25 && lng <= 65) return "Middle East";
+      if (lat >= 12 && lat <= 45 && lng >= 25 && lng <= 65)
+        return "Middle East";
       if (lat >= 5 && lat <= 38 && lng >= 65 && lng <= 95) return "South Asia";
-      if (lat >= -12 && lat <= 25 && lng >= 95 && lng <= 145) return "Southeast Asia";
-      if (lat >= 35 && lat <= 55 && lng >= 45 && lng <= 90) return "Central Asia";
-      if (lat >= 18 && lat <= 55 && lng >= 100 && lng <= 150) return "East Asia";
+      if (lat >= -12 && lat <= 25 && lng >= 95 && lng <= 145)
+        return "Southeast Asia";
+      if (lat >= 35 && lat <= 55 && lng >= 45 && lng <= 90)
+        return "Central Asia";
+      if (lat >= 18 && lat <= 55 && lng >= 100 && lng <= 150)
+        return "East Asia";
 
       return "East Asia";
     },
-    []
+    [],
   );
 
   const findContinentAtLatLng = useCallback(
@@ -363,13 +373,19 @@ export default function NaturalStyledGlobe({
           const countryName = f.properties?.NAME as string | undefined;
           const adminName = f.properties?.ADMIN as string | undefined;
 
-          if (countryName && COUNTRY_TO_REGION[countryName]) return COUNTRY_TO_REGION[countryName];
-          if (adminName && COUNTRY_TO_REGION[adminName]) return COUNTRY_TO_REGION[adminName];
+          if (countryName && COUNTRY_TO_REGION[countryName])
+            return COUNTRY_TO_REGION[countryName];
+          if (adminName && COUNTRY_TO_REGION[adminName])
+            return COUNTRY_TO_REGION[adminName];
 
           if (cont === "Asia") return getAsiaSubRegion(countryName, lat, lng);
 
           if (cont === "Oceania") {
-            if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") return "Pacific Islands";
+            if (
+              countryName &&
+              COUNTRY_TO_REGION[countryName] === "Pacific Islands"
+            )
+              return "Pacific Islands";
             if (lng > 150 || lng < -150) return "Pacific Islands";
           }
 
@@ -378,7 +394,7 @@ export default function NaturalStyledGlobe({
       }
       return null;
     },
-    [getAsiaSubRegion]
+    [getAsiaSubRegion],
   );
 
   const worldToLatLng = useCallback((point: THREE.Vector3): LatLng => {
@@ -392,29 +408,45 @@ export default function NaturalStyledGlobe({
 
   // ✅ FIXED: no TS "never" issue, and worldToLocal is safe
   const raycastContinent = useCallback(
-    (clientX: number, clientY: number): { continent: string | null; point: THREE.Vector3 | null } => {
+    (
+      clientX: number,
+      clientY: number,
+    ): { continent: string | null; point: THREE.Vector3 | null } => {
       const renderer = rendererRef.current;
       const camera = cameraRef.current;
       const globe = globeRef.current;
 
-      if (!renderer || !camera || !globe) return { continent: null, point: null };
+      if (!renderer || !camera || !globe)
+        return { continent: null, point: null };
 
       const rect = renderer.domElement.getBoundingClientRect();
       const mouseNdc = new THREE.Vector2(
         ((clientX - rect.left) / rect.width) * 2 - 1,
-        -(((clientY - rect.top) / rect.height) * 2 - 1)
+        -(((clientY - rect.top) / rect.height) * 2 - 1),
       );
 
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouseNdc, camera);
 
       // Find the largest sphere mesh inside ThreeGlobe
-      let best: THREE.Mesh<THREE.SphereGeometry, THREE.Material | THREE.Material[]> | null = null;
+      let best: THREE.Mesh<
+        THREE.SphereGeometry,
+        THREE.Material | THREE.Material[]
+      > | null = null;
 
       globe.traverse((obj) => {
-        if (obj instanceof THREE.Mesh && obj.geometry instanceof THREE.SphereGeometry) {
-          const mesh = obj as THREE.Mesh<THREE.SphereGeometry, THREE.Material | THREE.Material[]>;
-          if (!best || mesh.geometry.parameters.radius > best.geometry.parameters.radius) {
+        if (
+          obj instanceof THREE.Mesh &&
+          obj.geometry instanceof THREE.SphereGeometry
+        ) {
+          const mesh = obj as THREE.Mesh<
+            THREE.SphereGeometry,
+            THREE.Material | THREE.Material[]
+          >;
+          if (
+            !best ||
+            mesh.geometry.parameters.radius > best.geometry.parameters.radius
+          ) {
             best = mesh;
           }
         }
@@ -436,7 +468,7 @@ export default function NaturalStyledGlobe({
 
       return { continent, point: hit.point };
     },
-    [findContinentAtLatLng, worldToLatLng]
+    [findContinentAtLatLng, worldToLatLng],
   );
 
   const getFeatureRegion = useCallback(
@@ -447,28 +479,35 @@ export default function NaturalStyledGlobe({
       const countryName = f.properties?.NAME as string | undefined;
       const adminName = f.properties?.ADMIN as string | undefined;
 
-      if (countryName && COUNTRY_TO_REGION[countryName]) return COUNTRY_TO_REGION[countryName];
-      if (adminName && COUNTRY_TO_REGION[adminName]) return COUNTRY_TO_REGION[adminName];
+      if (countryName && COUNTRY_TO_REGION[countryName])
+        return COUNTRY_TO_REGION[countryName];
+      if (adminName && COUNTRY_TO_REGION[adminName])
+        return COUNTRY_TO_REGION[adminName];
 
       if (cont === "Asia") {
-        const coords = (f.geometry.type === "Polygon"
-          ? (f.geometry.coordinates as number[][][])[0]
-          : (f.geometry.coordinates as number[][][][])[0]?.[0]) as number[][] | undefined;
+        const coords = (
+          f.geometry.type === "Polygon"
+            ? (f.geometry.coordinates as number[][][])[0]
+            : (f.geometry.coordinates as number[][][][])[0]?.[0]
+        ) as number[][] | undefined;
 
         if (coords && coords.length > 0) {
-          const avgLng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
-          const avgLat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+          const avgLng =
+            coords.reduce((sum, c) => sum + c[0], 0) / coords.length;
+          const avgLat =
+            coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
           return getAsiaSubRegion(countryName, avgLat, avgLng);
         }
       }
 
       if (cont === "Oceania") {
-        if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands") return "Pacific Islands";
+        if (countryName && COUNTRY_TO_REGION[countryName] === "Pacific Islands")
+          return "Pacific Islands";
       }
 
       return cont;
     },
-    [getAsiaSubRegion]
+    [getAsiaSubRegion],
   );
 
   const highlightedRegionRef = useRef<string | null>(null);
@@ -492,7 +531,7 @@ export default function NaturalStyledGlobe({
 
       globe.polygonsData(geo.features as object[]);
     },
-    [getFeatureRegion]
+    [getFeatureRegion],
   );
 
   // ---------- Single cleanup function to prevent “ghosting” ----------
@@ -507,7 +546,7 @@ export default function NaturalStyledGlobe({
     cleanupFnsRef.current.forEach((fn) => {
       try {
         fn();
-      } catch { }
+      } catch {}
     });
     cleanupFnsRef.current = [];
 
@@ -523,12 +562,12 @@ export default function NaturalStyledGlobe({
         const gl = rendererRef.current.getContext();
         const lose = gl?.getExtension("WEBGL_lose_context");
         lose?.loseContext();
-      } catch { }
+      } catch {}
 
       try {
         rendererRef.current.dispose();
         rendererRef.current.forceContextLoss();
-      } catch { }
+      } catch {}
 
       rendererRef.current = null;
     }
@@ -560,7 +599,9 @@ export default function NaturalStyledGlobe({
 
     // Guard: global instance limit
     if (activeGlobeInstances >= MAX_ALLOWED_INSTANCES) {
-      setWebglError("Another globe instance is active. Close other globe tabs and refresh.");
+      setWebglError(
+        "Another globe instance is active. Close other globe tabs and refresh.",
+      );
       return;
     }
 
@@ -581,7 +622,8 @@ export default function NaturalStyledGlobe({
         if (cancelled || token !== initTokenRef.current) return;
 
         const mod = await import("three-globe");
-        const ThreeGlobe = mod.default as unknown as new () => ThreeGlobeInstance;
+        const ThreeGlobe =
+          mod.default as unknown as new () => ThreeGlobeInstance;
 
         if (cancelled || token !== initTokenRef.current) return;
 
@@ -609,7 +651,12 @@ export default function NaturalStyledGlobe({
           distance = 350;
         }
 
-        const camera = new THREE.PerspectiveCamera(54, mount.clientWidth / mount.clientHeight, 1, 2000);
+        const camera = new THREE.PerspectiveCamera(
+          54,
+          mount.clientWidth / mount.clientHeight,
+          1,
+          2000,
+        );
         camera.position.set(0, 0, distance);
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera;
@@ -655,7 +702,9 @@ export default function NaturalStyledGlobe({
         };
 
         canvas.addEventListener("webglcontextlost", handleContextLost, false);
-        addCleanup(() => canvas.removeEventListener("webglcontextlost", handleContextLost));
+        addCleanup(() =>
+          canvas.removeEventListener("webglcontextlost", handleContextLost),
+        );
 
         // Globe
         const globe = new ThreeGlobe()
@@ -686,7 +735,7 @@ export default function NaturalStyledGlobe({
         const planeHeight = isSmall ? 20 : 32;
         const fontSize = isSmall ? 50 : 80;
 
-        const ringText = "NONNAS OF THE WORLD ";
+        const ringText = "GRANDMOTHERS OF THE WORLD ";
         const totalChars = ringText.length;
 
         for (let i = 0; i < totalChars; i++) {
@@ -757,8 +806,10 @@ export default function NaturalStyledGlobe({
           }
 
           const lerp = 0.08;
-          rotationRef.current.x += (targetRotationRef.current.x - rotationRef.current.x) * lerp;
-          rotationRef.current.y += (targetRotationRef.current.y - rotationRef.current.y) * lerp;
+          rotationRef.current.x +=
+            (targetRotationRef.current.x - rotationRef.current.x) * lerp;
+          rotationRef.current.y +=
+            (targetRotationRef.current.y - rotationRef.current.y) * lerp;
 
           globe.rotation.x = rotationRef.current.x;
           globe.rotation.y = rotationRef.current.y;
@@ -777,7 +828,7 @@ export default function NaturalStyledGlobe({
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
           try {
             renderer.domElement.setPointerCapture(e.pointerId);
-          } catch { }
+          } catch {}
         };
 
         const onPointerMove = (e: PointerEvent) => {
@@ -787,11 +838,16 @@ export default function NaturalStyledGlobe({
             const dx = e.clientX - lastMouseRef.current.x;
             const dy = e.clientY - lastMouseRef.current.y;
 
-            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDraggedRef.current = true;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2)
+              hasDraggedRef.current = true;
 
             targetRotationRef.current.y += dx * ROTATION_SENSITIVITY;
             targetRotationRef.current.x += dy * ROTATION_SENSITIVITY;
-            targetRotationRef.current.x = clamp(targetRotationRef.current.x, -MAX_TILT, MAX_TILT);
+            targetRotationRef.current.x = clamp(
+              targetRotationRef.current.x,
+              -MAX_TILT,
+              MAX_TILT,
+            );
 
             lastMouseRef.current = { x: e.clientX, y: e.clientY };
 
@@ -816,7 +872,7 @@ export default function NaturalStyledGlobe({
 
           try {
             renderer.domElement.releasePointerCapture(e.pointerId);
-          } catch { }
+          } catch {}
 
           if (!hasDraggedRef.current && activeRef.current) {
             const { continent } = raycastContinent(e.clientX, e.clientY);
@@ -849,7 +905,8 @@ export default function NaturalStyledGlobe({
         const onResize = () => {
           computeIsSmall();
 
-          if (!cameraRef.current || !rendererRef.current || !mountRef.current) return;
+          if (!cameraRef.current || !rendererRef.current || !mountRef.current)
+            return;
           const w = mountRef.current.clientWidth;
           const h = mountRef.current.clientHeight;
           cameraRef.current.aspect = w / h;
@@ -861,14 +918,29 @@ export default function NaturalStyledGlobe({
         renderer.domElement.addEventListener("pointermove", onPointerMove);
         renderer.domElement.addEventListener("pointerup", onPointerUp);
         renderer.domElement.addEventListener("pointerleave", onPointerLeave);
-        renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+        renderer.domElement.addEventListener("wheel", onWheel, {
+          passive: false,
+        });
         window.addEventListener("resize", onResize);
 
-        addCleanup(() => renderer.domElement.removeEventListener("pointerdown", onPointerDown));
-        addCleanup(() => renderer.domElement.removeEventListener("pointermove", onPointerMove));
-        addCleanup(() => renderer.domElement.removeEventListener("pointerup", onPointerUp));
-        addCleanup(() => renderer.domElement.removeEventListener("pointerleave", onPointerLeave));
-        addCleanup(() => renderer.domElement.removeEventListener("wheel", onWheel));
+        addCleanup(() =>
+          renderer.domElement.removeEventListener("pointerdown", onPointerDown),
+        );
+        addCleanup(() =>
+          renderer.domElement.removeEventListener("pointermove", onPointerMove),
+        );
+        addCleanup(() =>
+          renderer.domElement.removeEventListener("pointerup", onPointerUp),
+        );
+        addCleanup(() =>
+          renderer.domElement.removeEventListener(
+            "pointerleave",
+            onPointerLeave,
+          ),
+        );
+        addCleanup(() =>
+          renderer.domElement.removeEventListener("wheel", onWheel),
+        );
         addCleanup(() => window.removeEventListener("resize", onResize));
       } catch (err) {
         console.error("Globe init error:", err);
@@ -889,22 +961,33 @@ export default function NaturalStyledGlobe({
 
   if (webglError) {
     return (
-      <div className="w-full h-full relative flex items-center justify-center" style={{ background: "#0a0a0a" }}>
+      <div
+        className="w-full h-full relative flex items-center justify-center"
+        style={{ background: "#0a0a0a" }}
+      >
         <div className="text-center p-8 bg-black/80 backdrop-blur-sm rounded-lg border border-red-500/30 max-w-lg">
-          <div className="text-red-400 text-xl font-bold mb-4">⚠️ Graphics Error</div>
+          <div className="text-red-400 text-xl font-bold mb-4">
+            ⚠️ Graphics Error
+          </div>
           <p className="text-gray-300 mb-6">{webglError}</p>
 
           <div className="text-left text-sm text-gray-400 mb-6 bg-black/40 p-4 rounded">
-            <p className="font-semibold mb-3 text-amber-400">Try these steps:</p>
+            <p className="font-semibold mb-3 text-amber-400">
+              Try these steps:
+            </p>
             <ol className="list-decimal list-inside space-y-2">
               <li>
-                <span className="font-medium">Enable Hardware Acceleration:</span>
+                <span className="font-medium">
+                  Enable Hardware Acceleration:
+                </span>
                 <br />
                 <code className="text-xs bg-gray-800 px-2 py-1 rounded mt-1 inline-block">
                   chrome://settings/system
                 </code>
                 <br />
-                <span className="text-xs">Turn ON &quot;Use hardware acceleration when available&quot;</span>
+                <span className="text-xs">
+                  Turn ON &quot;Use hardware acceleration when available&quot;
+                </span>
               </li>
               <li>
                 <span className="font-medium">Force Enable WebGL:</span>
@@ -913,13 +996,17 @@ export default function NaturalStyledGlobe({
                   chrome://flags/#ignore-gpu-blocklist
                 </code>
                 <br />
-                <span className="text-xs">Set to &quot;Enabled&quot; and restart Chrome</span>
+                <span className="text-xs">
+                  Set to &quot;Enabled&quot; and restart Chrome
+                </span>
               </li>
               <li>
-                <span className="font-medium">Update Chrome</span> to the latest version
+                <span className="font-medium">Update Chrome</span> to the latest
+                version
               </li>
               <li>
-                <span className="font-medium">Try Safari</span> - this feature works there!
+                <span className="font-medium">Try Safari</span> - this feature
+                works there!
               </li>
             </ol>
           </div>
@@ -936,12 +1023,21 @@ export default function NaturalStyledGlobe({
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden" style={{ background: "#0a0a0a" }}>
+    <div
+      className="w-full h-full relative overflow-hidden"
+      style={{ background: "#0a0a0a" }}
+    >
       {geoStatus !== "ok" && (
         <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-gray-700">
           <div className="text-xs text-gray-400">
             Data:{" "}
-            <span className={geoStatus === "fail" ? "text-red-400" : "text-amber-400"}>{geoStatus}</span>
+            <span
+              className={
+                geoStatus === "fail" ? "text-red-400" : "text-amber-400"
+              }
+            >
+              {geoStatus}
+            </span>
           </div>
         </div>
       )}
