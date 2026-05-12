@@ -26,15 +26,15 @@ const ZOOM_LEVEL_META: Record<
   ZoomLevel,
   { label: string; description: string }
 > = {
-  EARTH: { label: "World", description: "See all Nonnas globally" },
+  EARTH: { label: "World", description: "See all grandmothers globally" },
   CONTINENT: {
     label: "Continent",
     description: "Browse by continent",
   },
   COUNTRY: { label: "Country", description: "Explore by country" },
   STATE: { label: "Region", description: "Dive into regions" },
-  CITY: { label: "City", description: "Meet a Nonna" },
-  NONNA: { label: "Nonna", description: "Close-up view" },
+  CITY: { label: "City", description: "Meet a grandmother" },
+  NONNA: { label: "Grandmother", description: "Close-up view" },
 };
 // Teal brand palette
 const TEAL = {
@@ -600,7 +600,8 @@ async function buildMarkerTemplate(opts: {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-  const countLabel = nonnaCount === 1 ? "1 Nonna" : `${nonnaCount} Nonnas`;
+  const countLabel =
+    nonnaCount === 1 ? "1 Grandmother" : `${nonnaCount} Grandmothers`;
   const badge = `${flag} ${countryName}  ·  ${countLabel}`;
   const uid =
     countryCode.toLowerCase().replace(/[^a-z]/g, "") +
@@ -1484,7 +1485,7 @@ export default function Earth3DPage() {
     };
   }, [mapReady, nonnaData]);
 
-  // World view + no map selection: load all published nonnas for the Nonnas tab
+  // World view + no map selection: load all published grandmothers for the Grandmothers tab
   useEffect(() => {
     if (!panel.open || currentLevel !== "EARTH" || panel.region.trim() !== "") {
       return;
@@ -1509,7 +1510,7 @@ export default function Earth3DPage() {
           return { ...prev, nonnas: list };
         });
       } catch (e) {
-        console.error("[Earth3D] World-level nonnas fetch:", e);
+        console.error("[Earth3D] World-level grandmothers fetch:", e);
       }
     })();
 
@@ -1518,7 +1519,7 @@ export default function Earth3DPage() {
     };
   }, [panel.open, panel.region, currentLevel]);
 
-  // Refetch nonnas when region changes (continent, country, state, city)
+  // Refetch grandmothers when region changes (continent, country, state, city)
   useEffect(() => {
     if (!panel.region || panel.region.trim() === "") {
       return;
@@ -1561,7 +1562,7 @@ export default function Earth3DPage() {
         }));
       } catch (error) {
         console.error(
-          "[Earth3D] Error refetching nonnas for region change:",
+          "[Earth3D] Error refetching grandmothers for region change:",
           error,
         );
         setPanel((prev) => ({ ...prev, isLoading: false }));
@@ -1617,7 +1618,7 @@ export default function Earth3DPage() {
           }));
         } catch (error) {
           console.error(
-            "[Earth3D] Error refreshing nonnas after street view exit:",
+            "[Earth3D] Error refreshing grandmothers after street view exit:",
             error,
           );
           setPanel((prev) => ({ ...prev, isLoading: false }));
@@ -1682,11 +1683,11 @@ export default function Earth3DPage() {
       const res = await fetch(`/api/nonnas/clustering?level=${level}`, {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Failed to fetch individual nonnas");
+      if (!res.ok) throw new Error("Failed to fetch individual grandmothers");
       const data = await res.json();
       setNonnaData(data.clusters || []);
     } catch (err) {
-      console.error("[Earth3D] individual nonnas fetch error:", err);
+      console.error("[Earth3D] individual grandmothers fetch error:", err);
     }
   }, []);
 
@@ -4177,7 +4178,10 @@ export default function Earth3DPage() {
                     const data = await response.json();
                     return mapRecipesToPanelNonnas(data.recipes || []);
                   } catch (error) {
-                    console.error("[Earth3D] Error fetching nonnas:", error);
+                    console.error(
+                      "[Earth3D] Error fetching grandmothers:",
+                      error,
+                    );
                     return [];
                   }
                 };
@@ -5399,7 +5403,7 @@ export default function Earth3DPage() {
               textLength="920"
               lengthAdjust="spacing"
             >
-              NONNAS OF THE WORLD
+              GRANDMOTHERS OF THE WORLD
             </textPath>
           </text>
         </svg>

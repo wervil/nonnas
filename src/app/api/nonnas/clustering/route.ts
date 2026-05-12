@@ -86,7 +86,13 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add sample recipe ID
         })
         .from(recipes)
-        .where(and(isNotNull(recipes.country), eq(recipes.published, true), isNull(recipes.deleted_at)))
+        .where(
+          and(
+            isNotNull(recipes.country),
+            eq(recipes.published, true),
+            isNull(recipes.deleted_at),
+          ),
+        )
         .groupBy(recipes.country, recipes.region);
 
       const continentMap: Record<string, GlobeNonna> = {};
@@ -197,7 +203,13 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
-        .where(and(isNotNull(recipes.country), eq(recipes.published, true), isNull(recipes.deleted_at)))
+        .where(
+          and(
+            isNotNull(recipes.country),
+            eq(recipes.published, true),
+            isNull(recipes.deleted_at),
+          ),
+        )
         .groupBy(recipes.country);
 
       const continentMap: Record<string, GlobeNonna> = {};
@@ -234,7 +246,13 @@ export async function GET(req: NextRequest) {
           sampleRecipeId: sql<number>`MAX(${recipes.id})`, // Add recipe ID
         })
         .from(recipes)
-        .where(and(isNotNull(recipes.country), eq(recipes.published, true), isNull(recipes.deleted_at)))
+        .where(
+          and(
+            isNotNull(recipes.country),
+            eq(recipes.published, true),
+            isNull(recipes.deleted_at),
+          ),
+        )
         .groupBy(recipes.country);
 
       clusters = rows.map((r, i) => {
@@ -253,7 +271,10 @@ export async function GET(req: NextRequest) {
         };
       });
     } else if (level === "COUNTRY" || level === "STATE") {
-      const conditions = [eq(recipes.published, true), isNull(recipes.deleted_at)];
+      const conditions = [
+        eq(recipes.published, true),
+        isNull(recipes.deleted_at),
+      ];
       if (countryParam) {
         conditions.push(
           eq(sql`lower(${recipes.country})`, countryParam.toLowerCase()),
@@ -312,8 +333,11 @@ export async function GET(req: NextRequest) {
         };
       });
     } else {
-      // CITY or NONNA level: show individual Nonnas
-      const conditions = [eq(recipes.published, true), isNull(recipes.deleted_at)];
+      // CITY or Grandmother level: show individual Grandmothers
+      const conditions = [
+        eq(recipes.published, true),
+        isNull(recipes.deleted_at),
+      ];
       if (countryParam) {
         conditions.push(
           eq(sql`lower(${recipes.country})`, countryParam.toLowerCase()),

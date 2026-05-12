@@ -62,8 +62,8 @@ function exportRecipesToTxt(
   const lines: string[] = [];
 
   const header = countryLabel
-    ? `Nonna's Recipes - ${countryLabel}`
-    : `Nonna's Recipes - All Countries`;
+    ? `Grandmother's Recipes - ${countryLabel}`
+    : `Grandmother's Recipes - All Countries`;
   lines.push(header);
   lines.push("=".repeat(header.length));
   lines.push(`Total: ${recipes.length} recipes`);
