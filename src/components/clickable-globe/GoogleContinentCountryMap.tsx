@@ -1190,7 +1190,7 @@ export default function GoogleContinentCountryMap({
                   fill="${MARKER_COLOR}" stroke="#ffffff" stroke-width="3"/>
           <text x="${size / 2}" y="${size / 2 + 5}" 
                 font-family=\"'Bell', serif\" font-size="${country.nonnaCount > 99 ? "10" : "14"}" 
-                font-weight="700" fill="#ffffff" text-anchor="middle">${country.grandmotherCount}</text>
+                font-weight="700" fill="#ffffff" text-anchor="middle">${country.nonnaCount}</text>
         </svg>
       `;
 
@@ -1202,7 +1202,7 @@ export default function GoogleContinentCountryMap({
             scaledSize: new google.maps.Size(size, size),
             anchor: new google.maps.Point(size / 2, size / 2),
           },
-          title: `${country.countryName}: ${country.nonnaCount} grandmother(s) - Click to see regions`,
+          title: `${country.countryName}: ${country.nonnaCount} nonna(s) - Click to see regions`,
           zIndex: 10000,
           clickable: true,
           optimized: false,
@@ -1443,12 +1443,12 @@ export default function GoogleContinentCountryMap({
         const stateName = state.stateName;
         const count = state.nonnaCount;
 
-        // FIX: Create invisible clickable markers for states with 0 Grandmothers
+        // FIX: Create invisible clickable markers for states with 0 Nonnas
         if (count === 0) {
           const infoWindow = new google.maps.InfoWindow({
             content: `<div style="padding: 8px; font-family: 'Bell', serif;">
             <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">No Grandmothers yet</div>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">No Nonnas yet</div>
             <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to start discussion</div>
           </div>`,
             disableAutoPan: true,
@@ -1464,7 +1464,7 @@ export default function GoogleContinentCountryMap({
               fillOpacity: 0,
               strokeWeight: 0,
             },
-            title: `${stateName}: No Grandmothers yet - Click to start discussion`,
+            title: `${stateName}: No Nonnas yet - Click to start discussion`,
             zIndex: 50,
             clickable: true,
             optimized: false,
@@ -1478,7 +1478,7 @@ export default function GoogleContinentCountryMap({
           continue; // Skip creating the visible marker
         }
 
-        // Skip states with 0 Grandmothers - don't show empty markers
+        // Skip states with 0 Nonnas - don't show empty markers
         // if (count === 0) {
         //   continue;
         // }
@@ -1488,7 +1488,7 @@ export default function GoogleContinentCountryMap({
         const infoWindow = new google.maps.InfoWindow({
           content: `<div style="padding: 8px; font-family: 'Bell', serif;">
           <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
-          <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Grandmother${count !== 1 ? "s" : ""}</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Nonna${count !== 1 ? "s" : ""}</div>
           <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to view discussions</div>
         </div>`,
           disableAutoPan: true,
@@ -1512,7 +1512,7 @@ export default function GoogleContinentCountryMap({
             fontSize: "12px",
             fontWeight: "bold",
           },
-          title: `${stateName}: ${count} grandmother(s) - Click to view discussions`,
+          title: `${stateName}: ${count} nonna(s) - Click to view discussions`,
           zIndex: 100,
           clickable: true,
           optimized: false,
@@ -1628,7 +1628,7 @@ export default function GoogleContinentCountryMap({
 
         const count = matchedState?.nonnaCount || 0;
 
-        // FIX: Create invisible clickable markers for states with 0 Grandmothers
+        // FIX: Create invisible clickable markers for states with 0 Nonnas
         if (count === 0) {
           // Create a minimal, nearly invisible marker that's still clickable
           const emptyStateMarker = new google.maps.Marker({
@@ -1641,7 +1641,7 @@ export default function GoogleContinentCountryMap({
               fillOpacity: 0,
               strokeWeight: 0,
             },
-            title: `${stateName}: No Grandmothers yet - Click to start discussion`,
+            title: `${stateName}: No Nonnas yet - Click to start discussion`,
             zIndex: 50, // Lower than states with content
             clickable: true,
             optimized: false,
@@ -1670,7 +1670,7 @@ export default function GoogleContinentCountryMap({
           continue; // Skip creating the visible marker
         }
 
-        // Skip states with 0 Grandmothers - don't show empty markers
+        // Skip states with 0 Nonnas - don't show empty markers
         // if (count === 0) {
         //   continue;
         // }
@@ -1682,7 +1682,7 @@ export default function GoogleContinentCountryMap({
         const infoWindow = new google.maps.InfoWindow({
           content: `<div style="padding: 8px; font-family: 'Bell', serif;">
           <strong style="font-size: 14px; color: ${MARKER_COLOR};">${stateName}</strong>
-          <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Grandmother${count !== 1 ? "s" : ""}</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">${count} Nonna${count !== 1 ? "s" : ""}</div>
           <div style="font-size: 11px; color: #999; margin-top: 2px;">Click to view discussions</div>
         </div>`,
           disableAutoPan: true,
@@ -1707,7 +1707,7 @@ export default function GoogleContinentCountryMap({
             fontSize: "12px",
             fontWeight: "bold",
           },
-          title: `${stateName}: ${count} grandmother(s) - Click to view discussions`,
+          title: `${stateName}: ${count} nonna(s) - Click to view discussions`,
           zIndex: 100,
           clickable: true,
           optimized: false,
@@ -3140,7 +3140,7 @@ export default function GoogleContinentCountryMap({
             N
           </div>
           <span className="text-xs sm:text-sm text-gray-700 leading-tight">
-            Click cluster to view Grandmothers
+            Click cluster to view Nonnas
           </span>
         </div>
         <div className="flex items-start sm:items-center gap-2 mb-1">

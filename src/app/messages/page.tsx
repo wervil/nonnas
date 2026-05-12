@@ -1,7 +1,7 @@
 import { MessagesClient } from "./MessagesClient";
 
 export const metadata = {
-    title: 'Messages | Grandmothers of the World',
+    title: 'Messages | Nonnas',
     description: 'Your conversations',
 };
 
