@@ -1190,7 +1190,7 @@ export default function GoogleContinentCountryMap({
                   fill="${MARKER_COLOR}" stroke="#ffffff" stroke-width="3"/>
           <text x="${size / 2}" y="${size / 2 + 5}" 
                 font-family=\"'Bell', serif\" font-size="${country.nonnaCount > 99 ? "10" : "14"}" 
-                font-weight="700" fill="#ffffff" text-anchor="middle">${country.grandmotherCount}</text>
+                font-weight="700" fill="#ffffff" text-anchor="middle">${country.nonnaCount}</text>
         </svg>
       `;
 
