@@ -19,7 +19,13 @@ import { ImagesModal } from "../ui/ImagesModal";
 // import { generateTOCpages } from '@/utils/generateTOCpages'
 // import { Typography } from '../ui/Typography'
 import { useUser } from "@stackframe/stack";
-import { ArrowLeft, ArrowRight, CircleHelp, MessageCircle, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CircleHelp,
+  MessageCircle,
+  X,
+} from "lucide-react";
 import CommentSection from "../Comments/CommentSection";
 
 type Props = {
@@ -107,7 +113,9 @@ export const Book = forwardRef<BookHandle, Props>(
     // 'closed'  — book sits off-center (translateX(-35%)) with cover shut
     // 'sliding' — 1000ms slide to center, flipbook is NOT asked to flip yet
     // 'open'    — container is centered; flipbook cover flip may run
-    const [coverPhase, setCoverPhase] = useState<'closed' | 'sliding' | 'open'>('closed');
+    const [coverPhase, setCoverPhase] = useState<"closed" | "sliding" | "open">(
+      "closed",
+    );
     const totalPages = 1 + recipes.length * 2;
 
     // Comment Section state for recipe-specific discussions
@@ -234,7 +242,8 @@ export const Book = forwardRef<BookHandle, Props>(
       }, ms);
     };
 
-    const isPrevDisabled = isAnimating || currentPage === 0 || recipes.length === 0;
+    const isPrevDisabled =
+      isAnimating || currentPage === 0 || recipes.length === 0;
     // Use ref (updated in onFlip) so double-page mode gets correct page immediately
     const pageForDisable = lastPageRef.current;
     const isNextDisabled =
@@ -245,14 +254,19 @@ export const Book = forwardRef<BookHandle, Props>(
         : pageForDisable >= totalPages - 2);
 
     const nextPage = useCallback(() => {
-      console.log('nextPage called - currentPage:', currentPage, 'isNextDisabled:', isNextDisabled);
+      console.log(
+        "nextPage called - currentPage:",
+        currentPage,
+        "isNextDisabled:",
+        isNextDisabled,
+      );
       if (isNextDisabled) return;
       if (isAnimatingRef.current) return;
       // On the cover: slide first, then open. Single-page / mobile has no slide offset,
       // so skip straight to the flip.
-      if (currentPage === 0 && coverPhase === 'closed' && !isSinglePage) {
+      if (currentPage === 0 && coverPhase === "closed" && !isSinglePage) {
         lockAnimation(FLIP_DURATION);
-        setCoverPhase('open');
+        setCoverPhase("open");
         flipbookRef.current?.pageFlip()?.flipNext();
 
         return;
@@ -263,13 +277,18 @@ export const Book = forwardRef<BookHandle, Props>(
     }, [isNextDisabled, currentPage, coverPhase, isSinglePage]);
 
     const prevPage = useCallback(() => {
-      console.log('prevPage called - currentPage:', currentPage, 'isPrevDisabled:', isPrevDisabled);
+      console.log(
+        "prevPage called - currentPage:",
+        currentPage,
+        "isPrevDisabled:",
+        isPrevDisabled,
+      );
       if (isAnimatingRef.current) return;
       // When about to flip back to the cover, start the slide-left concurrently with the flip.
       // Delay the setCoverPhase slightly so flipPrev() starts first — calling it synchronously
       // before flipPrev() causes a re-render that breaks flip direction in production builds.
-      if (currentPage <= 2 && coverPhase === 'open' && !isSinglePage) {
-        setTimeout(() => setCoverPhase('closed'), 50);
+      if (currentPage <= 2 && coverPhase === "open" && !isSinglePage) {
+        setTimeout(() => setCoverPhase("closed"), 50);
       }
       lockAnimation(FLIP_DURATION);
       flipbookRef.current?.pageFlip()?.flipPrev();
@@ -318,7 +337,7 @@ export const Book = forwardRef<BookHandle, Props>(
     useEffect(() => {
       if (initialRecipeId && recipes.length > 0) {
         // Deep-link into a specific Nonna: skip the slide-then-open intro entirely.
-        setCoverPhase('open');
+        setCoverPhase("open");
         setCurrentRecipeId(initialRecipeId);
         // Small delay to ensure flipbook is fully initialized
         const timer = setTimeout(() => {
@@ -337,7 +356,7 @@ export const Book = forwardRef<BookHandle, Props>(
         setCurrentPage(0);
       }
       setCurrentRecipeId(null);
-      setCoverPhase('closed');
+      setCoverPhase("closed");
     }, [recipes]); // Re-run whenever the recipes array reference changes (new filter)
 
     return (
@@ -352,10 +371,11 @@ export const Book = forwardRef<BookHandle, Props>(
           >
             <div className="custom-container flex justify-center items-center h-full relative">
               <button
-                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${isPrevDisabled
-                  ? "opacity-30 cursor-not-allowed pointer-events-none"
-                  : "cursor-pointer hover:scale-110 transition-transform"
-                  }`}
+                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${
+                  isPrevDisabled
+                    ? "opacity-30 cursor-not-allowed pointer-events-none"
+                    : "cursor-pointer hover:scale-110 transition-transform"
+                }`}
                 onClick={prevPage}
                 disabled={isPrevDisabled}
                 style={{ color: "white", fontSize: 20 }}
@@ -374,14 +394,14 @@ export const Book = forwardRef<BookHandle, Props>(
                 style={{
                   transition: "transform 500ms ease",
                   transform:
-                    !isSinglePage && coverPhase === 'closed'
+                    !isSinglePage && coverPhase === "closed"
                       ? "translateX(-35%)"
                       : "translateX(0)",
                   ...(isSinglePage
                     ? {
-                      width: isMobile ? "300px" : `${contentHeight * 0.75}px`,
-                      maxWidth: "100%",
-                    }
+                        width: isMobile ? "300px" : `${contentHeight * 0.75}px`,
+                        maxWidth: "100%",
+                      }
                     : {}),
                 }}
               >
@@ -430,7 +450,7 @@ export const Book = forwardRef<BookHandle, Props>(
                         console.log("On cover page, clearing recipe");
                         setCurrentRecipeId(null);
                         // Reverse intro: cover just closed — slide the book back off-center.
-                        setCoverPhase('closed');
+                        setCoverPhase("closed");
                         if (!isSinglePage) {
                           // Extend lock so arrows stay disabled through the 500ms slide-back.
                           isAnimatingRef.current = true;
@@ -440,10 +460,10 @@ export const Book = forwardRef<BookHandle, Props>(
                             setIsAnimating(false);
                           }, COVER_SLIDE_DURATION);
                         }
-                      } else if (coverPhase !== 'open') {
+                      } else if (coverPhase !== "open") {
                         // Safety net: if the flipbook advanced past the cover by any path
                         // (e.g. swipe/click), make sure the container is centered.
-                        setCoverPhase('open');
+                        setCoverPhase("open");
                       } else {
                         // In double-page mode, each flip advances by 2 pages but shows 1 recipe
                         // In single-page mode, each recipe spans 2 pages
@@ -499,10 +519,11 @@ export const Book = forwardRef<BookHandle, Props>(
               </div>
 
               <button
-                className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-2.5 md:right-4 ${isNextDisabled
-                  ? "opacity-30 cursor-not-allowed pointer-events-none"
-                  : "cursor-pointer hover:scale-110 transition-transform"
-                  }`}
+                className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-2.5 md:right-4 ${
+                  isNextDisabled
+                    ? "opacity-30 cursor-not-allowed pointer-events-none"
+                    : "cursor-pointer hover:scale-110 transition-transform"
+                }`}
                 onClick={nextPage}
                 disabled={isNextDisabled}
                 style={{ color: "white", fontSize: 20 }}
@@ -523,7 +544,9 @@ export const Book = forwardRef<BookHandle, Props>(
             <div className="absolute bottom-8 right-8 z-100 flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new Event("open-welcome-overlay"))}
+                onClick={() =>
+                  window.dispatchEvent(new Event("open-welcome-overlay"))
+                }
                 className="inline-flex items-center justify-center rounded-full"
                 style={{
                   width: "42px",
@@ -546,9 +569,14 @@ export const Book = forwardRef<BookHandle, Props>(
                       (r) => r.id === currentRecipeId,
                     );
                     if (currentRecipe) {
-                      const first = String(currentRecipe.firstName ?? "").trim();
+                      const first = String(
+                        currentRecipe.firstName ?? "",
+                      ).trim();
                       const last = String(currentRecipe.lastName ?? "").trim();
-                      const fullName = [first, last].filter(Boolean).join(" ").trim();
+                      const fullName = [first, last]
+                        .filter(Boolean)
+                        .join(" ")
+                        .trim();
                       setCommentSection({
                         open: true,
                         recipeId: currentRecipe.id,
@@ -604,12 +632,15 @@ export const Book = forwardRef<BookHandle, Props>(
                   commentSection.photo
                     ? `/api/proxy-image?url=${encodeURIComponent(commentSection.photo)}`
                     : generateAvatarSvgUri(
-                      [commentSection.nonnaTitle, commentSection.nonnaFullName]
-                        .filter(Boolean)
-                        .join(" ")
-                        .trim(),
-                      commentSection.countryCode,
-                    )
+                        [
+                          commentSection.nonnaTitle,
+                          commentSection.nonnaFullName,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim(),
+                        commentSection.countryCode,
+                      )
                 }
                 onClose={() =>
                   setCommentSection({
