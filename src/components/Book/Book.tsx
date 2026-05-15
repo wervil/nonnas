@@ -408,9 +408,15 @@ export const Book = forwardRef<BookHandle, Props>(
                 }
                 style={{
                   transition: "transform 500ms ease",
+                  // On laptop the spread is explicitly sized (spreadWidth = 2×pageWidth).
+                  // The cover occupies the right page → its center is 25% right of screen center.
+                  // Shift by -25% to center the cover, then slide back to 0 when open.
+                  // Non-laptop keeps the original -35% calibration.
                   transform:
                     !isSinglePage && coverPhase === "closed"
-                      ? "translateX(-35%)"
+                      ? laptopBookLayout
+                        ? "translateX(-25%)"
+                        : "translateX(-35%)"
                       : "translateX(0)",
                   ...(isSinglePage
                     ? {
