@@ -35,6 +35,33 @@
   position: relative;
 }
 
+/* Laptop / desktop spread (>= 1200px) — mobile & tablet rules above stay as-is */
+@media (min-width: 1200px) {
+  .book-root {
+    height: calc(100vh - 80px);
+  }
+
+  .wrap {
+    min-height: calc(100vh - 80px);
+    height: calc(100vh - 80px);
+    padding: 0;
+  }
+
+  .custom-container {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .book-container--laptop {
+    margin-left: auto;
+    margin-right: auto;
+    flex-shrink: 0;
+    max-width: 100%;
+  }
+}
+
 .pokemon-logo {
   width: 80%;
   max-width: 300px;

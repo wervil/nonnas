@@ -12,6 +12,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -101,6 +102,7 @@ export const Book = forwardRef<BookHandle, Props>(
     const l = useTranslations("labels");
     const user = useUser();
     const [isMobile, setIsMobile] = useState(false);
+    const [isLaptop, setIsLaptop] = useState(false);
     const [isSinglePage, setIsSinglePage] = useState(false);
     const [contentHeight, setContentHeight] = useState(0);
 
@@ -180,6 +182,7 @@ export const Book = forwardRef<BookHandle, Props>(
       const mobile = window.innerWidth < 776; //1024
 
       setIsMobile(mobile);
+      setIsLaptop(window.innerWidth >= 1200);
       // Switch to single page if it's mobile OR if available space is too narrow
       setIsSinglePage(
         mobile || window.innerWidth < 1200 || recipes.length === 0,
@@ -359,6 +362,14 @@ export const Book = forwardRef<BookHandle, Props>(
       setCoverPhase("closed");
     }, [recipes]); // Re-run whenever the recipes array reference changes (new filter)
 
+    // Laptop / desktop spread only (>= 1200px). Mobile and tablet paths stay unchanged.
+    const laptopBookLayout = useMemo(() => {
+      if (!isLaptop || isSinglePage || contentHeight <= 0) return null;
+      const height = contentHeight;
+      const pageWidth = Math.round(height * 0.75);
+      return { height, pageWidth, spreadWidth: pageWidth * 2 };
+    }, [isLaptop, isSinglePage, contentHeight]);
+
     return (
       <div className="book-root h-[calc(100vh-80px)] overflow-hidden flex flex-row relative">
         <div className="transition-all duration-300 ease-in-out h-full relative w-full">
@@ -390,7 +401,11 @@ export const Book = forwardRef<BookHandle, Props>(
               </button>
 
               <div
-                className="book-container"
+                className={
+                  laptopBookLayout
+                    ? "book-container book-container--laptop"
+                    : "book-container"
+                }
                 style={{
                   transition: "transform 500ms ease",
                   transform:
@@ -403,18 +418,43 @@ export const Book = forwardRef<BookHandle, Props>(
                         maxWidth: "100%",
                       }
                     : {}),
+                  ...(laptopBookLayout
+                    ? {
+                        width: `${laptopBookLayout.spreadWidth}px`,
+                        height: `${laptopBookLayout.height}px`,
+                        maxHeight: `${laptopBookLayout.height}px`,
+                      }
+                    : {}),
                 }}
               >
                 {contentHeight > 0 && (
                   <HTMLFlipBook
                     key={`${isSinglePage ? "single" : "double"}-${recipes.length}`}
-                    width={isMobile ? 300 : contentHeight * 0.75}
-                    height={isMobile ? 550 : contentHeight}
-                    minHeight={isMobile ? 550 : contentHeight}
+                    width={
+                      isMobile
+                        ? 300
+                        : laptopBookLayout
+                          ? laptopBookLayout.pageWidth
+                          : contentHeight * 0.75
+                    }
+                    height={
+                      isMobile
+                        ? 550
+                        : laptopBookLayout
+                          ? laptopBookLayout.height
+                          : contentHeight
+                    }
+                    minHeight={
+                      isMobile
+                        ? 550
+                        : laptopBookLayout
+                          ? laptopBookLayout.height
+                          : contentHeight
+                    }
                     maxShadowOpacity={0.5}
                     drawShadow={true}
                     showCover={true}
-                    size="fixed"
+                    size={isMobile ? "fixed" : "stretch"}
                     useMouseEvents={false}
                     ref={flipbookRef}
                     className=""
@@ -424,20 +464,30 @@ export const Book = forwardRef<BookHandle, Props>(
                         ? isMobile
                           ? 300
                           : contentHeight * 0.75
-                        : contentHeight * 1.5
+                        : laptopBookLayout
+                          ? Math.round(laptopBookLayout.pageWidth * 0.85)
+                          : contentHeight * 1.5
                     }
                     maxWidth={
                       isSinglePage
                         ? isMobile
                           ? 440
                           : contentHeight * 0.75
-                        : contentHeight * 1.5
+                        : laptopBookLayout
+                          ? laptopBookLayout.spreadWidth
+                          : contentHeight * 1.5
                     }
-                    maxHeight={isMobile ? 550 : contentHeight}
+                    maxHeight={
+                      isMobile
+                        ? 550
+                        : laptopBookLayout
+                          ? laptopBookLayout.height
+                          : contentHeight
+                    }
                     flippingTime={1000}
                     usePortrait={isSinglePage}
                     startZIndex={0}
-                    autoSize={true}
+                    autoSize={laptopBookLayout ? false : true}
                     swipeDistance={30}
                     showPageCorners={true}
                     disableFlipByClick={false}
