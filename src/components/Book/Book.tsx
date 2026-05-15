@@ -380,9 +380,9 @@ export const Book = forwardRef<BookHandle, Props>(
   min-[391px]:!min-h-[80%]
 "
           >
-            <div className="custom-container flex justify-center items-center h-full relative">
+            <div className="custom-container flex justify-center items-center h-full relative px-3 sm:px-5 md:px-10">
               <button
-                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 z-2 ${
+                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 left-2 sm:left-3 md:left-6 lg:left-8 xl:left-12 z-2 ${
                   isPrevDisabled
                     ? "opacity-30 cursor-not-allowed pointer-events-none"
                     : "cursor-pointer hover:scale-110 transition-transform"
@@ -575,7 +575,7 @@ export const Book = forwardRef<BookHandle, Props>(
               </div>
 
               <button
-                className={` relative md:absolute md:top-1/2 md:-translate-y-1/2 button right-2.5 md:right-4 ${
+                className={`relative md:absolute md:top-1/2 md:-translate-y-1/2 right-2.5 sm:right-3 md:right-6 lg:right-8 xl:right-12 button ${
                   isNextDisabled
                     ? "opacity-30 cursor-not-allowed pointer-events-none"
                     : "cursor-pointer hover:scale-110 transition-transform"
