@@ -13,7 +13,10 @@ export async function GET(request: Request) {
   }
 
   const res = NextResponse.redirect(
-    new URL("/handler/sign-up?after_auth_return_to=%2Fadd-recipe", url.origin),
+    new URL(
+      "/handler/sign-up?after_auth_return_to=%2Fapi%2Fprivate-invite%2Fcomplete",
+      url.origin,
+    ),
   );
 
   res.cookies.set("invite_token", invite, {

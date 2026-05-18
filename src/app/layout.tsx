@@ -13,6 +13,9 @@ import { StackProvider, StackTheme } from "@stackframe/stack";
 import { Toaster } from "sonner";
 import { stackServerApp } from "../stack";
 
+/** Avoid serving a statically cached HTML shell across deploys */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Cook Book App",
   description: "Best recipes all over the world",

@@ -71,18 +71,29 @@ export async function middleware(request: NextRequest) {
   }
 
   /**
-   * 0.25) HOME — Stack default post-login URL; enforce same team gate as sign-in-guard.
+   * 0.25) INVITE SIGN-UP — always finish provisioning (and strip admin) while invite cookie is set.
+   * Stack may auto-add the user to the team with admin before we run; do not skip when team exists.
+   */
+  if (user) {
+    const inviteCookie = request.cookies.get('invite_token')?.value ?? ''
+    const expected = process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN ?? ''
+    if (
+      expected &&
+      inviteCookie === expected &&
+      pathname !== '/api/private-invite/complete'
+    ) {
+      return NextResponse.redirect(new URL('/api/private-invite/complete', request.url))
+    }
+  }
+
+  /**
+   * 0.3) HOME — non-invite sign-ins without team membership go through sign-in-guard.
    */
   if (user && pathname === '/') {
     const teamId = process.env.NEXT_PUBLIC_STACK_TEAM
     if (teamId) {
       const team = await user.getTeam(teamId)
       if (!team) {
-        const inviteCookie = request.cookies.get('invite_token')?.value ?? ''
-        const expected = process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN ?? ''
-        if (expected && inviteCookie === expected) {
-          return NextResponse.redirect(new URL('/register/complete', request.url))
-        }
         return NextResponse.redirect(new URL('/api/auth/sign-in-guard', request.url))
       }
     }

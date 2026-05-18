@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+const NO_STORE = "no-store, must-revalidate";
+const STATIC_IMMUTABLE = "public, max-age=31536000, immutable";
+/** Public folder assets (no content hash) — revalidate so replacements show up without hard refresh */
+const PUBLIC_ASSET = "public, max-age=0, must-revalidate";
+
 const nextConfig: NextConfig = {
   images: {
     domains: [
@@ -17,7 +22,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Add API rewrites and headers for better CORS handling
   async rewrites() {
     return [
       {
@@ -31,10 +35,8 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:path*",
         headers: [
-          {
-            key: "Access-Control-Allow-Origin",
-            value: "*",
-          },
+          { key: "Cache-Control", value: NO_STORE },
+          { key: "Access-Control-Allow-Origin", value: "*" },
           {
             key: "Access-Control-Allow-Methods",
             value: "GET, POST, PUT, DELETE, OPTIONS",
@@ -47,21 +49,22 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
+        headers: [{ key: "Cache-Control", value: STATIC_IMMUTABLE }],
       },
       {
         source: "/:path*.(js|css|png|jpg|jpeg|gif|ico|svg|webp)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
+        headers: [{ key: "Cache-Control", value: PUBLIC_ASSET }],
+      },
+      // HTML document requests — always fetch fresh shell (picks up new JS chunk names after deploy)
+      {
+        source: "/",
+        has: [{ type: "header", key: "accept", value: "(.*text/html.*)" }],
+        headers: [{ key: "Cache-Control", value: NO_STORE }],
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "header", key: "accept", value: "(.*text/html.*)" }],
+        headers: [{ key: "Cache-Control", value: NO_STORE }],
       },
     ];
   },
