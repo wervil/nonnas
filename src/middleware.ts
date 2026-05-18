@@ -36,9 +36,12 @@ export async function middleware(request: NextRequest) {
 
   /**
    * 0) HANDLER ROUTES
-   * Logged-in users should NOT see /handler/*
+   * Logged-in users must pass sign-in-guard (team membership) before browsing.
    */
   if (user && isHandlerRoute) {
+    if (pathname.startsWith('/handler/sign-in')) {
+      return NextResponse.redirect(new URL('/api/auth/sign-in-guard', request.url))
+    }
     return NextResponse.redirect(new URL('/', request.url))
   }
 
