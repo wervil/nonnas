@@ -24,6 +24,19 @@ const SHARED_AUTH_PATHS = [
 // Only allow viewing Stack signup if invite cookie is present
 const SIGNUP_HANDLER_PATH = /^\/handler\/sign-up(\/|$)/
 
+function getSafeInternalAfterAuthPath(raw: string | null): string | null {
+  if (raw == null || typeof raw !== 'string') return null
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(raw.trim())
+  } catch {
+    return null
+  }
+  if (!decoded.startsWith('/') || decoded.startsWith('//')) return null
+  if (decoded.includes('://')) return null
+  return decoded
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isHandlerRoute = pathname.startsWith('/handler')
@@ -35,14 +48,44 @@ export async function middleware(request: NextRequest) {
   })
 
   /**
-   * 0) HANDLER ROUTES
-   * Logged-in users must pass sign-in-guard (team membership) before browsing.
+   * 0) HANDLER ROUTES (Stack Auth + oauth-callback, magic-link, etc.)
+   * Do not redirect logged-in users to "/" — Stack often lands there after OAuth with
+   * an active session, which skipped /api/auth/sign-in-guard entirely.
    */
   if (user && isHandlerRoute) {
-    if (pathname.startsWith('/handler/sign-in')) {
+    const afterPath = getSafeInternalAfterAuthPath(
+      request.nextUrl.searchParams.get('after_auth_return_to'),
+    )
+    if (afterPath) {
+      return NextResponse.redirect(new URL(afterPath, request.url))
+    }
+
+    const segment = pathname.match(/^\/handler\/([^/]+)/)?.[1] ?? ''
+
+    if (segment === 'sign-in') {
       return NextResponse.redirect(new URL('/api/auth/sign-in-guard', request.url))
     }
-    return NextResponse.redirect(new URL('/', request.url))
+
+    // sign-up may still be finishing (automaticRedirect). All other segments need StackHandler.
+    return NextResponse.next()
+  }
+
+  /**
+   * 0.25) HOME — Stack default post-login URL; enforce same team gate as sign-in-guard.
+   */
+  if (user && pathname === '/') {
+    const teamId = process.env.NEXT_PUBLIC_STACK_TEAM
+    if (teamId) {
+      const team = await user.getTeam(teamId)
+      if (!team) {
+        const inviteCookie = request.cookies.get('invite_token')?.value ?? ''
+        const expected = process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN ?? ''
+        if (expected && inviteCookie === expected) {
+          return NextResponse.redirect(new URL('/register/complete', request.url))
+        }
+        return NextResponse.redirect(new URL('/api/auth/sign-in-guard', request.url))
+      }
+    }
   }
 
   /**
@@ -105,6 +148,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
+
     // Admin
     '/dashboard/:path*',
     '/print/:path*',

@@ -28,10 +28,10 @@ export default function CloseOrBackButton({
     }
 
     // If there's history, go back; otherwise go to a safe fallback.
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
+    // if (typeof window !== "undefined" && window.history.length > 1) {
+    //   router.back();
+    //   return;
+    // }
 
     router.push(fallbackHref);
   }, [fallbackHref, router]);
@@ -42,4 +42,3 @@ export default function CloseOrBackButton({
     </button>
   );
 }
-
