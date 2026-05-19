@@ -13,18 +13,7 @@ import 'swiper/css/pagination'
 import { Navigation, Pagination } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { countriesReverseMap } from './countries'
-
-const isVideoUrl = (url: string) =>
-  /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url)
-
-// Legacy recipes may have stored a video URL in `recipe_image`. Prefer the
-// dedicated `nonna_video` column, fall back to any video URL detected in the
-// legacy field so older entries still expose a "Watch Video" button.
-const resolveNonnaVideoUrl = (recipe: Recipe): string | null => {
-  if (recipe.nonna_video) return recipe.nonna_video
-  const legacy = (recipe.recipe_image ?? []).find((u) => isVideoUrl(u))
-  return legacy ?? null
-}
+import { isVideoUrl, resolveNonnaVideoUrl } from './nonnaVideo'
 
 const getLeftSizeDescriptionHeight = (
   hasGeoHistory: boolean,

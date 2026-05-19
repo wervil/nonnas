@@ -1,8 +1,9 @@
 "use client";
 
+import { normalizeVideoUrl } from "@/utils/nonnaVideo";
 import { upload } from "@vercel/blob/client";
 import { Loader2, PlayCircle, RotateCcw, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
@@ -39,9 +40,17 @@ export default function NonnaVideoActions({
   initialVideoUrl,
   onWatch,
 }: Props) {
-  const [videoUrl, setVideoUrl] = useState<string | null>(initialVideoUrl);
+  const [videoUrl, setVideoUrl] = useState<string | null>(() =>
+    normalizeVideoUrl(initialVideoUrl),
+  );
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setVideoUrl(normalizeVideoUrl(initialVideoUrl));
+  }, [initialVideoUrl]);
+
+  const playableVideoUrl = normalizeVideoUrl(videoUrl);
 
   const openPicker = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,7 +103,7 @@ export default function NonnaVideoActions({
   };
 
   // No video, not the owner → render nothing (no extra space under the flag).
-  if (!videoUrl && !isOwner) return null;
+  if (!playableVideoUrl && !isOwner) return null;
 
   return (
     <div
@@ -102,12 +111,12 @@ export default function NonnaVideoActions({
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {videoUrl && (
+      {playableVideoUrl && (
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onWatch(videoUrl);
+            onWatch(playableVideoUrl);
           }}
           className="inline-flex items-center gap-1.5 rounded-full bg-[#6D2924] text-white px-3 py-1.5 text-[11px] xl:text-xs font-semibold shadow-md hover:bg-[#561e1a] transition-colors"
           title="Watch a video of Nonna in the kitchen"
@@ -133,26 +142,26 @@ export default function NonnaVideoActions({
             onClick={openPicker}
             disabled={isUploading}
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] xl:text-xs font-semibold shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-              videoUrl
+              playableVideoUrl
                 ? "bg-white text-[#6D2924] border border-[#6D2924] hover:bg-[#FFE7D0]"
                 : "bg-[#6D2924] text-white hover:bg-[#561e1a]"
             }`}
             title={
-              videoUrl
+              playableVideoUrl
                 ? "Replace the uploaded video"
                 : "Upload a video of Nonna in the kitchen"
             }
           >
             {isUploading ? (
               <Loader2 size={14} className="animate-spin" />
-            ) : videoUrl ? (
+            ) : playableVideoUrl ? (
               <RotateCcw size={14} />
             ) : (
               <Upload size={14} />
             )}
             {isUploading
               ? "Uploading…"
-              : videoUrl
+              : playableVideoUrl
                 ? "Replace Video"
                 : "Upload Video"}
           </button>
