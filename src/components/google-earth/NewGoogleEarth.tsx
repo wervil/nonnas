@@ -2,6 +2,7 @@
 import { getCountryInfoWithFallback } from "@/lib/countryData";
 import { useUser } from "@stackframe/stack";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CommentSection from "../Comments/CommentSection";
 import DiscussionPanel from "../Map/DiscussionPanel";
@@ -915,6 +916,7 @@ export default function Earth3DPage() {
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
   const user = useUser();
+  const l = useTranslations("labels");
   const [activePlaceName, setActivePlaceName] = useState<string | null>(null);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
@@ -5224,6 +5226,9 @@ export default function Earth3DPage() {
           zIndex: 100,
           width: isMobile ? "auto" : "320px",
           maxWidth: isMobile ? "calc(100vw - 24px)" : "320px",
+          display: "flex",
+          flexDirection: "column",
+          gap: isMobile ? "6px" : 0,
         }}
       >
         <div
@@ -5354,6 +5359,29 @@ export default function Earth3DPage() {
             </div>
           )}
         </div>
+        {isMobile && (
+          <p
+            style={{
+              margin: 0,
+              padding: "4px 8px 2px",
+              textAlign: "center",
+              fontSize: "13px",
+              fontWeight: 500,
+              lineHeight: 1.35,
+              color: "#3d5c52",
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              background: "rgba(255, 255, 255, 0.92)",
+              backdropFilter: "blur(8px)",
+              borderRadius: "10px",
+              border: "1px solid rgba(13, 148, 136, 0.2)",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+              pointerEvents: "none",
+            }}
+            role="note"
+          >
+            {l("mapGestureHint")}
+          </p>
+        )}
       </div>
 
       {/* Globe ring overlay */}
@@ -5452,7 +5480,7 @@ export default function Earth3DPage() {
         <div
           style={{
             position: "absolute",
-            top: isMobile ? "70px" : "90px",
+            top: isMobile ? "132px" : "90px",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 100,
@@ -5465,7 +5493,9 @@ export default function Earth3DPage() {
             fontSize: "14px",
             fontWeight: 500,
             fontFamily: "ui-sans-serif, system-ui, sans-serif",
-            whiteSpace: "nowrap",
+            whiteSpace: isMobile ? "normal" : "nowrap",
+            maxWidth: isMobile ? "calc(100vw - 32px)" : undefined,
+            textAlign: "center",
             boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
           }}
         >

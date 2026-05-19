@@ -27,7 +27,7 @@ export type ClusterPoint = {
 
 export default function Recipes() {
   const n = useTranslations("navigation");
-  // const l = useTranslations('labels')
+  const l = useTranslations("labels");
   // const countries = useCountries() // Removed dynamic hook
   const path = usePathname();
   const router = useRouter();
@@ -173,8 +173,7 @@ export default function Recipes() {
               priority
             />
           </div>
-          <div className="items-center relative flex flex-col md:hidden py-2 px-4 w-full gap-3">
-            {/* {button(path || '', n as (key: string) => string, hasPermissions)} */}
+          <div className="items-center relative flex flex-col md:hidden py-2 px-4 w-full gap-2 shrink-0 z-30 bg-white/90 backdrop-blur-sm border-b border-[#9BC9C3]/30">
             {setSearch ? (
               <div className="flex items-center gap-1 border-2 border-green-dark rounded-full px-2 w-full bg-white">
                 <Image
@@ -202,6 +201,12 @@ export default function Recipes() {
                 <div className="flag-icon" />
               </div>
             ) : null}
+            <p
+              className="w-full text-center text-sm font-medium text-[#3d5c52] px-1 leading-snug pointer-events-none"
+              role="note"
+            >
+              {l("bookSwipeHint")}
+            </p>
           </div>
           {loading ? (
             <div className="h-[calc(100vh-80px)] w-full flex items-center justify-center px-4">

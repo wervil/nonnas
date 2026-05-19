@@ -59,6 +59,8 @@
     "infoTitle": "Welcome to Nonnas of the World (Beta v1)",
     "infoDescr": "We’re in Beta v1 and starting by adding our first people. This is a living cookbook and historical archive where grandmothers from every corner of the globe share their culinary wisdom, cultural traditions, and timeless recipes.",
     "infoDescrAdd": "Add your own Nonna’s recipe or story, and become part of this growing archive of love, heritage, and food.",
+    "bookSwipeHint": "Scroll or swipe with your fingers to turn the pages",
+    "mapGestureHint": "Use two fingers on the map to move and zoom",
     "profile": "Profile",
     "all": "All"
   },

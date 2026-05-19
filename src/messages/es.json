@@ -40,7 +40,9 @@
     "language": "Idioma",
     "first": "primero",
     "dashboard": "Dashboard",
-    "published": "Publicado"
+    "published": "Publicado",
+    "bookSwipeHint": "Desplaza o desliza con los dedos para pasar las páginas",
+    "mapGestureHint": "Usa dos dedos en el mapa para moverte y hacer zoom"
   },
   "descriptions": {
     "fullName": "¿Cómo llamas a tu abuela?",

@@ -40,7 +40,9 @@
     "language": "Langue",
     "first": "d'abord",
     "dashboard": "Tableau de bord",
-    "published": "Publié"
+    "published": "Publié",
+    "bookSwipeHint": "Faites défiler ou glissez avec les doigts pour tourner les pages",
+    "mapGestureHint": "Utilisez deux doigts sur la carte pour vous déplacer et zoomer"
   },
   "descriptions": {
     "fullName": "Comment appelez-vous votre grand-mère ?",
