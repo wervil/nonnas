@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   await ensureTeamMembership(TEAM_ID, user.id);
   await revokeTeamPermission(TEAM_ID, user.id, ADMIN_PERMISSION_ID);
 
-  const res = NextResponse.redirect(new URL("/add-recipe", req.url));
+  const res = NextResponse.redirect(new URL("/", req.url));
   res.cookies.set("invite_token", "", { path: "/", maxAge: 0 });
   return res;
 }

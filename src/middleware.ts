@@ -132,7 +132,7 @@ export async function middleware(request: NextRequest) {
   // Needs auth but user not logged in
   if (!user) {
     const signInUrl = new URL('/handler/sign-in', request.url)
-    signInUrl.searchParams.set('after_auth_return_to', pathname)
+    signInUrl.searchParams.set('after_auth_return_to', '/api/auth/sign-in-guard')
     return NextResponse.redirect(signInUrl)
   }
 

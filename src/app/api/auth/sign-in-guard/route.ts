@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { stackServerApp } from "@/stack";
-import { checkAdminPermission } from "@/utils/checkAdminPermission";
 import { rejectUnauthorizedSignIn } from "@/utils/rejectUnauthorizedSignIn";
 
 export async function GET(req: Request) {
@@ -25,8 +24,5 @@ export async function GET(req: Request) {
     return rejectUnauthorizedSignIn(req, user.id);
   }
 
-  const isAdmin = await checkAdminPermission(user);
-  return NextResponse.redirect(
-    new URL(isAdmin ? "/dashboard" : "/add-recipe", req.url),
-  );
+  return NextResponse.redirect(new URL("/", req.url));
 }
