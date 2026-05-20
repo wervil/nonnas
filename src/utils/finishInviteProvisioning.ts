@@ -1,3 +1,4 @@
+import { isSuperAdminEmail, provisionSuperAdminAccess } from "@/lib/super-admin";
 import { ensureTeamMembership } from "@/utils/ensureTeamMembership";
 import { revokeTeamPermission } from "@/utils/teamPermissions";
 
@@ -11,8 +12,16 @@ export function isValidInviteToken(
   return Boolean(expected && invite && invite === expected);
 }
 
-/** Join invite user to the team as a non-admin member. */
-export async function finishInviteProvisioning(userId: string): Promise<void> {
+/** Join invite user to the team; super admins also receive team_member. */
+export async function finishInviteProvisioning(
+  userId: string,
+  email?: string | null,
+): Promise<void> {
+  if (isSuperAdminEmail(email)) {
+    await provisionSuperAdminAccess(userId, email);
+    return;
+  }
+
   await ensureTeamMembership(TEAM_ID, userId);
   await revokeTeamPermission(TEAM_ID, userId, ADMIN_PERMISSION_ID);
 }

@@ -3,6 +3,7 @@
 import { Book } from "@/components/Book/Book";
 import { Header } from "@/components/Header";
 import { useExportRecipes } from "@/hooks/useExportRecipes";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useRecipes } from "@/hooks/useRecipes";
 import { useUser } from "@stackframe/stack";
 import { useTranslations } from "next-intl";
@@ -76,13 +77,12 @@ export default function Recipes() {
     search,
     setSearch,
   } = useRecipes();
-  let hasPermissions = false;
-
   const user = useUser();
-  if (user) {
-    const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || "");
-    hasPermissions = team ? !!user.usePermission(team, "team_member") : false;
-  }
+  const isSuperAdmin = useIsSuperAdmin();
+  const team = user?.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || "");
+  const hasPermissions =
+    isSuperAdmin ||
+    !!(team && user?.usePermission(team, "team_member"));
 
   // State to control SearchResultsModal visibility independent of search/filter state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);

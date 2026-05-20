@@ -19,6 +19,7 @@ import {
 import { AdminTabSwitcher } from "@/components/AdminTabSwitcher";
 import { Header } from "@/components/Header";
 import { TabContent } from "@/components/TabContent";
+import { isSuperAdminEmail } from "@/lib/super-admin-emails";
 import { toast } from "sonner";
 
 type StackUserRow = {
@@ -81,16 +82,13 @@ function DashboardAuthed({ user }: { user: any }) {
   const SUPER_ADMIN_SEC_EMAIL =
     process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() || "";
 
-  const currentEmail = user?.primaryEmail?.toLowerCase() || "";
-  const isSuperAdmin =
-    currentEmail &&
-    (currentEmail === SUPER_ADMIN_EMAIL ||
-      currentEmail === SUPER_ADMIN_SEC_EMAIL);
+  const isSuperAdmin = isSuperAdminEmail(user?.primaryEmail);
 
   /* ================= ADMIN PERMISSION ================= */
   const teamId = process.env.NEXT_PUBLIC_STACK_TEAM || "";
   const team = user.useTeam(teamId); // ✅ always called (no conditional)
-  const hasPermissions = !!(team && user.usePermission(team, "team_member")); // ✅ always called
+  const hasPermissions =
+    isSuperAdmin || !!(team && user.usePermission(team, "team_member"));
 
   return (
     <DashboardInner

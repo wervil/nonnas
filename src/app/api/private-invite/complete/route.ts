@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    await finishInviteProvisioning(user.id);
+    await finishInviteProvisioning(user.id, user.primaryEmail);
   } catch (e) {
     console.error("private-invite/complete failed:", e);
     const errUrl = new URL("/register/error", req.url);

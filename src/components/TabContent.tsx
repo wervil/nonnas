@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Recipe } from "@/db/schema";
+import { isSuperAdminEmail } from "@/lib/super-admin-emails";
 import { countriesData } from "@/utils/countries";
 import { exportRecipesToPdf } from "@/utils/generatePdf";
 import {
@@ -339,10 +340,7 @@ export function TabContent({
 
         {!loading &&
           sortedUsers.map((u) => {
-            const userEmail = (u.primaryEmail || "").toLowerCase();
-            const isSuper =
-              userEmail === SUPER_ADMIN_EMAIL ||
-              userEmail === SUPER_ADMIN_SEC_EMAIL;
+            const isSuper = isSuperAdminEmail(u.primaryEmail);
             const isAdmin = u.role === "team_member";
             const badge = isSuper
               ? "Super Admin"

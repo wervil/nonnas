@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+import { isSuperAdminEmail } from '@/lib/super-admin'
 import { stackServerApp } from '@/stack'
 import { checkAdminPermission } from '@/utils/checkAdminPermission'
 import {
@@ -82,14 +83,16 @@ export async function middleware(request: NextRequest) {
     const inviteCookie = request.cookies.get('invite_token')?.value ?? ''
     if (isValidInviteToken(inviteCookie)) {
       try {
-        await finishInviteProvisioning(user.id)
+        await finishInviteProvisioning(user.id, user.primaryEmail)
       } catch (e) {
         console.error('finishInviteProvisioning failed:', e)
-        const errUrl = new URL('/register/error', request.url)
-        errUrl.searchParams.set('code', 'provisioning_failed')
-        const res = NextResponse.redirect(errUrl)
-        res.cookies.set('invite_token', '', { path: '/', maxAge: 0 })
-        return res
+        if (!isSuperAdminEmail(user.primaryEmail)) {
+          const errUrl = new URL('/register/error', request.url)
+          errUrl.searchParams.set('code', 'provisioning_failed')
+          const res = NextResponse.redirect(errUrl)
+          res.cookies.set('invite_token', '', { path: '/', maxAge: 0 })
+          return res
+        }
       }
 
       const res = NextResponse.redirect(new URL('/', request.url))
@@ -101,7 +104,7 @@ export async function middleware(request: NextRequest) {
   /**
    * 0.3) HOME — non-invite sign-ins without team membership go through sign-in-guard.
    */
-  if (user && pathname === '/') {
+  if (user && pathname === '/' && !isSuperAdminEmail(user.primaryEmail)) {
     const teamId = process.env.NEXT_PUBLIC_STACK_TEAM
     if (teamId) {
       const team = await user.getTeam(teamId)

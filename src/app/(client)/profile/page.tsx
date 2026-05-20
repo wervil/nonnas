@@ -7,6 +7,7 @@ import { RecipesList } from "@/components/RecipesList";
 import { SavedRecipesModal } from "@/components/SavedRecipesModal";
 import ThreadList from "@/components/Threads/ThreadList";
 import { Recipe } from "@/db/schema";
+import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { CurrentInternalUser, CurrentUser, useUser } from "@stackframe/stack";
 import { Heart, Loader2, PlusCircle } from "lucide-react";
 import Link from "next/link";
@@ -36,10 +37,10 @@ function ProfileAuthed({ user }: { user: CurrentUser | CurrentInternalUser }) {
 
   // SAFE: this component only mounts when user exists,
   // so these hooks are never "skipped"
+  const isSuperAdmin = useIsSuperAdmin();
   const team = user.useTeam(process.env.NEXT_PUBLIC_STACK_TEAM || "");
-  const hasPermissions = team
-    ? !!user.usePermission(team, "team_member")
-    : false;
+  const hasPermissions =
+    isSuperAdmin || !!(team && user.usePermission(team, "team_member"));
 
   useEffect(() => {
     loadMyRecipes(user.id);

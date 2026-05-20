@@ -1,3 +1,7 @@
+import {
+  isSuperAdminEmail,
+  provisionSuperAdminAccess,
+} from "@/lib/super-admin";
 import { NextResponse } from "next/server";
 import { stackServerApp } from "@/stack";
 import { rejectUnauthorizedSignIn } from "@/utils/rejectUnauthorizedSignIn";
@@ -10,6 +14,11 @@ export async function GET(req: Request) {
 
   if (!user) {
     return NextResponse.redirect(new URL("/handler/sign-in", req.url));
+  }
+
+  if (isSuperAdminEmail(user.primaryEmail)) {
+    await provisionSuperAdminAccess(user.id, user.primaryEmail);
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   const teamId = process.env.NEXT_PUBLIC_STACK_TEAM;

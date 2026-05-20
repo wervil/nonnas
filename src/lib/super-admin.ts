@@ -1,26 +1,37 @@
+import { isSuperAdminEmail } from "@/lib/super-admin-emails";
 import { stackServerApp } from "@/stack";
+import { ensureTeamMembership } from "@/utils/ensureTeamMembership";
+import { grantTeamPermission } from "@/utils/teamPermissions";
 
-const SUPER_ADMIN_EMAIL =
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL?.toLowerCase() ?? "";
-const SUPER_ADMIN_SEC_EMAIL =
-  process.env.NEXT_PUBLIC_SUPER_ADMIN_SEC_EMAIL?.toLowerCase() ?? "";
+export {
+  BUILTIN_SUPER_ADMIN_EMAILS,
+  collectSuperAdminEmails,
+  isSuperAdminEmail,
+} from "@/lib/super-admin-emails";
+
+const TEAM_ID = process.env.NEXT_PUBLIC_STACK_TEAM ?? "";
+const ADMIN_PERMISSION_ID = "team_member";
 
 /**
- * Returns true if the given email belongs to a configured Super Admin.
+ * Best-effort: add super admin to the Stack team with team_member permission.
  */
-export function isSuperAdminEmail(email?: string | null): boolean {
-  const normalized = (email ?? "").toLowerCase();
-  if (!normalized) return false;
-  if (!SUPER_ADMIN_EMAIL && !SUPER_ADMIN_SEC_EMAIL) return false;
-  return (
-    normalized === SUPER_ADMIN_EMAIL || normalized === SUPER_ADMIN_SEC_EMAIL
-  );
+export async function provisionSuperAdminAccess(
+  userId: string,
+  email?: string | null,
+): Promise<void> {
+  if (!isSuperAdminEmail(email) || !TEAM_ID) return;
+
+  try {
+    await ensureTeamMembership(TEAM_ID, userId);
+    await grantTeamPermission(TEAM_ID, userId, ADMIN_PERMISSION_ID);
+  } catch (e) {
+    console.warn(
+      "Super admin Stack provisioning skipped (env email still has full access):",
+      e,
+    );
+  }
 }
 
-/**
- * Resolves the current authenticated user along with their Super Admin status.
- * Returns `{ user: null, isSuperAdmin: false }` when no user is logged in.
- */
 export async function getCurrentUserWithSuperAdmin() {
   const user = await stackServerApp.getUser();
   if (!user) {
