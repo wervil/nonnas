@@ -4,7 +4,6 @@ import {
   getCountryInfoWithFallback,
 } from "@/lib/countryData";
 import { stackServerApp } from "@/stack";
-import { checkAdminPermission } from "@/utils/checkAdminPermission";
 import { and, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
@@ -85,10 +84,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check for admin permissions to auto-publish
-    const user = await stackServerApp.getUser();
-    const isAdmin = user ? await checkAdminPermission(user) : false;
-
     // Insert the recipe into the database
     // For drafts, use empty strings for NOT NULL columns that may not be filled yet
     const newRecipe = await db
@@ -115,7 +110,7 @@ export async function POST(request: NextRequest) {
         avatar_image: body.avatar_image || null,
         nonna_video: body.nonna_video || null,
         release_signature: body.release_signature || false,
-        published: isDraft ? false : isAdmin, // Drafts are never published
+        published: !isDraft, // Publish after moderation passes; drafts stay unpublished
         is_draft: isDraft,
       })
       .returning();
@@ -376,10 +371,16 @@ export async function PATCH(request: NextRequest) {
     // Build the update object — only set fields that were provided
     const updatedRecipe: Record<string, unknown> = {};
 
-    // published: use explicit value if provided, otherwise leave unchanged
-    if (typeof body.published === "boolean") updatedRecipe.published = body.published;
     // is_draft: explicit flag for draft saves / final submission
     if (typeof body.is_draft === "boolean") updatedRecipe.is_draft = body.is_draft;
+
+    // published: auto-publish when finalising a submission after moderation;
+    // otherwise honour an explicit published flag (e.g. admin dashboard toggle)
+    if (!isDraftSave && body.is_draft === false) {
+      updatedRecipe.published = true;
+    } else if (typeof body.published === "boolean") {
+      updatedRecipe.published = body.published;
+    }
 
     if (body.grandmotherTitle !== undefined) updatedRecipe.grandmotherTitle = body.grandmotherTitle;
     if (body.firstName !== undefined) updatedRecipe.firstName = body.firstName;

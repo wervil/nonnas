@@ -410,8 +410,7 @@ export const AddRecipe = ({
             body: JSON.stringify({
               ...sanitizedData,
               id: existingId,
-              published: recipe?.published ?? false,
-              is_draft: false, // finalise the draft on full submit
+              is_draft: false, // finalise the draft on full submit; API publishes after moderation
             }),
             cache: "no-store",
           })
