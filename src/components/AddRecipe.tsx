@@ -15,8 +15,25 @@ import Input from "@/components/ui/Input";
 import { TextEditor } from "@/components/ui/TextEditor";
 import { Recipe } from "@/db/schema";
 import { sanitizeHtml } from "@/utils/utils";
+import { Country, State } from "country-state-city";
 import { allCountries } from "country-region-data";
 import CountryStateCitySelector from "./ui/CountryStateCitySelector";
+
+const resolveCountryIso = (country: string): string =>
+  Country.getAllCountries().find(
+    (c) => c.isoCode === country || c.name === country,
+  )?.isoCode ??
+  allCountries.find((c) => c[0] === country || c[1] === country)?.[1] ??
+  country;
+
+const resolveStateIso = (countryIso: string, region: string): string => {
+  if (!countryIso || !region) return region;
+  return (
+    State.getStatesOfCountry(countryIso).find(
+      (s) => s.isoCode === region || s.name === region,
+    )?.isoCode ?? region
+  );
+};
 import Textarea from "./ui/Textarea";
 import { Typography } from "./ui/Typography";
 
@@ -276,12 +293,11 @@ export const AddRecipe = ({
         firstName: recipe.firstName,
         lastName: recipe.lastName,
         recipeTitle: recipe.recipeTitle,
-        country:
-          allCountries.find(
-            (country) =>
-              country[0] === recipe.country || country[1] === recipe.country,
-          )?.[1] || recipe.country,
-        state: recipe.region || "",
+        country: resolveCountryIso(recipe.country || ""),
+        state: resolveStateIso(
+          resolveCountryIso(recipe.country || ""),
+          recipe.region || "",
+        ),
         city: recipe.city || "",
         coordinates: recipe.coordinates || "",
         history: sanitizeHtml(recipe.history),
@@ -307,10 +323,14 @@ export const AddRecipe = ({
     lastName: data.lastName || "",
     recipeTitle: data.recipeTitle || "",
     country:
-      allCountries.find((c) => c[1] === data.country)?.[0] ||
+      Country.getAllCountries().find((c) => c.isoCode === data.country)?.name ||
       data.country ||
       "",
-    region: data.state || null,
+    region:
+      State.getStatesOfCountry(data.country).find((s) => s.isoCode === data.state)
+        ?.name ||
+      data.state ||
+      null,
     city: data.city || null,
     coordinates: data.coordinates || null,
     history: sanitizeHtml(data.history || ""),
