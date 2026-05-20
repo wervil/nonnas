@@ -150,6 +150,18 @@ export default async function Handler(props: HandlerProps) {
     }
   }
 
+  // ✅ After sign-up, land on home (invite provisioning runs in middleware)
+  if (stack === "sign-up") {
+    const desired = "/";
+    const current = typeof after === "string" ? after : undefined;
+
+    if (current !== desired) {
+      redirect(
+        `/handler/sign-up?after_auth_return_to=${encodeURIComponent(desired)}`,
+      );
+    }
+  }
+
   const isAuthForm = stack === "sign-in" || stack === "sign-up";
 
   return (

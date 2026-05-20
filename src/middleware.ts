@@ -4,6 +4,10 @@ import type { NextRequest } from 'next/server'
 
 import { stackServerApp } from '@/stack'
 import { checkAdminPermission } from '@/utils/checkAdminPermission'
+import {
+  finishInviteProvisioning,
+  isValidInviteToken,
+} from '@/utils/finishInviteProvisioning'
 
 // Admin-only routes
 const ADMIN_PATHS = [/^\/dashboard(\/|$)/, /^\/print(\/|$)/]
@@ -71,18 +75,26 @@ export async function middleware(request: NextRequest) {
   }
 
   /**
-   * 0.25) INVITE SIGN-UP — always finish provisioning (and strip admin) while invite cookie is set.
+   * 0.25) INVITE SIGN-UP — finish team provisioning while invite cookie is set, then go home.
    * Stack may auto-add the user to the team with admin before we run; do not skip when team exists.
    */
   if (user) {
     const inviteCookie = request.cookies.get('invite_token')?.value ?? ''
-    const expected = process.env.NEXT_PUBLIC_STACK_ADMIN_INVITE_TOKEN ?? ''
-    if (
-      expected &&
-      inviteCookie === expected &&
-      pathname !== '/api/private-invite/complete'
-    ) {
-      return NextResponse.redirect(new URL('/api/private-invite/complete', request.url))
+    if (isValidInviteToken(inviteCookie)) {
+      try {
+        await finishInviteProvisioning(user.id)
+      } catch (e) {
+        console.error('finishInviteProvisioning failed:', e)
+        const errUrl = new URL('/register/error', request.url)
+        errUrl.searchParams.set('code', 'provisioning_failed')
+        const res = NextResponse.redirect(errUrl)
+        res.cookies.set('invite_token', '', { path: '/', maxAge: 0 })
+        return res
+      }
+
+      const res = NextResponse.redirect(new URL('/', request.url))
+      res.cookies.set('invite_token', '', { path: '/', maxAge: 0 })
+      return res
     }
   }
 

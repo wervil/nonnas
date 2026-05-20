@@ -9,10 +9,12 @@ export default async function RegisterInviteErrorPage({
   searchParams,
 }: RegisterInviteErrorPageProps) {
   const { code } = await searchParams;
-  const isMissingInvite = code === "missing_invite";
-  const message = isMissingInvite
-    ? "Invite code is required to register. Please use a valid invite link."
-    : "This invite code is invalid or expired. Please check your invite link and try again.";
+  const message =
+    code === "missing_invite"
+      ? "Invite code is required to register. Please use a valid invite link."
+      : code === "provisioning_failed"
+        ? "Your account was created but we could not finish setup. Please try signing in, or contact support."
+        : "This invite code is invalid or expired. Please check your invite link and try again.";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">

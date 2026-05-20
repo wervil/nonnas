@@ -12,17 +12,15 @@ export async function GET(request: Request) {
     return NextResponse.redirect(errorUrl);
   }
 
-  const res = NextResponse.redirect(
-    new URL(
-      "/handler/sign-up?after_auth_return_to=%2Fapi%2Fprivate-invite%2Fcomplete",
-      url.origin,
-    ),
-  );
+  const signupUrl = new URL("/handler/sign-up", url.origin);
+  signupUrl.searchParams.set("after_auth_return_to", "/");
+
+  const res = NextResponse.redirect(signupUrl);
 
   res.cookies.set("invite_token", invite, {
     httpOnly: true,
     sameSite: "lax",
-    secure: true,
+    secure: url.protocol === "https:",
     path: "/",
     maxAge: 60 * 15,
   });
