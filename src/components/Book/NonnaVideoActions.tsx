@@ -1,6 +1,9 @@
 "use client";
 
-import { normalizeVideoUrl } from "@/utils/nonnaVideo";
+import {
+  hasPlayableNonnaVideo,
+  normalizeVideoUrl,
+} from "@/utils/nonnaVideo";
 import { upload } from "@vercel/blob/client";
 import { Loader2, PlayCircle, RotateCcw, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -50,7 +53,8 @@ export default function NonnaVideoActions({
     setVideoUrl(normalizeVideoUrl(initialVideoUrl));
   }, [initialVideoUrl]);
 
-  const playableVideoUrl = normalizeVideoUrl(videoUrl);
+  const normalizedVideoUrl = normalizeVideoUrl(videoUrl);
+  const canWatch = hasPlayableNonnaVideo(videoUrl);
 
   const openPicker = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -103,7 +107,7 @@ export default function NonnaVideoActions({
   };
 
   // No video, not the owner → render nothing (no extra space under the flag).
-  if (!playableVideoUrl && !isOwner) return null;
+  if (!canWatch && !isOwner) return null;
 
   return (
     <div
@@ -111,12 +115,12 @@ export default function NonnaVideoActions({
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {playableVideoUrl && (
+      {canWatch && normalizedVideoUrl && (
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onWatch(playableVideoUrl);
+            onWatch(normalizedVideoUrl);
           }}
           className="inline-flex items-center gap-1.5 rounded-full bg-[#6D2924] text-white px-3 py-1.5 text-[11px] xl:text-xs font-semibold shadow-md hover:bg-[#561e1a] transition-colors"
           title="Watch a video of Nonna in the kitchen"
@@ -142,26 +146,26 @@ export default function NonnaVideoActions({
             onClick={openPicker}
             disabled={isUploading}
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] xl:text-xs font-semibold shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-              playableVideoUrl
+              canWatch
                 ? "bg-white text-[#6D2924] border border-[#6D2924] hover:bg-[#FFE7D0]"
                 : "bg-[#6D2924] text-white hover:bg-[#561e1a]"
             }`}
             title={
-              playableVideoUrl
+              canWatch
                 ? "Replace the uploaded video"
                 : "Upload a video of Nonna in the kitchen"
             }
           >
             {isUploading ? (
               <Loader2 size={14} className="animate-spin" />
-            ) : playableVideoUrl ? (
+            ) : canWatch ? (
               <RotateCcw size={14} />
             ) : (
               <Upload size={14} />
             )}
             {isUploading
               ? "Uploading…"
-              : playableVideoUrl
+              : canWatch
                 ? "Replace Video"
                 : "Upload Video"}
           </button>

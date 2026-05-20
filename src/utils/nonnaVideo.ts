@@ -7,10 +7,24 @@ export const normalizeVideoUrl = (
 ): string | null => {
   if (url == null) return null;
   const trimmed = String(url).trim();
-  if (!trimmed || /^null$/i.test(trimmed) || /^undefined$/i.test(trimmed)) {
+  if (
+    !trimmed ||
+    /^null$/i.test(trimmed) ||
+    /^undefined$/i.test(trimmed) ||
+    trimmed === "[]" ||
+    trimmed === "{}"
+  ) {
     return null;
   }
   return trimmed;
+};
+
+/** True when the URL is non-empty and looks like a watchable video file. */
+export const hasPlayableNonnaVideo = (
+  url: string | null | undefined,
+): boolean => {
+  const normalized = normalizeVideoUrl(url);
+  return Boolean(normalized && isVideoUrl(normalized));
 };
 
 export const resolveNonnaVideoUrl = (recipe: {
@@ -18,7 +32,7 @@ export const resolveNonnaVideoUrl = (recipe: {
   recipe_image?: string[] | null;
 }): string | null => {
   const dedicated = normalizeVideoUrl(recipe.nonna_video);
-  if (dedicated) return dedicated;
+  if (dedicated && isVideoUrl(dedicated)) return dedicated;
 
   for (const raw of recipe.recipe_image ?? []) {
     const candidate = normalizeVideoUrl(raw);

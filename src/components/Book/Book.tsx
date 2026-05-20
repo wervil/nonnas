@@ -5,7 +5,7 @@ import "./Book.css";
 
 import { Recipe } from "@/db/schema";
 import { convertRecipesToPages } from "@/utils/convertRecipesToPages";
-import { normalizeVideoUrl } from "@/utils/nonnaVideo";
+import { hasPlayableNonnaVideo, normalizeVideoUrl } from "@/utils/nonnaVideo";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import {
@@ -713,7 +713,7 @@ export const Book = forwardRef<BookHandle, Props>(
 
         <ImagesModal images={images} onClose={() => setImages(null)} />
 
-        {normalizeVideoUrl(nonnaVideoUrl) && (
+        {hasPlayableNonnaVideo(nonnaVideoUrl) && (
           <div
             className="fixed inset-0 z-[1000000] bg-black/90 flex items-center justify-center p-4"
             onClick={() => setNonnaVideoUrl(null)}
@@ -731,7 +731,7 @@ export const Book = forwardRef<BookHandle, Props>(
               <X size={24} />
             </button>
             <video
-              src={normalizeVideoUrl(nonnaVideoUrl)!}
+              src={normalizeVideoUrl(nonnaVideoUrl) ?? ""}
               controls
               autoPlay
               playsInline
