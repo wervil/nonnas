@@ -23,6 +23,15 @@ const ZOOM_RANGES = {
   NONNA: 3000,
 };
 type ZoomLevel = "EARTH" | "CONTINENT" | "COUNTRY" | "STATE" | "CITY" | "NONNA";
+/** Pin size multiplier — decreases as the user zooms in (continent → city). */
+const MARKER_SCALE_BY_LEVEL: Record<ZoomLevel, number> = {
+  EARTH: 0.7,
+  CONTINENT: 0.52,
+  COUNTRY: 0.38,
+  STATE: 0.26,
+  CITY: 0.18,
+  NONNA: 0.15,
+};
 const ZOOM_LEVEL_META: Record<
   ZoomLevel,
   { label: string; description: string }
@@ -584,7 +593,8 @@ async function buildMarkerTemplate(opts: {
   countryName: string;
   nonnaCount: number;
   expanded?: boolean;
-  mode: "avatar" | "bubble-small" | "bubble-large";
+  mode: "avatar" | "bubble";
+  zoomLevel: ZoomLevel;
 }): Promise<HTMLTemplateElement> {
   const {
     name,
@@ -594,7 +604,9 @@ async function buildMarkerTemplate(opts: {
     nonnaCount,
     expanded,
     mode,
+    zoomLevel,
   } = opts;
+  const scale = MARKER_SCALE_BY_LEVEL[zoomLevel];
   const flag = countryFlag(countryCode);
   const displayName = (name || `Nonna from ${countryName}`)
     .replace(/&/g, "&amp;")
@@ -606,19 +618,18 @@ async function buildMarkerTemplate(opts: {
   const uid =
     countryCode.toLowerCase().replace(/[^a-z]/g, "") +
     (expanded ? "e" : "c") +
+    zoomLevel +
     mode;
-  const isLarge = mode === "bubble-large";
-  const aR = isLarge ? 100 : 34;
-  const cardW = Math.max(180, displayName.length * 9 + badge.length * 6.5 + 40);
-  const cardH = 56;
-  const gap = 8;
-  const pad = isLarge ? 24 : 12;
-  const svgW = Math.max((aR + pad) * 2, cardW + 8);
-  const svgH = aR + pad + aR + gap + cardH + pad;
+  const aR = Math.max(8, Math.round(26 * scale));
+  const pad = Math.max(3, Math.round(8 * scale));
+  const svgSize = (aR + pad) * 2;
+  const svgW = svgSize;
+  const svgH = svgSize;
   const cx = svgW / 2;
-  const cy = aR + pad;
+  const cy = svgH / 2;
   async function loadImageAsBase64(url: string): Promise<string> {
     const response = await fetch(url);
+    if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -628,25 +639,50 @@ async function buildMarkerTemplate(opts: {
     });
   }
 
-  const imgHref = opts.photoUrl
-    ? await loadImageAsBase64(
+  let imgHref = avatarUri;
+  if (opts.photoUrl) {
+    try {
+      imgHref = await loadImageAsBase64(
         `/api/proxy-image?url=${encodeURIComponent(opts.photoUrl)}`,
-      )
-    : await loadImageAsBase64(avatarUri);
+      );
+    } catch {
+      imgHref = avatarUri;
+    }
+  }
+  const imgHrefSafe = imgHref.replace(/"/g, "&quot;");
 
-  let markerContent = "";
-  if (mode === "bubble-large" || mode === "bubble-small") {
-    const baseR = isLarge ? 85 : 28;
-    const bubbleRadius = Math.min(baseR + nonnaCount.toString().length * 2, aR);
-    const fontSize = isLarge ? 56 : 22;
-    const yOffset = isLarge ? 18 : 8;
-    const strokeW = isLarge ? 8 : 4;
-    markerContent = `
-      <circle cx="${cx}" cy="${cy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
-      <text x="${cx}" y="${cy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
-    `;
-  } else {
-    const svg = `
+  // Compact square SVG so the map anchor (center) sits on the saved lat/lng.
+  // The old bubble layout used a tall viewBox with empty label space below the
+  // circle, which shifted pins away from the real city when zoomed out.
+  if (mode === "bubble") {
+    const baseR = Math.max(10, Math.round(58 * scale));
+    const maxR = Math.max(baseR, Math.round(68 * scale));
+    const bubbleRadius = Math.min(
+      baseR + nonnaCount.toString().length * Math.max(1, Math.round(2 * scale)),
+      maxR,
+    );
+    const fontSize = Math.max(8, Math.round(38 * scale));
+    const yOffset = Math.max(3, Math.round(12 * scale));
+    const strokeW = Math.max(1.5, Math.round(5 * scale));
+    const pad = strokeW + 4;
+    const size = (bubbleRadius + pad) * 2;
+    const bcx = size / 2;
+    const bcy = size / 2;
+    const bubbleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" overflow="visible">
+      <defs>
+        <filter id="ash${uid}" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="rgba(0,0,0,0.28)"/>
+        </filter>
+      </defs>
+      <circle cx="${bcx}" cy="${bcy}" r="${bubbleRadius}" fill="${TEAL.primary}" stroke="white" stroke-width="${strokeW}" filter="url(#ash${uid})"/>
+      <text x="${bcx}" y="${bcy + yOffset}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="900" fill="white">${nonnaCount}</text>
+    </svg>`;
+    const tpl = document.createElement("template");
+    tpl.innerHTML = bubbleSvg.trim();
+    return tpl;
+  }
+
+  const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
          width="${svgW}"
          height="${svgH}"
@@ -698,7 +734,7 @@ async function buildMarkerTemplate(opts: {
   
         <!-- avatar image using foreignObject with background -->
         <foreignObject x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}" clip-path="url(#clip${uid})">
-          <div xmlns="http://www.w3.org/1999/xhtml" style="width: 100%; height: 100%; background-image: url('${imgHref}'); background-size: cover; background-position: center;"></div>
+          <div xmlns="http://www.w3.org/1999/xhtml" style="width: 100%; height: 100%; background-image: url('${imgHrefSafe}'); background-size: cover; background-position: center;"></div>
         </foreignObject>
           
         <!-- border -->
@@ -708,37 +744,6 @@ async function buildMarkerTemplate(opts: {
     </svg>
     `;
 
-    const tpl = document.createElement("template");
-    tpl.innerHTML = svg.trim();
-    return tpl;
-  }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-  width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" overflow="visible">
-  <defs>
-    <style>
-      @keyframes floatBob { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); }
-      .bob-anim { animation: floatBob 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite; transform-origin: center center; }
-      @keyframes cardPop {
-        0%   { opacity: 0; transform: translateY(-12px) scale(0.92); }
-        100% { opacity: 1; transform: translateY(0px) scale(1); }
-      }
-      .card-anim { animation: cardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: 0.02s; transform-origin: ${cx}px ${cy + aR + gap}px; }
-    </style>
-    <filter id="ash${uid}" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="rgba(0,0,0,0.30)"/>
-    </filter>
-    <filter id="csh${uid}" x="-8%" y="-20%" width="116%" height="160%">
-      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="rgba(0,0,0,0.10)"/>
-    </filter>
-    <radialGradient id="bloom${uid}" cx="50%" cy="58%" r="50%">
-      <stop offset="0%"   stop-color="rgba(94,234,212,0.5)"/>
-      <stop offset="100%" stop-color="rgba(94,234,212,0)"/>
-    </radialGradient>
-  </defs>
-  <g class="">
-    ${markerContent}
-  </g>
-</svg>`;
   const tpl = document.createElement("template");
   tpl.innerHTML = svg.trim();
   return tpl;
@@ -757,6 +762,7 @@ type GlobeNonna = {
   recipeId: string;
   history?: string;
   origin?: string;
+  region?: string;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1638,11 +1644,6 @@ export default function Earth3DPage() {
     panel.open,
   ]);
 
-  const allClustersRef = useRef<{
-    continents: GlobeNonna[];
-    countries: GlobeNonna[];
-    states: GlobeNonna[];
-  } | null>(null);
   // Flight state for programmatic zooms (buttons/clicks) to temporarily pause scroll-based detection during animations
   const flightStateRef = useRef<{
     active: boolean;
@@ -1657,38 +1658,34 @@ export default function Earth3DPage() {
     startTime: 0,
     lastRanges: [],
   });
-  const applyClusterLevel = useCallback(
-    (level: ZoomLevel, data: typeof allClustersRef.current) => {
-      if (!data) return;
-      if (level === "EARTH" || level === "CONTINENT") {
-        console.log(`[Earth3D] Setting ${level} level data:`, {
-          level,
-          continentsCount: data.continents?.length || 0,
-          countriesCount: data.countries?.length || 0,
-          firstContinent: data.continents?.[0],
-          firstCountry: data.countries?.[0],
-        });
-        setNonnaData(data.continents);
-      } else if (level === "COUNTRY") setNonnaData(data.states);
-      else if (level === "STATE") {
-        setNonnaData(data.states);
-      }
-      // CITY and NONNA levels should use fetchIndividualNonnas, not this function
-      // Return early for these levels to prevent incorrect data being set
-      else if (level === "CITY" || level === "NONNA") return;
-    },
-    [],
-  );
-  const fetchIndividualNonnas = useCallback(async (level: "CITY" | "NONNA") => {
+  /** Every zoom level uses saved recipe coordinates (same pins as city view). */
+  const fetchNonnaMarkers = useCallback(async () => {
     try {
-      const res = await fetch(`/api/nonnas/clustering?level=${level}`, {
+      const params = new URLSearchParams({ level: "NONNA" });
+      const country = viewportCountryRef.current;
+      if (country) {
+        params.set("country", country);
+      }
+
+      const res = await fetch(`/api/nonnas/clustering?${params}`, {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Failed to fetch individual nonnas");
+      if (!res.ok) throw new Error("Failed to fetch nonna markers");
       const data = await res.json();
-      setNonnaData(data.clusters || []);
+      let markers: GlobeNonna[] = data.clusters || [];
+
+      const viewportContinent = viewportContinentRef.current;
+      if (viewportContinent) {
+        markers = markers.filter(
+          (m) =>
+            getCountryInfoWithFallback(m.countryName).continent ===
+            viewportContinent,
+        );
+      }
+
+      setNonnaData(markers);
     } catch (err) {
-      console.error("[Earth3D] individual nonnas fetch error:", err);
+      console.error("[Earth3D] nonna markers fetch error:", err);
     }
   }, []);
 
@@ -1725,42 +1722,16 @@ export default function Earth3DPage() {
   useEffect(() => {
     if (!mapReady) return;
     let mounted = true;
-    const fetchAll = async () => {
-      try {
-        const res = await fetch("/api/nonnas/clustering?level=ALL", {
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error("Failed to fetch all clusters");
-        const data = await res.json();
-
-        if (mounted) {
-          allClustersRef.current = {
-            continents: data.continents ?? [],
-            countries: data.countries ?? [],
-            states: data.states ?? [],
-          };
-
-          // For CITY and NONNA levels, fetch individual nonnas
-          if (
-            currentLevelRef.current === "CITY" ||
-            currentLevelRef.current === "NONNA"
-          ) {
-            await fetchIndividualNonnas(currentLevelRef.current);
-          } else {
-            applyClusterLevel(currentLevelRef.current, allClustersRef.current);
-          }
-        }
-      } catch (err) {
-        console.error("[Earth3D] cluster fetch error:", err);
-      }
+    const loadMarkers = async () => {
+      if (mounted) await fetchNonnaMarkers();
     };
-    fetchAll();
-    const poll = setInterval(fetchAll, 5 * 60 * 1000);
+    loadMarkers();
+    const poll = setInterval(loadMarkers, 5 * 60 * 1000);
     return () => {
       mounted = false;
       clearInterval(poll);
     };
-  }, [mapReady, applyClusterLevel, fetchIndividualNonnas]);
+  }, [mapReady, fetchNonnaMarkers]);
   const updateViewportContext = useCallback(async () => {
     const map3d = map3dRef.current;
     const geocoder = geocoderRef.current;
@@ -1794,26 +1765,12 @@ export default function Earth3DPage() {
       /* geocode failed, keep existing viewport context */
     }
 
-    if (allClustersRef.current) {
-      // For CITY and NONNA levels, fetch individual nonnas instead of using cluster data
-      if (level === "CITY" || level === "NONNA") {
-        fetchIndividualNonnas(level);
-      } else {
-        applyClusterLevel(level, allClustersRef.current);
-      }
-    }
-  }, [applyClusterLevel, fetchIndividualNonnas]);
+    fetchNonnaMarkers();
+  }, [fetchNonnaMarkers]);
 
   useEffect(() => {
-    if (!allClustersRef.current) return;
-
-    // For CITY and NONNA levels, fetch individual nonnas
-    if (currentLevel === "CITY" || currentLevel === "NONNA") {
-      fetchIndividualNonnas(currentLevel);
-    } else {
-      applyClusterLevel(currentLevel, allClustersRef.current);
-    }
-  }, [currentLevel, applyClusterLevel, fetchIndividualNonnas]);
+    fetchNonnaMarkers();
+  }, [currentLevel, fetchNonnaMarkers]);
 
   // Handle cluster clicks - zoom to next level and open comment panel for single nonnas
   const handleClusterClick = useCallback(
@@ -1830,15 +1787,19 @@ export default function Earth3DPage() {
         let clusterName: string;
         let countryCode: string | undefined;
 
-        if (currentLevel === "CONTINENT") {
+        if (currentLevel === "EARTH") {
           clusterLevel = "continent";
-          clusterName = nonna.countryName; // For continent, countryName contains the continent name
-        } else if (currentLevel === "COUNTRY") {
+          clusterName = nonna.countryName;
+        } else if (currentLevel === "CONTINENT") {
           clusterLevel = "country";
           clusterName = nonna.countryName;
+        } else if (currentLevel === "COUNTRY") {
+          clusterLevel = "state";
+          clusterName = nonna.region || nonna.countryName;
+          countryCode = nonna.countryCode;
         } else if (currentLevel === "STATE") {
           clusterLevel = "state";
-          clusterName = nonna.countryName; // For state, countryName contains the region name
+          clusterName = nonna.region || nonna.countryName;
           countryCode = nonna.countryCode;
         } else {
           console.error(
@@ -1969,21 +1930,26 @@ export default function Earth3DPage() {
             return;
           }
 
-          // Determine next level to zoom to
           let nextLevel: ZoomLevel;
-          if (currentLevel === "CONTINENT") {
+          if (currentLevel === "EARTH") {
+            nextLevel = "CONTINENT";
+            viewportContinentRef.current = nonna.countryName;
+            viewportCountryRef.current = null;
+          } else if (currentLevel === "CONTINENT") {
             nextLevel = "COUNTRY";
+            viewportCountryRef.current = nonna.countryName;
           } else if (currentLevel === "COUNTRY") {
             nextLevel = "STATE";
           } else if (currentLevel === "STATE") {
             nextLevel = "CITY";
           } else {
-            nextLevel = "CITY"; // fallback
+            nextLevel = "CITY";
           }
 
-          // Update level immediately
           setLevel(nextLevel);
           currentLevelRef.current = nextLevel;
+
+          void fetchNonnaMarkers();
 
           // Set flight state
           flightStateRef.current = {
@@ -1994,14 +1960,14 @@ export default function Earth3DPage() {
             lastRanges: [],
           };
 
-          // Zoom to the closest nonna's location
+          // Zoom to the cluster marker position (same coords as city pins)
           const map3d = map3dRef.current;
           if (map3d) {
             map3d.flyCameraTo({
               endCamera: {
                 center: {
-                  lat: closestNonna.lat,
-                  lng: closestNonna.lng,
+                  lat: nonna.lat,
+                  lng: nonna.lng,
                   altitude: 0,
                 },
                 range: ZOOM_RANGES[nextLevel],
@@ -2024,7 +1990,7 @@ export default function Earth3DPage() {
         console.error("[Earth3D] Error handling cluster click:", error);
       }
     },
-    [setLevel, setPanel, setCommentSection],
+    [setLevel, setPanel, setCommentSection, fetchNonnaMarkers],
   );
 
   // 3D tilt on deep zoom
@@ -2509,29 +2475,23 @@ export default function Earth3DPage() {
     clearCurrentMarkers();
 
     const map3d = map3dRef.current;
-    let mounted = true;
+    let cancelled = false;
     (async () => {
       try {
         const { Marker3DInteractiveElement } =
           await window.google.maps.importLibrary("maps3d");
         for (const nonna of nonnaData) {
-          console.log(nonna);
-
+          if (cancelled) return;
+          try {
           const avatarUri = generateAvatarSvgUri(
             nonna.representativeName || nonna.countryName,
             nonna.countryCode,
           );
-          const showExpanded =
-            currentLevelRef.current === "CITY" ||
-            currentLevelRef.current === "NONNA";
-          const isHighZ =
-            currentLevelRef.current === "EARTH" ||
-            currentLevelRef.current === "CONTINENT";
-          const markerMode = showExpanded
-            ? "avatar"
-            : isHighZ
-              ? "bubble-large"
-              : "bubble-small";
+          const level = currentLevelRef.current;
+          const markerMode =
+            level === "CITY" || level === "NONNA"
+              ? ("avatar" as const)
+              : ("bubble" as const);
           const tplCompact = await buildMarkerTemplate({
             name: nonna.representativeName,
             photoUrl: nonna.representativePhoto,
@@ -2539,9 +2499,11 @@ export default function Earth3DPage() {
             countryCode: nonna.countryCode,
             countryName: nonna.countryName,
             nonnaCount: nonna.nonnaCount,
-            expanded: showExpanded,
+            expanded: false,
             mode: markerMode,
+            zoomLevel: level,
           });
+          if (cancelled) return;
           const marker = new Marker3DInteractiveElement({
             position: { lat: nonna.lat, lng: nonna.lng, altitude: 0 },
             altitudeMode: "RELATIVE_TO_GROUND",
@@ -2565,8 +2527,8 @@ export default function Earth3DPage() {
           });
 
           marker.addEventListener("gmp-click", (e: Event) => {
-            // Avatar mode: distinguish circle vs name card. Bubble modes: skip the
-            // strict circle test — at EARTH/CONTINENT we use bubble-large; the test
+            // Avatar mode: distinguish circle vs name card. Bubble mode: skip the
+            // strict circle test — scaled bubble radii vary by zoom; the test
             // used fixed radii that don't match buildMarkerTemplate's dynamic
             // bubbleRadius and mis-maps under 3D, so clicks on the bubble were
             // ignored and the map handled the click instead (breaking single-nonna
@@ -2590,9 +2552,8 @@ export default function Earth3DPage() {
                   const actualY = (svgY / rect.height) * vbH + vbY;
 
                   const cx = vbW / 2;
-                  const aR = 34;
-                  const pad = 12;
-                  const cy = aR + pad;
+                  const cy = vbH / 2;
+                  const aR = Math.min(vbW, vbH) / 2 - 12;
 
                   const distance = Math.sqrt(
                     Math.pow(actualX - cx, 2) + Math.pow(actualY - cy, 2),
@@ -2620,7 +2581,7 @@ export default function Earth3DPage() {
               e.stopPropagation();
               e.preventDefault();
 
-              if (mounted) {
+              if (!cancelled) {
                 // Check if comment section is already open for this same nonna
                 if (
                   commentSection.open &&
@@ -2870,16 +2831,23 @@ export default function Earth3DPage() {
               }
             }
           });
+          } catch (markerErr) {
+            console.warn(
+              "[Earth3D] Failed to place marker:",
+              nonna.id,
+              markerErr,
+            );
+          }
         }
       } catch (err) {
         console.warn("[Earth3D] Marker3DInteractiveElement failed:", err);
       }
     })();
     return () => {
-      mounted = false;
+      cancelled = true;
       clearCurrentMarkers();
     };
-  }, [nonnaData, mapReady, setLevel, handleClusterClick, clearCurrentMarkers]);
+  }, [nonnaData, mapReady, currentLevel, clearCurrentMarkers]);
   // Zoom button handlers
   const handleZoomIn = useCallback(() => {
     if (!map3dRef.current) return;
