@@ -16,7 +16,7 @@ import { ListPlugin } from '@lexical/react/LexicalListPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { $getRoot, $insertNodes, LexicalEditor, ParagraphNode, TextNode } from 'lexical'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import ExampleTheme from './ExampleTheme'
 import { ListCommandPlugin } from './ListCommandPlugin'
@@ -34,23 +34,28 @@ function onChange(
   })
 }
 
-// Component to set initial HTML content
+// Load HTML only once on mount. Re-syncing when field.value changes (every keystroke)
+// would reset the editor and move the cursor to the end.
 function InitialContentPlugin({ initialHtml }: { initialHtml?: string }) {
   const [editor] = useLexicalComposerContext()
+  const hasInitialized = useRef(false)
 
   useEffect(() => {
-    if (initialHtml && initialHtml.trim()) {
-      editor.update(() => {
-        const parser = new DOMParser()
-        const dom = parser.parseFromString(initialHtml, 'text/html')
-        const nodes = $generateNodesFromDOM(editor, dom)
+    if (hasInitialized.current) return
+    hasInitialized.current = true
 
-        // Clear existing content and insert new nodes
-        const root = $getRoot()
-        root.clear()
-        $insertNodes(nodes)
-      })
-    }
+    const html = initialHtml?.trim()
+    if (!html) return
+
+    editor.update(() => {
+      const parser = new DOMParser()
+      const dom = parser.parseFromString(initialHtml!, 'text/html')
+      const nodes = $generateNodesFromDOM(editor, dom)
+
+      const root = $getRoot()
+      root.clear()
+      $insertNodes(nodes)
+    })
   }, [editor, initialHtml])
 
   return null
@@ -96,6 +101,8 @@ interface TextEditorProps<T extends FieldValues> {
   description?: string
   theme?: 'dark' | 'light'
   maxLength?: number
+  /** Remount the editor when this changes (e.g. when loading a different recipe). */
+  editorKey?: string | number
 }
 
 export const TextEditor = <T extends FieldValues>({
@@ -105,6 +112,7 @@ export const TextEditor = <T extends FieldValues>({
   control,
   theme = 'dark',
   maxLength,
+  editorKey,
 }: TextEditorProps<T>) => {
   const getTextContent = (html: string): string => {
     if (typeof window === 'undefined') return html
@@ -133,7 +141,7 @@ export const TextEditor = <T extends FieldValues>({
           return (
             <>
               <div className={clsx("border rounded-lg overflow-hidden", fieldState.error ? 'border-danger-main' : 'border-primary-main')}>
-                <LexicalComposer initialConfig={editorConfig as any}>
+                <LexicalComposer key={editorKey ?? name} initialConfig={editorConfig as any}>
                   {/* Add the Toolbar */}
                   <ToolbarPlugin />
                   <RichTextPlugin

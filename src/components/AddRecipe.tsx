@@ -638,6 +638,7 @@ export const AddRecipe = ({
                   control={control}
                   maxLength={MAX_LENGTH}
                   theme="light"
+                  editorKey={recipe?.id ?? "new"}
                 />
                 <TextEditor
                   title={`${l("directions")}*`}
@@ -646,6 +647,7 @@ export const AddRecipe = ({
                   control={control}
                   maxLength={MAX_LENGTH}
                   theme="light"
+                  editorKey={recipe?.id ?? "new"}
                 />
               </div>
             )}
