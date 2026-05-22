@@ -15,6 +15,8 @@ import Input from "@/components/ui/Input";
 import { TextEditor } from "@/components/ui/TextEditor";
 import { Recipe } from "@/db/schema";
 import { sanitizeHtml } from "@/utils/utils";
+import { geocodeCityInBrowser } from "@/lib/geocodeClient";
+import { isValidCoordinatesString } from "@/lib/geocode";
 import { Country, State } from "country-state-city";
 import { allCountries } from "country-region-data";
 import CountryStateCitySelector from "./ui/CountryStateCitySelector";
@@ -322,6 +324,7 @@ export const AddRecipe = ({
     firstName: data.firstName || "",
     lastName: data.lastName || "",
     recipeTitle: data.recipeTitle || "",
+    countryIso: data.country || null,
     country:
       Country.getAllCountries().find((c) => c.isoCode === data.country)?.name ||
       data.country ||
@@ -351,11 +354,38 @@ export const AddRecipe = ({
     user_id: data.userId || userId,
   });
 
+  /** Always geocode via Google Maps JS — never use country-state-city lat/lng. */
+  const withMapCoordinates = async (data: FieldValues) => {
+    const payload = buildPayload(data);
+    const city = payload.city?.trim();
+    const countryIso = (data.country as string) || "";
+    if (!city || !countryIso) return payload;
+
+    const coordinates = await geocodeCityInBrowser(
+      city,
+      payload.region,
+      payload.country,
+      countryIso,
+    );
+
+    if (coordinates) {
+      return { ...payload, coordinates };
+    }
+
+    if (isValidCoordinatesString(payload.coordinates)) {
+      return payload;
+    }
+
+    throw new Error(
+      "Could not locate this city on the map. Please select your city again and wait a moment before saving.",
+    );
+  };
+
   const saveDraft = async () => {
     try {
       setIsSavingDraft(true);
       const values = getValues();
-      const payload = buildPayload(values);
+      const payload = await withMapCoordinates(values);
       const existingId = draftIdRef.current ?? recipe?.id;
 
       const response = existingId
@@ -399,7 +429,7 @@ export const AddRecipe = ({
       setIsSubmitting(true);
       setError(null);
 
-      const sanitizedData = buildPayload(data);
+      const sanitizedData = await withMapCoordinates(data);
       // Use the draft ID (if we created one mid-session) or the existing recipe ID
       const existingId = draftIdRef.current ?? recipe?.id;
 

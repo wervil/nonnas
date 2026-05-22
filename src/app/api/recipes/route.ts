@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 //   }, {})
 // }
 
+import { resolveRecipeCoordinates } from "@/lib/geocode";
 import { moderateContent } from "@/services/moderation";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +85,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const coordinates = await resolveRecipeCoordinates({
+      city: body.city,
+      region: body.region,
+      country: body.country,
+      countryIso: body.countryIso,
+      coordinates: body.coordinates,
+    });
+
     // Insert the recipe into the database
     // For drafts, use empty strings for NOT NULL columns that may not be filled yet
     const newRecipe = await db
@@ -97,7 +106,7 @@ export async function POST(request: NextRequest) {
         country: body.country || "",
         region: body.region || null,
         city: body.city || null,
-        coordinates: body.coordinates || null,
+        coordinates,
         history: body.history || "",
         geo_history: body.geo_history || null,
         recipe: body.recipe || "",
@@ -389,7 +398,37 @@ export async function PATCH(request: NextRequest) {
     if (body.country !== undefined) updatedRecipe.country = body.country;
     if (body.region !== undefined) updatedRecipe.region = body.region;
     if (body.city !== undefined) updatedRecipe.city = body.city;
-    if (body.coordinates !== undefined) updatedRecipe.coordinates = body.coordinates;
+
+    const locationFieldsTouched =
+      body.city !== undefined ||
+      body.region !== undefined ||
+      body.country !== undefined ||
+      body.coordinates !== undefined;
+
+    if (locationFieldsTouched) {
+      const existing = await db
+        .select({
+          city: recipes.city,
+          region: recipes.region,
+          country: recipes.country,
+          coordinates: recipes.coordinates,
+        })
+        .from(recipes)
+        .where(eq(recipes.id, id))
+        .limit(1);
+
+      const row = existing[0];
+      updatedRecipe.coordinates = await resolveRecipeCoordinates({
+        city: (body.city ?? row?.city) as string | null | undefined,
+        region: (body.region ?? row?.region) as string | null | undefined,
+        country: (body.country ?? row?.country) as string | null | undefined,
+        countryIso: body.countryIso as string | null | undefined,
+        coordinates: (body.coordinates ?? row?.coordinates) as
+          | string
+          | null
+          | undefined,
+      });
+    }
     if (body.history !== undefined) updatedRecipe.history = body.history;
     if (body.geo_history !== undefined) updatedRecipe.geo_history = body.geo_history;
     if (body.recipe !== undefined) updatedRecipe.recipe = body.recipe;
