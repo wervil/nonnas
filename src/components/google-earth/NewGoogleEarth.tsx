@@ -23,14 +23,14 @@ const ZOOM_RANGES = {
   NONNA: 3000,
 };
 type ZoomLevel = "EARTH" | "CONTINENT" | "COUNTRY" | "STATE" | "CITY" | "NONNA";
-/** Pin size multiplier — decreases as the user zooms in (continent → city). */
+/** Pin size multiplier — larger at world/continent so cluster counts stay readable. */
 const MARKER_SCALE_BY_LEVEL: Record<ZoomLevel, number> = {
-  EARTH: 0.7,
-  CONTINENT: 0.52,
+  EARTH: 1.55,
+  CONTINENT: 1.2,
   COUNTRY: 0.38,
   STATE: 0.26,
-  CITY: 0.18,
-  NONNA: 0.15,
+  CITY: 1.15,
+  NONNA: 1.05,
 };
 const ZOOM_LEVEL_META: Record<
   ZoomLevel,
@@ -265,7 +265,8 @@ function extractLatLng(rawPos: unknown): LatLngLiteral | null {
 
 function parseAdminLevelsFromGeocodeResult(result: any) {
   let country: string | null = null,
-    state: string | null = null;
+    state: string | null = null,
+    city: string | null = null;
   let countryCode: string | null = null,
     stateCode: string | null = null;
   for (const c of result?.address_components ?? []) {
@@ -278,8 +279,16 @@ function parseAdminLevelsFromGeocodeResult(result: any) {
       state = c.long_name || null;
       stateCode = c.short_name || null;
     }
+    if (
+      !city &&
+      (types.includes("locality") ||
+        types.includes("postal_town") ||
+        types.includes("administrative_area_level_2"))
+    ) {
+      city = c.long_name || null;
+    }
   }
-  return { country, countryCode, state, stateCode };
+  return { country, countryCode, state, stateCode, city };
 }
 
 // Avatar generation
@@ -620,8 +629,12 @@ async function buildMarkerTemplate(opts: {
     (expanded ? "e" : "c") +
     zoomLevel +
     mode;
-  const aR = Math.max(8, Math.round(26 * scale));
-  const pad = Math.max(3, Math.round(8 * scale));
+  const isCityView = zoomLevel === "CITY" || zoomLevel === "NONNA";
+  const aR = Math.max(
+    isCityView ? 38 : 8,
+    Math.round(26 * scale * (isCityView ? 1.4 : 1)),
+  );
+  const pad = Math.max(isCityView ? 12 : 3, Math.round(8 * scale));
   const svgSize = (aR + pad) * 2;
   const svgW = svgSize;
   const svgH = svgSize;
@@ -655,15 +668,27 @@ async function buildMarkerTemplate(opts: {
   // The old bubble layout used a tall viewBox with empty label space below the
   // circle, which shifted pins away from the real city when zoomed out.
   if (mode === "bubble") {
-    const baseR = Math.max(10, Math.round(58 * scale));
-    const maxR = Math.max(baseR, Math.round(68 * scale));
+    const isWorldView = zoomLevel === "EARTH" || zoomLevel === "CONTINENT";
+    const isCityBubble = zoomLevel === "CITY" || zoomLevel === "NONNA";
+    const baseR = Math.max(
+      isWorldView ? 44 : isCityBubble ? 36 : 10,
+      Math.round(58 * scale),
+    );
+    const maxR = isWorldView
+      ? Math.max(baseR, Math.round(140 * scale))
+      : isCityBubble
+        ? Math.max(baseR, Math.round(95 * scale))
+        : Math.max(baseR, Math.round(68 * scale));
     const bubbleRadius = Math.min(
       baseR + nonnaCount.toString().length * Math.max(1, Math.round(2 * scale)),
       maxR,
     );
-    const fontSize = Math.max(8, Math.round(38 * scale));
+    const fontSize = Math.max(
+      isWorldView ? 18 : isCityBubble ? 16 : 8,
+      Math.round(42 * scale),
+    );
     const yOffset = Math.max(3, Math.round(12 * scale));
-    const strokeW = Math.max(1.5, Math.round(5 * scale));
+    const strokeW = Math.max(isWorldView ? 3 : 1.5, Math.round(5 * scale));
     const pad = strokeW + 4;
     const size = (bubbleRadius + pad) * 2;
     const bcx = size / 2;
@@ -763,6 +788,7 @@ type GlobeNonna = {
   history?: string;
   origin?: string;
   region?: string;
+  city?: string;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1658,36 +1684,112 @@ export default function Earth3DPage() {
     startTime: 0,
     lastRanges: [],
   });
-  /** Every zoom level uses saved recipe coordinates (same pins as city view). */
-  const fetchNonnaMarkers = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({ level: "NONNA" });
-      const country = viewportCountryRef.current;
-      if (country) {
-        params.set("country", country);
-      }
+  const allClustersRef = useRef<{
+    continents: GlobeNonna[];
+    countries: GlobeNonna[];
+    states: GlobeNonna[];
+    cities: GlobeNonna[];
+  } | null>(null);
 
-      const res = await fetch(`/api/nonnas/clustering?${params}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Failed to fetch nonna markers");
-      const data = await res.json();
-      let markers: GlobeNonna[] = data.clusters || [];
+  const viewportCityRef = useRef<string | null>(null);
+  const viewportRegionRef = useRef<string | null>(null);
 
-      const viewportContinent = viewportContinentRef.current;
-      if (viewportContinent) {
-        markers = markers.filter(
-          (m) =>
-            getCountryInfoWithFallback(m.countryName).continent ===
-            viewportContinent,
-        );
-      }
+  const filterMarkersNearCenter = useCallback(
+    (markers: GlobeNonna[], maxKm: number) => {
+      const map3d = map3dRef.current;
+      if (!map3d?.center) return markers;
+      const cLat = Number(map3d.center.lat);
+      const cLng = Number(map3d.center.lng);
+      if (!Number.isFinite(cLat) || !Number.isFinite(cLng)) return markers;
+      return markers.filter(
+        (m) =>
+          Number.isFinite(m.lat) &&
+          Number.isFinite(m.lng) &&
+          calculateDistance(cLat, cLng, m.lat, m.lng) <= maxKm,
+      );
+    },
+    [],
+  );
 
-      setNonnaData(markers);
-    } catch (err) {
-      console.error("[Earth3D] nonna markers fetch error:", err);
-    }
+  const filterByViewportCountry = useCallback((markers: GlobeNonna[]) => {
+    const country = viewportCountryRef.current;
+    if (!country) return markers;
+    const norm = country.toLowerCase();
+    return markers.filter(
+      (m) => m.countryName.toLowerCase() === norm,
+    );
   }, []);
+
+  const filterByViewportContinent = useCallback((markers: GlobeNonna[]) => {
+    const continent = viewportContinentRef.current;
+    if (!continent) return markers;
+    return markers.filter(
+      (m) =>
+        getCountryInfoWithFallback(m.countryName).continent === continent,
+    );
+  }, []);
+
+  const applyClusterLevel = useCallback(
+    (level: ZoomLevel, data: NonNullable<typeof allClustersRef.current>) => {
+      if (level === "EARTH") {
+        setNonnaData(data.continents);
+      } else if (level === "CONTINENT") {
+        setNonnaData(filterByViewportContinent(data.countries));
+      } else if (level === "COUNTRY") {
+        setNonnaData(filterByViewportCountry(data.states));
+      } else if (level === "STATE") {
+        let markers = filterByViewportCountry(data.cities);
+        const region = viewportRegionRef.current;
+        if (region) {
+          markers = markers.filter((m) => m.region === region);
+        }
+        setNonnaData(markers);
+      } else if (level === "CITY") {
+        let markers = filterByViewportCountry(data.cities);
+        const city = viewportCityRef.current;
+        if (city) {
+          const cityNorm = city.toLowerCase();
+          markers = markers.filter(
+            (m) => m.city?.toLowerCase() === cityNorm,
+          );
+        }
+        setNonnaData(filterMarkersNearCenter(markers, 300));
+      }
+    },
+    [
+      filterByViewportContinent,
+      filterByViewportCountry,
+      filterMarkersNearCenter,
+    ],
+  );
+
+  const fetchIndividualNonnas = useCallback(
+    async (opts?: { city?: string; region?: string }) => {
+      try {
+        const params = new URLSearchParams({ level: "NONNA" });
+        const country = viewportCountryRef.current;
+        if (country) params.set("country", country);
+        const region = opts?.region ?? viewportRegionRef.current;
+        if (region) params.set("region", region);
+        const city = opts?.city ?? viewportCityRef.current;
+        if (city) params.set("city", city);
+
+        const res = await fetch(`/api/nonnas/clustering?${params}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("Failed to fetch individual nonnas");
+        const data = await res.json();
+        let markers: GlobeNonna[] = data.clusters || [];
+        if (!city) {
+          markers = filterMarkersNearCenter(markers, 200);
+        }
+        setNonnaData(markers);
+      } catch (err) {
+        console.error("[Earth3D] individual nonnas fetch error:", err);
+      }
+    },
+    [filterMarkersNearCenter],
+  );
 
   // Ref to store fetchAndDrawBoundary function for zoom-out highlighting
   const fetchAndDrawBoundaryRef = useRef<
@@ -1722,16 +1824,57 @@ export default function Earth3DPage() {
   useEffect(() => {
     if (!mapReady) return;
     let mounted = true;
-    const loadMarkers = async () => {
-      if (mounted) await fetchNonnaMarkers();
+    const fetchAll = async () => {
+      try {
+        const res = await fetch("/api/nonnas/clustering?level=ALL", {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("Failed to fetch cluster layers");
+        const data = await res.json();
+        if (!mounted) return;
+
+        allClustersRef.current = {
+          continents: data.continents ?? [],
+          countries: data.countries ?? [],
+          states: data.states ?? [],
+          cities: data.cities ?? [],
+        };
+
+        const level = currentLevelRef.current;
+        if (level === "NONNA" || level === "CITY") {
+          await fetchIndividualNonnas({
+            city: viewportCityRef.current ?? undefined,
+            region: viewportRegionRef.current ?? undefined,
+          });
+        } else {
+          applyClusterLevel(level, allClustersRef.current);
+        }
+      } catch (err) {
+        console.error("[Earth3D] cluster fetch error:", err);
+      }
     };
-    loadMarkers();
-    const poll = setInterval(loadMarkers, 5 * 60 * 1000);
+    fetchAll();
+    const poll = setInterval(fetchAll, 5 * 60 * 1000);
     return () => {
       mounted = false;
       clearInterval(poll);
     };
-  }, [mapReady, fetchNonnaMarkers]);
+  }, [mapReady, applyClusterLevel, fetchIndividualNonnas]);
+
+  const refreshMarkersForLevel = useCallback(() => {
+    const level = currentLevelRef.current;
+    if (level === "NONNA" || level === "CITY") {
+      void fetchIndividualNonnas({
+        city: viewportCityRef.current ?? undefined,
+        region: viewportRegionRef.current ?? undefined,
+      });
+      return;
+    }
+    if (allClustersRef.current) {
+      applyClusterLevel(level, allClustersRef.current);
+    }
+  }, [applyClusterLevel, fetchIndividualNonnas]);
+
   const updateViewportContext = useCallback(async () => {
     const map3d = map3dRef.current;
     const geocoder = geocoderRef.current;
@@ -1744,9 +1887,12 @@ export default function Earth3DPage() {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
     const level = currentLevelRef.current;
-    if (level === "EARTH" || level === "CONTINENT") {
+    if (level === "EARTH") {
       viewportCountryRef.current = null;
       viewportContinentRef.current = null;
+      viewportRegionRef.current = null;
+      viewportCityRef.current = null;
+      refreshMarkersForLevel();
       return;
     }
 
@@ -1760,17 +1906,43 @@ export default function Earth3DPage() {
           viewportContinentRef.current =
             getCountryInfoWithFallback(info.country).continent || null;
         }
+        if (info.state) {
+          viewportRegionRef.current = info.state;
+        }
+        if (info.city) {
+          viewportCityRef.current = info.city;
+        }
       }
     } catch {
       /* geocode failed, keep existing viewport context */
     }
 
-    fetchNonnaMarkers();
-  }, [fetchNonnaMarkers]);
+    refreshMarkersForLevel();
+  }, [refreshMarkersForLevel]);
 
   useEffect(() => {
-    fetchNonnaMarkers();
-  }, [currentLevel, fetchNonnaMarkers]);
+    refreshMarkersForLevel();
+  }, [currentLevel, refreshMarkersForLevel]);
+
+  useEffect(() => {
+    if (!mapReady || (currentLevel !== "CITY" && currentLevel !== "NONNA")) return;
+    const map3d = map3dRef.current;
+    if (!map3d) return;
+
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const onCenterChange = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        refreshMarkersForLevel();
+      }, 400);
+    };
+
+    map3d.addEventListener?.("gmp-centerchange", onCenterChange);
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      map3d.removeEventListener?.("gmp-centerchange", onCenterChange);
+    };
+  }, [currentLevel, mapReady, refreshMarkersForLevel]);
 
   // Handle cluster clicks - zoom to next level and open comment panel for single nonnas
   const handleClusterClick = useCallback(
@@ -1783,9 +1955,11 @@ export default function Earth3DPage() {
 
       try {
         // Determine the cluster level for API
-        let clusterLevel: "continent" | "country" | "state";
+        let clusterLevel: "continent" | "country" | "state" | "city";
         let clusterName: string;
         let countryCode: string | undefined;
+        let closestCountry: string | undefined;
+        let closestRegion: string | undefined;
 
         if (currentLevel === "EARTH") {
           clusterLevel = "continent";
@@ -1797,10 +1971,19 @@ export default function Earth3DPage() {
           clusterLevel = "state";
           clusterName = nonna.region || nonna.countryName;
           countryCode = nonna.countryCode;
+          closestCountry = nonna.countryName;
         } else if (currentLevel === "STATE") {
-          clusterLevel = "state";
-          clusterName = nonna.region || nonna.countryName;
+          clusterLevel = "city";
+          clusterName = nonna.city || nonna.region || nonna.countryName;
           countryCode = nonna.countryCode;
+          closestCountry = nonna.countryName;
+          closestRegion = nonna.region;
+        } else if (currentLevel === "CITY") {
+          clusterLevel = "city";
+          clusterName = nonna.city || nonna.representativeName;
+          countryCode = nonna.countryCode;
+          closestCountry = nonna.countryName;
+          closestRegion = nonna.region;
         } else {
           console.error(
             "[Earth3D] Invalid cluster level for click handling:",
@@ -1809,11 +1992,17 @@ export default function Earth3DPage() {
           return;
         }
 
-        // If only one nonna, fetch its actual data and zoom directly to it
+        const closestQuery = new URLSearchParams({
+          level: clusterLevel,
+          name: clusterName,
+        });
+        if (countryCode) closestQuery.set("countryCode", countryCode);
+        if (closestCountry) closestQuery.set("country", closestCountry);
+        if (closestRegion) closestQuery.set("region", closestRegion);
+
         if (nonna.nonnaCount === 1 && nonna.recipeId) {
-          // Fetch the actual nonna data to get precise coordinates
           const response = await fetch(
-            `/api/nonnas/closest?level=${clusterLevel}&name=${encodeURIComponent(clusterName)}${countryCode ? `&countryCode=${countryCode}` : ""}`,
+            `/api/nonnas/closest?${closestQuery.toString()}`,
           );
 
           if (!response.ok) {
@@ -1914,7 +2103,7 @@ export default function Earth3DPage() {
           );
 
           const response = await fetch(
-            `/api/nonnas/closest?level=${clusterLevel}&name=${encodeURIComponent(clusterName)}${countryCode ? `&countryCode=${countryCode}` : ""}`,
+            `/api/nonnas/closest?${closestQuery.toString()}`,
           );
 
           if (!response.ok) {
@@ -1935,13 +2124,27 @@ export default function Earth3DPage() {
             nextLevel = "CONTINENT";
             viewportContinentRef.current = nonna.countryName;
             viewportCountryRef.current = null;
+            viewportRegionRef.current = null;
+            viewportCityRef.current = null;
           } else if (currentLevel === "CONTINENT") {
             nextLevel = "COUNTRY";
             viewportCountryRef.current = nonna.countryName;
+            viewportContinentRef.current =
+              getCountryInfoWithFallback(nonna.countryName).continent;
+            viewportRegionRef.current = null;
+            viewportCityRef.current = null;
           } else if (currentLevel === "COUNTRY") {
             nextLevel = "STATE";
+            viewportRegionRef.current = nonna.region || clusterName;
+            viewportCityRef.current = null;
           } else if (currentLevel === "STATE") {
             nextLevel = "CITY";
+            viewportCityRef.current = nonna.city || clusterName;
+            viewportRegionRef.current = nonna.region || viewportRegionRef.current;
+          } else if (currentLevel === "CITY") {
+            nextLevel = "NONNA";
+            viewportCityRef.current = nonna.city || clusterName;
+            viewportRegionRef.current = nonna.region || viewportRegionRef.current;
           } else {
             nextLevel = "CITY";
           }
@@ -1949,7 +2152,14 @@ export default function Earth3DPage() {
           setLevel(nextLevel);
           currentLevelRef.current = nextLevel;
 
-          void fetchNonnaMarkers();
+          if (nextLevel === "NONNA") {
+            void fetchIndividualNonnas({
+              city: viewportCityRef.current ?? undefined,
+              region: viewportRegionRef.current ?? undefined,
+            });
+          } else if (allClustersRef.current) {
+            applyClusterLevel(nextLevel, allClustersRef.current);
+          }
 
           // Set flight state
           flightStateRef.current = {
@@ -1990,7 +2200,13 @@ export default function Earth3DPage() {
         console.error("[Earth3D] Error handling cluster click:", error);
       }
     },
-    [setLevel, setPanel, setCommentSection, fetchNonnaMarkers],
+    [
+      setLevel,
+      setPanel,
+      setCommentSection,
+      fetchIndividualNonnas,
+      applyClusterLevel,
+    ],
   );
 
   // 3D tilt on deep zoom
@@ -2488,18 +2704,24 @@ export default function Earth3DPage() {
             nonna.countryCode,
           );
           const level = currentLevelRef.current;
-          const markerMode =
-            level === "CITY" || level === "NONNA"
-              ? ("avatar" as const)
-              : ("bubble" as const);
+          const isCityZoom = level === "CITY" || level === "NONNA";
+          const showAvatar =
+            level === "NONNA" || (isCityZoom && nonna.nonnaCount === 1);
+          const markerMode = showAvatar ? ("avatar" as const) : ("bubble" as const);
+          const pinLabel =
+            level === "COUNTRY" ||
+            level === "STATE" ||
+            level === "CITY"
+              ? nonna.city || nonna.region || nonna.countryName
+              : nonna.countryName;
           const tplCompact = await buildMarkerTemplate({
             name: nonna.representativeName,
             photoUrl: nonna.representativePhoto,
             avatarUri,
             countryCode: nonna.countryCode,
-            countryName: nonna.countryName,
+            countryName: pinLabel,
             nonnaCount: nonna.nonnaCount,
-            expanded: false,
+            expanded: showAvatar,
             mode: markerMode,
             zoomLevel: level,
           });
@@ -2576,7 +2798,15 @@ export default function Earth3DPage() {
               }
             }
 
-            // Handle clicks on single-nonna markers at any level
+            if (nonna.nonnaCount > 1) {
+              e.stopPropagation();
+              e.preventDefault();
+              if (!cancelled) {
+                void handleClusterClick(nonna, currentLevelRef.current);
+              }
+              return;
+            }
+
             if (nonna.nonnaCount === 1 && nonna.recipeId) {
               e.stopPropagation();
               e.preventDefault();
