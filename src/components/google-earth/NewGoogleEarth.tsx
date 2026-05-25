@@ -1865,6 +1865,14 @@ export default function Earth3DPage() {
   // user's actual selection with whatever happens to be under the lens.
   const suppressNextLevelHighlightRef = useRef(false);
 
+  const drawContinentHighlight = useCallback((continentName: string) => {
+    if (!continentName) return;
+    viewportContinentRef.current = continentName;
+    setClickedLabel(continentName);
+    setActivePlaceName(continentName);
+    void fetchAndDrawBoundaryRef.current?.(continentName, "continent");
+  }, []);
+
   // Ref to track and cancel ongoing highlighting requests
   const highlightingRef = useRef<{
     controller: AbortController | null;
@@ -1972,7 +1980,10 @@ export default function Earth3DPage() {
           if (info.country) {
             const derived =
               getCountryInfoWithFallback(info.country).continent || null;
-            if (derived) viewportContinentRef.current = derived;
+            if (derived) {
+              viewportContinentRef.current = derived;
+              drawContinentHighlight(derived);
+            }
           }
         }
       } catch {
@@ -2012,7 +2023,7 @@ export default function Earth3DPage() {
     }
 
     refreshMarkersForLevel();
-  }, [refreshMarkersForLevel]);
+  }, [drawContinentHighlight, refreshMarkersForLevel]);
 
   useEffect(() => {
     const level = currentLevel;
@@ -2342,6 +2353,9 @@ export default function Earth3DPage() {
 
             setTimeout(() => {
               flightStateRef.current.active = false;
+              if (nextLevel === "CONTINENT" && viewportContinentRef.current) {
+                drawContinentHighlight(viewportContinentRef.current);
+              }
             }, 1700);
           }
 
@@ -2359,6 +2373,7 @@ export default function Earth3DPage() {
       setCommentSection,
       fetchIndividualNonnas,
       applyClusterLevel,
+      drawContinentHighlight,
     ],
   );
 
@@ -2489,6 +2504,16 @@ export default function Earth3DPage() {
       const map3d = map3dRef.current;
       if (!map3d) return;
 
+      // Wait for programmatic flights (cluster clicks, level pills) to finish
+      const flightWaitStart = Date.now();
+      while (
+        flightStateRef.current.active &&
+        Date.now() - flightWaitStart < 2500
+      ) {
+        if (controller.signal.aborted) return;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
       // Wait a brief moment for map to settle after zoom change
       await new Promise((resolve) => setTimeout(resolve, 150));
 
@@ -2537,11 +2562,11 @@ export default function Earth3DPage() {
             targetName = info.country;
             featureType = "country";
           } else if (currentLevel === "CONTINENT") {
-            // Resolve continent from the actual country reverse-geocoded at the
-            // current center, not from hand-drawn lat/lng boxes.
-            targetName = info.country
-              ? getCountryInfoWithFallback(info.country).continent || null
-              : null;
+            targetName =
+              viewportContinentRef.current ||
+              (info.country
+                ? getCountryInfoWithFallback(info.country).continent || null
+                : null);
             featureType = "continent";
           }
           // Don't highlight for CITY or EARTH levels when zooming out
@@ -2554,9 +2579,11 @@ export default function Earth3DPage() {
 
           // Always highlight the current level's boundary when zooming in
           if (currentLevel === "CONTINENT") {
-            targetName = info.country
-              ? getCountryInfoWithFallback(info.country).continent || null
-              : null;
+            targetName =
+              viewportContinentRef.current ||
+              (info.country
+                ? getCountryInfoWithFallback(info.country).continent || null
+                : null);
             featureType = "continent";
           } else if (currentLevel === "COUNTRY") {
             targetName = info.country;
@@ -2824,9 +2851,11 @@ export default function Earth3DPage() {
     // whatever is actually centered now (uses the same path as drag-pan).
     // Small debounce so a flurry of scroll-wheel ticks resolves to one fetch.
     if (prevIdx !== -1 && prevIdx !== currentIdx) {
+      const highlightDelay =
+        currentLevel === "CONTINENT" ? 1800 : 250;
       const t = setTimeout(() => {
         followCenterHighlightRef.current?.();
-      }, 250);
+      }, highlightDelay);
       // Update previous level for next change detection
       setPreviousLevel(currentLevel);
       return () => clearTimeout(t);
@@ -4770,9 +4799,11 @@ export default function Earth3DPage() {
             null;
 
           if (level === "CONTINENT") {
-            targetName = info.country
-              ? getCountryInfoWithFallback(info.country).continent || null
-              : null;
+            targetName =
+              viewportContinentRef.current ||
+              (info.country
+                ? getCountryInfoWithFallback(info.country).continent || null
+                : null);
             featureType = "continent";
           } else if (level === "COUNTRY") {
             targetName = info.country;
@@ -4793,6 +4824,9 @@ export default function Earth3DPage() {
           if (!targetName || !featureType) return;
           if (targetName === activeHighlightName) return; // already focused
 
+          if (featureType === "continent") {
+            viewportContinentRef.current = targetName;
+          }
           activeHighlightName = targetName;
           setClickedLabel(targetName);
           setActivePlaceName(targetName);
