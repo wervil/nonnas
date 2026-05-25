@@ -1,7 +1,6 @@
 import { recipes } from "@/db/schema";
 import {
-  CountryInfo,
-  getCountriesByContinent,
+  getCountryNamesByContinent,
   getCountryInfoWithFallback,
   getRegionCoordinates,
 } from "@/lib/countryData";
@@ -52,7 +51,7 @@ function calculateDistance(
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const clusterLevel = searchParams.get("level"); // "continent", "country", "state"
+    const clusterLevel = searchParams.get("level"); // "continent", "country", "state", "city"
     const clusterName = searchParams.get("name"); // e.g., "Asia", "Italy", "California"
     const countryCode = searchParams.get("countryCode"); // Optional, for state level
 
@@ -67,7 +66,7 @@ export async function GET(req: NextRequest) {
 
     if (clusterLevel === "continent") {
       // Get all countries that belong to this continent
-      const continentCountries = getCountriesByContinent(clusterName);
+      const continentCountries = getCountryNamesByContinent(clusterName);
 
       if (continentCountries.length === 0) {
         return NextResponse.json({ closestNonna: null });
@@ -75,7 +74,7 @@ export async function GET(req: NextRequest) {
 
       // Create a raw SQL query for the continent filter with proper escaping
       const countryList = continentCountries
-        .map((c: CountryInfo) => `'${c.name.replace(/'/g, "''")}'`)
+        .map((name) => `'${name.replace(/'/g, "''")}'`)
         .join(",");
       whereConditions.push(sql.raw(`recipes.country IN (${countryList})`));
     } else if (clusterLevel === "country") {
@@ -83,15 +82,24 @@ export async function GET(req: NextRequest) {
     } else if (clusterLevel === "state") {
       whereConditions.push(eq(recipes.region, clusterName));
       if (countryCode) {
-        // Filter by country code for state level to avoid conflicts
-        const countryInfo = getCountryInfoWithFallback(clusterName); // Use clusterName as fallback
+        const countryInfo = getCountryInfoWithFallback(clusterName);
         if (countryInfo.code === countryCode.toUpperCase()) {
           whereConditions.push(eq(recipes.country, countryInfo.name));
         }
       }
+    } else if (clusterLevel === "city") {
+      whereConditions.push(eq(recipes.city, clusterName));
+      const countryParam = searchParams.get("country");
+      if (countryParam) {
+        whereConditions.push(eq(recipes.country, countryParam));
+      }
+      const regionParam = searchParams.get("region");
+      if (regionParam) {
+        whereConditions.push(eq(recipes.region, regionParam));
+      }
     } else {
       return NextResponse.json(
-        { error: "Invalid level. Must be: continent, country, or state" },
+        { error: "Invalid level. Must be: continent, country, state, or city" },
         { status: 400 },
       );
     }
@@ -150,8 +158,7 @@ export async function GET(req: NextRequest) {
       const countryInfo = getCountryInfoWithFallback(clusterName);
       clusterCenterLat = countryInfo.lat;
       clusterCenterLng = countryInfo.lng;
-    } else if (clusterLevel === "state") {
-      // For state, calculate the average of all nonnas in that state
+    } else if (clusterLevel === "state" || clusterLevel === "city") {
       const validCoords = nonnas
         .map((nonna) => parseCoordinates(nonna.coordinates))
         .filter(Boolean) as { lat: number; lng: number }[];
@@ -164,10 +171,15 @@ export async function GET(req: NextRequest) {
           validCoords.reduce((sum, coord) => sum + coord.lng, 0) /
           validCoords.length;
       } else {
-        // Fallback to first nonna's country coordinates
         const countryInfo = getCountryInfoWithFallback(nonnas[0].country);
-        clusterCenterLat = countryInfo.lat;
-        clusterCenterLng = countryInfo.lng;
+        const regionCoords = getRegionCoordinates(
+          nonnas[0].region,
+          countryInfo.code,
+          countryInfo.lat,
+          countryInfo.lng,
+        );
+        clusterCenterLat = regionCoords.lat;
+        clusterCenterLng = regionCoords.lng;
       }
     } else {
       return NextResponse.json({ error: "Invalid level" }, { status: 400 });

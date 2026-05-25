@@ -165,6 +165,13 @@ const countryMap: Record<string, CountryInfo> = {
   "ukraine": { code: "UA", name: "Ukraine", continent: "Europe", lat: 48.3794, lng: 31.1656 },
   "united kingdom": { code: "GB", name: "United Kingdom", continent: "Europe", lat: 55.3781, lng: -3.436 },
   "uk": { code: "GB", name: "United Kingdom", continent: "Europe", lat: 55.3781, lng: -3.436 },
+  "great britain": { code: "GB", name: "Great Britain", continent: "Europe", lat: 54.7024, lng: -3.2766 },
+  "britain": { code: "GB", name: "Britain", continent: "Europe", lat: 54.7024, lng: -3.2766 },
+  "england": { code: "GB", name: "England", continent: "Europe", lat: 52.3555, lng: -1.1743 },
+  "scotland": { code: "GB", name: "Scotland", continent: "Europe", lat: 56.4907, lng: -4.2026 },
+  "wales": { code: "GB", name: "Wales", continent: "Europe", lat: 52.1307, lng: -3.7837 },
+  "northern ireland": { code: "GB", name: "Northern Ireland", continent: "Europe", lat: 54.7877, lng: -6.4923 },
+  "republic of ireland": { code: "IE", name: "Republic of Ireland", continent: "Europe", lat: 53.1424, lng: -7.6921 },
   "vatican city": { code: "VA", name: "Vatican City", continent: "Europe", lat: 41.9029, lng: 12.4534 },
 
   // North America
@@ -348,4 +355,41 @@ export function getCountriesByContinent(continent: string): CountryInfo[] {
   return Object.values(countryMap).filter(
     (c) => c.continent.toLowerCase() === continent.toLowerCase()
   );
+}
+
+/**
+ * Get all stored country labels/aliases that should match a continent filter.
+ * Recipes can contain canonical country names ("United Kingdom") or shorter
+ * user-facing labels ("UK", "England"), so API filters need both.
+ */
+export function getCountryNamesByContinent(continent: string): string[] {
+  const target = continent.toLowerCase();
+  const names = new Set<string>();
+
+  Object.entries(countryMap).forEach(([lookupName, country]) => {
+    if (country.continent.toLowerCase() !== target) return;
+    names.add(country.name);
+    names.add(lookupName);
+    if (/^[a-z]{2,3}$/.test(lookupName)) {
+      names.add(lookupName.toUpperCase());
+    }
+  });
+
+  return Array.from(names);
+}
+
+/**
+ * Get unique ISO alpha-2 country codes for a continent.
+ */
+export function getCountryCodesByContinent(continent: string): string[] {
+  const target = continent.toLowerCase();
+  const codes = new Set<string>();
+
+  Object.values(countryMap).forEach((country) => {
+    if (country.continent.toLowerCase() === target) {
+      codes.add(country.code);
+    }
+  });
+
+  return Array.from(codes);
 }

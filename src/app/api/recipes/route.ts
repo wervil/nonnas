@@ -1,6 +1,6 @@
 import { likes, recipes } from "@/db/schema";
 import {
-  getCountriesByContinent,
+  getCountryNamesByContinent,
   getCountryInfoWithFallback,
 } from "@/lib/countryData";
 import { stackServerApp } from "@/stack";
@@ -264,8 +264,7 @@ export async function GET(request: NextRequest) {
 
       // Handle continent filter
       if (continent) {
-        const continentCountries = getCountriesByContinent(continent);
-        const countryNames = continentCountries.map((c) => c.name);
+        const countryNames = getCountryNamesByContinent(continent);
         if (countryNames.length > 0) {
           whereConditions.push(inArray(recipes.country, countryNames));
         } else {
