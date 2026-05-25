@@ -1767,35 +1767,24 @@ export default function Earth3DPage() {
         region: viewportRegionRef.current,
         city: viewportCityRef.current,
       };
-      const cacheCounts = {
-        continents: data.continents.length,
-        countries: data.countries.length,
-        states: data.states.length,
-        cities: data.cities.length,
-      };
 
       let result: GlobeNonna[] = [];
-      let note = "";
 
       if (level === "EARTH") {
         result = data.continents;
       } else if (level === "CONTINENT") {
         const raw = data.countries;
         result = viewport.continent ? filterByViewportContinent(raw) : raw;
-        note = viewport.continent ? "filtered-by-continent" : "all-countries";
       } else if (level === "COUNTRY") {
         const raw = data.states;
         if (!viewport.country) {
           result = raw;
-          note = "no-viewport-country-yet-show-all-states";
         } else {
           result = filterByViewportCountry(raw);
-          note = "filtered-by-viewport-country";
           if (result.length === 0 && raw.length > 0) {
             const vpCode = getCountryInfoWithFallback(viewport.country).code;
             if (vpCode !== "XX") {
               result = raw.filter((m) => m.countryCode === vpCode);
-              note = "fallback-filter-by-country-code";
             }
             if (result.length === 0 && viewport.continent) {
               result = raw.filter(
@@ -1803,7 +1792,6 @@ export default function Earth3DPage() {
                   getCountryInfoWithFallback(m.countryName).continent ===
                   viewport.continent,
               );
-              note = "fallback-filter-by-continent";
             }
           }
         }
@@ -1816,24 +1804,9 @@ export default function Earth3DPage() {
           markers = markers.filter(
             (m) => normAdminLabel(m.region) === regionNorm,
           );
-          note = "state-level-filter-by-clicked-region";
-        } else {
-          note = "state-level-all-regions-in-country";
         }
         result = markers;
       }
-
-      logMarkerDebug("applyClusterLevel", {
-        level,
-        viewport,
-        counts: {
-          cache: cacheCounts,
-          beforeFilter: level === "COUNTRY" ? data.states.length : undefined,
-          after: result.length,
-        },
-        markers: result.slice(0, 8).map(serializeMarkerForLog),
-        note,
-      });
 
       setNonnaData(result);
     },
@@ -1843,7 +1816,6 @@ export default function Earth3DPage() {
   const fetchIndividualNonnas = useCallback(
     async (opts?: { city?: string; region?: string }) => {
       try {
-        const zoom = currentLevelRef.current;
         // Always load individual nonnas at city zoom (CITY API only returns city clusters).
         const params = new URLSearchParams({ level: "NONNA" });
         const country = viewportCountryRef.current;
@@ -1869,25 +1841,9 @@ export default function Earth3DPage() {
         } else if (!country) {
           markers = filterMarkersNearCenter(markers, 500);
         }
-        logMarkerDebug("fetchIndividualNonnas", {
-          level: zoom,
-          viewport: {
-            country: viewportCountryRef.current,
-            countryCode: viewportCountryCodeRef.current,
-            region,
-            city,
-          },
-          counts: { after: markers.length },
-          markers: markers.slice(0, 8).map(serializeMarkerForLog),
-          note: `url=${params.toString()}`,
-        });
         setNonnaData(markers);
       } catch (err) {
         console.error("[Earth3D] individual nonnas fetch error:", err);
-        logMarkerDebug("fetchIndividualNonnas-error", {
-          level: currentLevelRef.current,
-          note: String(err),
-        });
       }
     },
     [filterMarkersNearCenter],
@@ -1965,21 +1921,6 @@ export default function Earth3DPage() {
 
   const refreshMarkersForLevel = useCallback(() => {
     const level = currentLevelRef.current;
-    logMarkerDebug("refreshMarkersForLevel", {
-      level,
-      viewport: {
-        country: viewportCountryRef.current,
-        countryCode: viewportCountryCodeRef.current,
-        continent: viewportContinentRef.current,
-        region: viewportRegionRef.current,
-        city: viewportCityRef.current,
-      },
-      counts: {
-        hasCache: !!allClustersRef.current,
-        flightActive: flightStateRef.current.active,
-      },
-      note: "entry",
-    });
     if (level === "NONNA" || level === "CITY") {
       void fetchIndividualNonnas({
         city: viewportCityRef.current ?? undefined,
@@ -1989,11 +1930,6 @@ export default function Earth3DPage() {
     }
     if (allClustersRef.current) {
       applyClusterLevel(level, allClustersRef.current);
-    } else {
-      logMarkerDebug("refreshMarkersForLevel", {
-        level,
-        note: "skipped-no-cluster-cache",
-      });
     }
   }, [applyClusterLevel, fetchIndividualNonnas]);
 
@@ -2019,14 +1955,6 @@ export default function Earth3DPage() {
       return;
     }
 
-    const prevViewport = {
-      country: viewportCountryRef.current,
-      countryCode: viewportCountryCodeRef.current,
-      continent: viewportContinentRef.current,
-      region: viewportRegionRef.current,
-      city: viewportCityRef.current,
-    };
-
     // At continent zoom the camera spans many countries — only track continent
     // here. Pinning country from map center (e.g. Poland) breaks COUNTRY-level
     // filters when the user zooms into France/Italy/UK.
@@ -2046,23 +1974,9 @@ export default function Earth3DPage() {
               getCountryInfoWithFallback(info.country).continent || null;
             if (derived) viewportContinentRef.current = derived;
           }
-          logMarkerDebug("updateViewportContext-geocode", {
-            level,
-            viewport: {
-              country: null,
-              countryCode: null,
-              continent: viewportContinentRef.current,
-              region: null,
-              city: null,
-            },
-            note: `continent-only center=${lat.toFixed(3)},${lng.toFixed(3)}`,
-          });
         }
-      } catch (err) {
-        logMarkerDebug("updateViewportContext-geocode", {
-          level,
-          note: `geocode-failed: ${String(err)}`,
-        });
+      } catch {
+        // Geocode failed; keep previous viewport
       }
 
       refreshMarkersForLevel();
@@ -2092,43 +2006,12 @@ export default function Earth3DPage() {
         }
         // Do not set region/city from geocoder — names rarely match recipe.region/city.
         // Those refs are set from cluster clicks only (see regionFilterFromClickRef).
-        logMarkerDebug("updateViewportContext-geocode", {
-          level,
-          viewport: {
-            country: viewportCountryRef.current,
-            countryCode: viewportCountryCodeRef.current,
-            continent: viewportContinentRef.current,
-            region: viewportRegionRef.current,
-            city: viewportCityRef.current,
-          },
-          note: `center=${lat.toFixed(3)},${lng.toFixed(3)} formatted=${first.formatted_address ?? ""} flight=${flightStateRef.current.active}`,
-        });
-      } else {
-        logMarkerDebug("updateViewportContext-geocode", {
-          level,
-          note: "no-geocode-results",
-        });
       }
-    } catch (err) {
-      logMarkerDebug("updateViewportContext-geocode", {
-        level,
-        note: `geocode-failed: ${String(err)}`,
-      });
+    } catch {
+      // Geocode failed; keep previous viewport
     }
-
-    const viewportChanged =
-      prevViewport.country !== viewportCountryRef.current ||
-      prevViewport.countryCode !== viewportCountryCodeRef.current ||
-      prevViewport.continent !== viewportContinentRef.current;
 
     refreshMarkersForLevel();
-
-    if (level === "COUNTRY" && viewportChanged && viewportCountryRef.current) {
-      logMarkerDebug("updateViewportContext", {
-        level,
-        note: "viewport-country-updated-after-geocode",
-      });
-    }
   }, [refreshMarkersForLevel]);
 
   useEffect(() => {
@@ -2158,10 +2041,6 @@ export default function Earth3DPage() {
       level === "CITY" ||
       level === "NONNA"
     ) {
-      logMarkerDebug("level-change", {
-        level,
-        note: "await-geocode-via-updateViewportContext",
-      });
       void updateViewportContext();
       return;
     }
@@ -2960,30 +2839,8 @@ export default function Earth3DPage() {
   // Place nonna markers
   useEffect(() => {
     if (!nonnaData.length || !mapReady || !map3dRef.current) {
-      if (!markerRenderSkipLoggedRef.current || nonnaData.length === 0) {
-        logMarkerDebug("renderMarkers-skipped", {
-          level: currentLevelRef.current,
-          counts: {
-            nonnaData: nonnaData.length,
-            mapReady: mapReady ? 1 : 0,
-            hasMap: map3dRef.current ? 1 : 0,
-          },
-          note:
-            nonnaData.length === 0
-              ? "empty-nonnaData-no-badges-drawn"
-              : "map-not-ready",
-        });
-        markerRenderSkipLoggedRef.current = nonnaData.length === 0;
-      }
       return;
     }
-    markerRenderSkipLoggedRef.current = false;
-
-    logMarkerDebug("renderMarkers-start", {
-      level: currentLevelRef.current,
-      counts: { nonnaData: nonnaData.length },
-      markers: nonnaData.slice(0, 5).map(serializeMarkerForLog),
-    });
 
     // Clear existing markers immediately before creating new ones
     clearCurrentMarkers();
@@ -3954,13 +3811,6 @@ export default function Earth3DPage() {
           const now = Date.now();
           if (now - lastHoverNoLatLngLogAt > 1200) {
             lastHoverNoLatLngLogAt = now;
-            console.log("[Earth3D] hover event missing latLng", {
-              keys: ev ? Object.keys(ev) : null,
-              position: ev?.position,
-              latLng: ev?.latLng,
-              screenX: ev?.clientX,
-              screenY: ev?.clientY,
-            });
           }
           return;
         }
