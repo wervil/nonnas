@@ -1770,15 +1770,15 @@ export default function Earth3DPage() {
 
       let result: GlobeNonna[] = [];
 
-      if (level === "EARTH") {
+      if (level === "EARTH" || level === "CONTINENT") {
+        // One badge per continent with total nonna count (c40ac10 behaviour).
         result = data.continents;
-      } else if (level === "CONTINENT") {
-        const raw = data.countries;
-        result = viewport.continent ? filterByViewportContinent(raw) : raw;
       } else if (level === "COUNTRY") {
-        const raw = data.states;
+        const raw = data.countries;
         if (!viewport.country) {
-          result = raw;
+          result = viewport.continent
+            ? filterByViewportContinent(raw)
+            : raw;
         } else {
           result = filterByViewportCountry(raw);
           if (result.length === 0 && raw.length > 0) {
@@ -1787,11 +1787,7 @@ export default function Earth3DPage() {
               result = raw.filter((m) => m.countryCode === vpCode);
             }
             if (result.length === 0 && viewport.continent) {
-              result = raw.filter(
-                (m) =>
-                  getCountryInfoWithFallback(m.countryName).continent ===
-                  viewport.continent,
-              );
+              result = filterByViewportContinent(raw);
             }
           }
         }
@@ -1981,8 +1977,13 @@ export default function Earth3DPage() {
             const derived =
               getCountryInfoWithFallback(info.country).continent || null;
             if (derived) {
-              viewportContinentRef.current = derived;
-              drawContinentHighlight(derived);
+              if (
+                !flightStateRef.current.active ||
+                !viewportContinentRef.current
+              ) {
+                viewportContinentRef.current = derived;
+              }
+              drawContinentHighlight(viewportContinentRef.current || derived);
             }
           }
         }
@@ -2114,7 +2115,7 @@ export default function Earth3DPage() {
           clusterLevel = "continent";
           clusterName = nonna.countryName;
         } else if (currentLevel === "CONTINENT") {
-          clusterLevel = "country";
+          clusterLevel = "continent";
           clusterName = nonna.countryName;
         } else if (currentLevel === "COUNTRY") {
           clusterLevel = "state";
@@ -2280,11 +2281,10 @@ export default function Earth3DPage() {
             cityFilterFromClickRef.current = false;
           } else if (currentLevel === "CONTINENT") {
             nextLevel = "COUNTRY";
-            viewportCountryRef.current = nonna.countryName;
-            viewportCountryCodeRef.current = nonna.countryCode || null;
-            viewportContinentRef.current = getCountryInfoWithFallback(
-              nonna.countryName,
-            ).continent;
+            // Continent clusters store the continent name in countryName.
+            viewportContinentRef.current = nonna.countryName;
+            viewportCountryRef.current = null;
+            viewportCountryCodeRef.current = null;
             viewportRegionRef.current = null;
             viewportCityRef.current = null;
             regionFilterFromClickRef.current = false;
