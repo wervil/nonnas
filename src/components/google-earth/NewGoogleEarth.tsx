@@ -1839,6 +1839,20 @@ export default function Earth3DPage() {
     [filterMarkersNearCenter],
   );
 
+  const getIndividualMarkerFilters = useCallback(
+    () => ({
+      city:
+        cityFilterFromClickRef.current && viewportCityRef.current
+          ? viewportCityRef.current
+          : undefined,
+      region:
+        regionFilterFromClickRef.current && viewportRegionRef.current
+          ? viewportRegionRef.current
+          : undefined,
+    }),
+    [],
+  );
+
   // Ref to store fetchAndDrawBoundary function for zoom-out highlighting
   const fetchAndDrawBoundaryRef = useRef<
     | ((
@@ -1898,10 +1912,7 @@ export default function Earth3DPage() {
 
         const level = currentLevelRef.current;
         if (level === "NONNA" || level === "CITY") {
-          await fetchIndividualNonnas({
-            city: viewportCityRef.current ?? undefined,
-            region: viewportRegionRef.current ?? undefined,
-          });
+          await fetchIndividualNonnas(getIndividualMarkerFilters());
         } else {
           applyClusterLevel(level, allClustersRef.current);
         }
@@ -1920,16 +1931,13 @@ export default function Earth3DPage() {
   const refreshMarkersForLevel = useCallback(() => {
     const level = currentLevelRef.current;
     if (level === "NONNA" || level === "CITY") {
-      void fetchIndividualNonnas({
-        city: viewportCityRef.current ?? undefined,
-        region: viewportRegionRef.current ?? undefined,
-      });
+      void fetchIndividualNonnas(getIndividualMarkerFilters());
       return;
     }
     if (allClustersRef.current) {
       applyClusterLevel(level, allClustersRef.current);
     }
-  }, [applyClusterLevel, fetchIndividualNonnas]);
+  }, [applyClusterLevel, fetchIndividualNonnas, getIndividualMarkerFilters]);
 
   const updateViewportContext = useCallback(async () => {
     const map3d = map3dRef.current;
@@ -2304,7 +2312,7 @@ export default function Earth3DPage() {
             cityFilterFromClickRef.current = false;
           } else if (currentLevel === "STATE") {
             nextLevel = "CITY";
-            viewportCityRef.current = nonna.city || clusterName;
+            viewportCityRef.current = nonna.city || null;
             cityFilterFromClickRef.current = !!nonna.city;
             viewportRegionRef.current =
               nonna.region || viewportRegionRef.current;
@@ -2323,11 +2331,8 @@ export default function Earth3DPage() {
           setLevel(nextLevel);
           currentLevelRef.current = nextLevel;
 
-          if (nextLevel === "NONNA") {
-            void fetchIndividualNonnas({
-              city: viewportCityRef.current ?? undefined,
-              region: viewportRegionRef.current ?? undefined,
-            });
+          if (nextLevel === "CITY" || nextLevel === "NONNA") {
+            void fetchIndividualNonnas(getIndividualMarkerFilters());
           } else if (allClustersRef.current) {
             applyClusterLevel(nextLevel, allClustersRef.current);
           }
@@ -2379,6 +2384,7 @@ export default function Earth3DPage() {
       setPanel,
       setCommentSection,
       fetchIndividualNonnas,
+      getIndividualMarkerFilters,
       applyClusterLevel,
       drawContinentHighlight,
     ],
