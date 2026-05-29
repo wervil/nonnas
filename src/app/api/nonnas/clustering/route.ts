@@ -362,18 +362,18 @@ export async function GET(req: NextRequest) {
 
     if (level === "CONTINENT") {
       const rows = await fetchGroupedRows();
-      const { countries } = buildClusterLayers(rows);
+      const { continents } = buildClusterLayers(rows);
       return NextResponse.json(
-        { clusters: countries },
+        { clusters: continents },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (level === "COUNTRY") {
-      const rows = await fetchGroupedRows(countryParam);
-      const { states } = buildClusterLayers(rows);
+      const rows = await fetchGroupedRows();
+      const { countries } = buildClusterLayers(rows);
       return NextResponse.json(
-        { clusters: states },
+        { clusters: countries },
         { headers: { "Cache-Control": "no-store" } },
       );
     }

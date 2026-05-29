@@ -787,11 +787,12 @@ type GlobeNonna = {
   representativeName: string;
   representativeTitle: string;
   representativePhoto: string | null;
-  recipeId: string;
+  recipeId?: string | number;
   history?: string;
   origin?: string;
   region?: string;
   city?: string;
+  clusterLevel?: "continent" | "country" | "state" | "city" | "nonna";
 };
 
 function normAdminLabel(value: string | undefined | null): string {
@@ -1501,7 +1502,9 @@ export default function Earth3DPage() {
 
     const matchingNonna = pending.recipeId
       ? nonnaData.find(
-          (n) => Number.parseInt(n.recipeId, 10) === pending.recipeId,
+          (n) =>
+            n.recipeId != null &&
+            Number.parseInt(n.recipeId.toString(), 10) === pending.recipeId,
         )
       : undefined;
     // If we came from a specific nonna story, wait until nonna data is loaded
@@ -1515,7 +1518,7 @@ export default function Earth3DPage() {
       ? {
           lat: matchingNonna.lat,
           lng: matchingNonna.lng,
-          recipeId: Number.parseInt(matchingNonna.recipeId, 10),
+          recipeId: Number.parseInt(matchingNonna.recipeId!.toString(), 10),
           name: pending.nonnaName ?? matchingNonna.representativeName,
           title: pending.nonnaTitle ?? matchingNonna.representativeTitle,
           photo: pending.nonnaPhoto ?? matchingNonna.representativePhoto,
@@ -1773,28 +1776,15 @@ export default function Earth3DPage() {
       if (level === "EARTH") {
         result = data.continents;
       } else if (level === "CONTINENT") {
-        const raw = data.countries;
-        result = viewport.continent ? filterByViewportContinent(raw) : raw;
+        const raw = data.continents;
+        result = viewport.continent
+          ? raw.filter((m) => m.countryName === viewport.continent)
+          : raw;
       } else if (level === "COUNTRY") {
-        const raw = data.states;
-        if (!viewport.country) {
-          result = raw;
-        } else {
-          result = filterByViewportCountry(raw);
-          if (result.length === 0 && raw.length > 0) {
-            const vpCode = getCountryInfoWithFallback(viewport.country).code;
-            if (vpCode !== "XX") {
-              result = raw.filter((m) => m.countryCode === vpCode);
-            }
-            if (result.length === 0 && viewport.continent) {
-              result = raw.filter(
-                (m) =>
-                  getCountryInfoWithFallback(m.countryName).continent ===
-                  viewport.continent,
-              );
-            }
-          }
-        }
+        const raw = data.countries;
+        if (viewport.country) result = filterByViewportCountry(raw);
+        else if (viewport.continent) result = filterByViewportContinent(raw);
+        else result = raw;
       } else if (level === "STATE") {
         let markers = viewport.country
           ? filterByViewportCountry(data.states)
@@ -2000,10 +1990,7 @@ export default function Earth3DPage() {
       if (first) {
         const info = parseAdminLevelsFromGeocodeResult(first);
         const shouldPinCountry =
-          level === "COUNTRY" ||
-          level === "STATE" ||
-          level === "CITY" ||
-          level === "NONNA";
+          level === "STATE" || level === "CITY" || level === "NONNA";
         if (info.country && shouldPinCountry) {
           // Keep country chosen from a cluster click while the camera is flying
           if (!flightStateRef.current.active || !viewportCountryRef.current) {
@@ -2047,7 +2034,6 @@ export default function Earth3DPage() {
       viewportCityRef.current = null;
     }
     if (
-      level === "COUNTRY" ||
       level === "STATE" ||
       level === "CITY" ||
       level === "NONNA"
@@ -2067,7 +2053,6 @@ export default function Earth3DPage() {
     if (!mapReady) return;
     const level = currentLevelRef.current;
     if (
-      level !== "COUNTRY" &&
       level !== "STATE" &&
       level !== "CITY" &&
       level !== "NONNA"
@@ -2110,15 +2095,26 @@ export default function Earth3DPage() {
         let closestCountry: string | undefined;
         let closestRegion: string | undefined;
 
+        const clickedClusterLevel = nonna.clusterLevel;
+
         if (currentLevel === "EARTH") {
+          clusterLevel =
+            clickedClusterLevel === "continent" ? "continent" : "country";
+          clusterName = nonna.countryName;
+          countryCode =
+            clickedClusterLevel === "continent" ? undefined : nonna.countryCode;
+          closestCountry =
+            clickedClusterLevel === "continent" ? undefined : nonna.countryName;
+        } else if (currentLevel === "CONTINENT") {
           clusterLevel = "continent";
           clusterName = nonna.countryName;
-        } else if (currentLevel === "CONTINENT") {
-          clusterLevel = "country";
-          clusterName = nonna.countryName;
         } else if (currentLevel === "COUNTRY") {
-          clusterLevel = "state";
-          clusterName = nonna.region || nonna.countryName;
+          clusterLevel =
+            clickedClusterLevel === "country" ? "country" : "state";
+          clusterName =
+            clickedClusterLevel === "country"
+              ? nonna.countryName
+              : nonna.region || nonna.countryName;
           countryCode = nonna.countryCode;
           closestCountry = nonna.countryName;
         } else if (currentLevel === "STATE") {
@@ -2271,7 +2267,10 @@ export default function Earth3DPage() {
           let nextLevel: ZoomLevel;
           if (currentLevel === "EARTH") {
             nextLevel = "CONTINENT";
-            viewportContinentRef.current = nonna.countryName;
+            viewportContinentRef.current =
+              nonna.clusterLevel === "continent"
+                ? nonna.countryName
+                : getCountryInfoWithFallback(nonna.countryName).continent;
             viewportCountryRef.current = null;
             viewportCountryCodeRef.current = null;
             viewportRegionRef.current = null;
@@ -2280,19 +2279,27 @@ export default function Earth3DPage() {
             cityFilterFromClickRef.current = false;
           } else if (currentLevel === "CONTINENT") {
             nextLevel = "COUNTRY";
-            viewportCountryRef.current = nonna.countryName;
-            viewportCountryCodeRef.current = nonna.countryCode || null;
-            viewportContinentRef.current = getCountryInfoWithFallback(
-              nonna.countryName,
-            ).continent;
+            viewportContinentRef.current = nonna.countryName;
+            viewportCountryRef.current = null;
+            viewportCountryCodeRef.current = null;
             viewportRegionRef.current = null;
             viewportCityRef.current = null;
             regionFilterFromClickRef.current = false;
             cityFilterFromClickRef.current = false;
           } else if (currentLevel === "COUNTRY") {
             nextLevel = "STATE";
-            viewportRegionRef.current = nonna.region || clusterName;
-            regionFilterFromClickRef.current = true;
+            if (nonna.clusterLevel === "country") {
+              viewportCountryRef.current = nonna.countryName;
+              viewportCountryCodeRef.current = nonna.countryCode || null;
+              viewportContinentRef.current = getCountryInfoWithFallback(
+                nonna.countryName,
+              ).continent;
+              viewportRegionRef.current = null;
+              regionFilterFromClickRef.current = false;
+            } else {
+              viewportRegionRef.current = nonna.region || clusterName;
+              regionFilterFromClickRef.current = true;
+            }
             viewportCityRef.current = null;
             cityFilterFromClickRef.current = false;
           } else if (currentLevel === "STATE") {
@@ -2992,6 +2999,7 @@ export default function Earth3DPage() {
               }
 
               if (nonna.nonnaCount === 1 && nonna.recipeId) {
+                const recipeId = nonna.recipeId.toString();
                 e.stopPropagation();
                 e.preventDefault();
 
@@ -2999,7 +3007,7 @@ export default function Earth3DPage() {
                   // Check if comment section is already open for this same nonna
                   if (
                     commentSection.open &&
-                    commentSection.recipeId === parseInt(nonna.recipeId, 10)
+                    commentSection.recipeId === parseInt(recipeId, 10)
                   ) {
                     // Close the comment section if clicking the same nonna
                     setCommentSection({
@@ -3029,7 +3037,7 @@ export default function Earth3DPage() {
 
                         try {
                           const res = await fetch(
-                            `/api/recipes?published=true&id=${nonna.recipeId}`,
+                            `/api/recipes?published=true&id=${recipeId}`,
                           );
                           const data = await res.json();
                           const recipe = data?.recipes?.[0] || data?.[0];
@@ -3067,7 +3075,7 @@ export default function Earth3DPage() {
                         currentNonnaRef.current = {
                           lat: targetLat,
                           lng: targetLng,
-                          recipeId: parseInt(nonna.recipeId, 10),
+                          recipeId: parseInt(recipeId, 10),
                           name: nonna.representativeName,
                           title: nonna.representativeTitle,
                           photo: resolvedPhoto,
@@ -3162,7 +3170,7 @@ export default function Earth3DPage() {
 
                           try {
                             const res = await fetch(
-                              `/api/recipes?published=true&id=${nonna.recipeId}`,
+                              `/api/recipes?published=true&id=${recipeId}`,
                             );
                             const data = await res.json();
                             const recipe = data?.recipes?.[0] || data?.[0];
@@ -3227,7 +3235,7 @@ export default function Earth3DPage() {
                           currentNonnaRef.current = {
                             lat: targetLat,
                             lng: targetLng,
-                            recipeId: parseInt(nonna.recipeId, 10),
+                            recipeId: parseInt(recipeId, 10),
                             name: nonna.representativeName,
                             title: nonna.representativeTitle,
                             photo: resolvedPhoto,
