@@ -644,7 +644,11 @@ async function buildMarkerTemplate(opts: {
   const cx = svgW / 2;
   const cy = svgH / 2;
   async function loadImageAsBase64(url: string): Promise<string> {
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 700);
+    const response = await fetch(url, { signal: controller.signal }).finally(
+      () => window.clearTimeout(timeout),
+    );
     if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
@@ -654,18 +658,6 @@ async function buildMarkerTemplate(opts: {
       reader.readAsDataURL(blob);
     });
   }
-
-  let imgHref = avatarUri;
-  if (opts.photoUrl) {
-    try {
-      imgHref = await loadImageAsBase64(
-        `/api/proxy-image?url=${encodeURIComponent(opts.photoUrl)}`,
-      );
-    } catch {
-      imgHref = avatarUri;
-    }
-  }
-  const imgHrefSafe = imgHref.replace(/"/g, "&quot;");
 
   // Compact square SVG so the map anchor (center) sits on the saved lat/lng.
   // The old bubble layout used a tall viewBox with empty label space below the
@@ -709,6 +701,18 @@ async function buildMarkerTemplate(opts: {
     tpl.innerHTML = bubbleSvg.trim();
     return tpl;
   }
+
+  let imgHref = avatarUri;
+  if (opts.photoUrl) {
+    try {
+      imgHref = await loadImageAsBase64(
+        `/api/proxy-image?url=${encodeURIComponent(opts.photoUrl)}`,
+      );
+    } catch {
+      imgHref = avatarUri;
+    }
+  }
+  const imgHrefSafe = imgHref.replace(/"/g, "&quot;");
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -972,6 +976,10 @@ export default function Earth3DPage() {
     }
     currentMarkersRef.current = [];
   }, []);
+
+  useEffect(() => {
+    return () => clearCurrentMarkers();
+  }, [clearCurrentMarkers]);
 
   const [streetViewActive, setStreetViewActive] = useState(false);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
@@ -1727,6 +1735,7 @@ export default function Earth3DPage() {
   /** Set when user clicked a region/city cluster — avoids geocoder name mismatches. */
   const regionFilterFromClickRef = useRef(false);
   const cityFilterFromClickRef = useRef(false);
+  const individualFetchSeqRef = useRef(0);
   const filterMarkersNearCenter = useCallback(
     (markers: GlobeNonna[], maxKm: number) => {
       const map3d = map3dRef.current;
@@ -1805,6 +1814,7 @@ export default function Earth3DPage() {
 
   const fetchIndividualNonnas = useCallback(
     async (opts?: { city?: string; region?: string }) => {
+      const fetchSeq = ++individualFetchSeqRef.current;
       try {
         // Always load individual nonnas at city zoom (CITY API only returns city clusters).
         const params = new URLSearchParams({ level: "NONNA" });
@@ -1819,20 +1829,53 @@ export default function Earth3DPage() {
           (cityFilterFromClickRef.current ? viewportCityRef.current : null);
         if (city) params.set("city", city);
 
-        const res = await fetch(`/api/nonnas/clustering?${params}`, {
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error("Failed to fetch individual nonnas");
-        const data = await res.json();
-        let markers: GlobeNonna[] = data.clusters || [];
+        const loadMarkers = async (query: URLSearchParams) => {
+          const res = await fetch(`/api/nonnas/clustering?${query}`, {
+            cache: "no-store",
+          });
+          if (!res.ok) throw new Error("Failed to fetch individual nonnas");
+          const data = await res.json();
+          return (data.clusters || []) as GlobeNonna[];
+        };
+
+        let markers = await loadMarkers(params);
+        if (markers.length === 0 && city && region) {
+          const cityOnlyParams = new URLSearchParams({ level: "NONNA" });
+          if (country) cityOnlyParams.set("country", country);
+          cityOnlyParams.set("city", city);
+          markers = await loadMarkers(cityOnlyParams);
+        }
+        if (markers.length === 0 && (city || region)) {
+          const fallbackParams = new URLSearchParams({ level: "NONNA" });
+          if (country) fallbackParams.set("country", country);
+          markers = await loadMarkers(fallbackParams);
+        }
+
         if (city) {
           const cityNorm = normAdminLabel(city);
-          markers = markers.filter((m) => normAdminLabel(m.city) === cityNorm);
+          const cityMarkers = markers.filter(
+            (m) => normAdminLabel(m.city) === cityNorm,
+          );
+          if (cityMarkers.length > 0) {
+            markers = cityMarkers;
+          }
         } else if (!country) {
-          markers = filterMarkersNearCenter(markers, 500);
+          const nearbyMarkers = filterMarkersNearCenter(markers, 500);
+          if (nearbyMarkers.length > 0) {
+            markers = nearbyMarkers;
+          }
+        }
+        if (fetchSeq !== individualFetchSeqRef.current) return;
+        if (
+          markers.length === 0 &&
+          (currentLevelRef.current === "CITY" ||
+            currentLevelRef.current === "NONNA")
+        ) {
+          return;
         }
         setNonnaData(markers);
       } catch (err) {
+        if (fetchSeq !== individualFetchSeqRef.current) return;
         console.error("[Earth3D] individual nonnas fetch error:", err);
       }
     },
@@ -2884,18 +2927,19 @@ export default function Earth3DPage() {
       return;
     }
 
-    // Clear existing markers immediately before creating new ones
-    clearCurrentMarkers();
-
     const map3d = map3dRef.current;
     let cancelled = false;
     (async () => {
       try {
         const { Marker3DInteractiveElement } =
           await window.google.maps.importLibrary("maps3d");
+        const nextMarkers: any[] = [];
         for (const nonna of nonnaData) {
           if (cancelled) return;
           try {
+            if (!Number.isFinite(nonna.lat) || !Number.isFinite(nonna.lng)) {
+              continue;
+            }
             const avatarUri = generateAvatarSvgUri(
               nonna.representativeName || nonna.countryName,
               nonna.countryCode,
@@ -2930,8 +2974,7 @@ export default function Earth3DPage() {
             marker.setAttribute("data-marker", "nonna");
             marker.setAttribute("data-nonna-name", nonna.representativeName);
             marker.append(tplCompact.cloneNode(true));
-            map3d.append(marker);
-            currentMarkersRef.current.push(marker);
+            nextMarkers.push(marker);
 
             // Remove tooltip on mouseover
             marker.addEventListener("mouseover", (e: Event) => {
@@ -3267,13 +3310,19 @@ export default function Earth3DPage() {
             );
           }
         }
+        if (cancelled) return;
+        if (nextMarkers.length === 0) return;
+        clearCurrentMarkers();
+        for (const marker of nextMarkers) {
+          map3d.append(marker);
+        }
+        currentMarkersRef.current = nextMarkers;
       } catch (err) {
         console.warn("[Earth3D] Marker3DInteractiveElement failed:", err);
       }
     })();
     return () => {
       cancelled = true;
-      clearCurrentMarkers();
     };
   }, [nonnaData, mapReady, currentLevel, clearCurrentMarkers]);
   // Zoom button handlers
@@ -4526,6 +4575,22 @@ export default function Earth3DPage() {
             setLevel(nextLevel);
             currentLevelRef.current = nextLevel;
 
+            if (nextLevel === "CITY") {
+              viewportCountryRef.current = info.country || viewportCountryRef.current;
+              viewportCountryCodeRef.current =
+                info.countryCode || viewportCountryCodeRef.current;
+              viewportRegionRef.current =
+                featureType === "city"
+                  ? info.state || null
+                  : featureType === "state"
+                    ? targetName
+                    : viewportRegionRef.current;
+              regionFilterFromClickRef.current = !!viewportRegionRef.current;
+              viewportCityRef.current = featureType === "city" ? targetName : null;
+              cityFilterFromClickRef.current = featureType === "city";
+              void fetchIndividualNonnas(getIndividualMarkerFilters());
+            }
+
             // Set flight state
             flightStateRef.current = {
               active: true,
@@ -5049,7 +5114,13 @@ export default function Earth3DPage() {
         }
       }
     };
-  }, [setLevel, handleZoomIn, updateViewportContext]);
+  }, [
+    setLevel,
+    handleZoomIn,
+    updateViewportContext,
+    fetchIndividualNonnas,
+    getIndividualMarkerFilters,
+  ]);
   const mobileStyles = {
     searchContainer: {
       position: "absolute" as const,
