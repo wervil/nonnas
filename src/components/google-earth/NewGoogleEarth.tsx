@@ -598,6 +598,58 @@ function calculateDistance(
   return R * c;
 }
 
+/** Separate pins that share the same coordinates so avatars don't stack. */
+function spreadOverlappingMarkers(
+  markers: GlobeNonna[],
+  thresholdMeters = 120,
+): GlobeNonna[] {
+  if (markers.length < 2) return markers;
+
+  const groups: GlobeNonna[][] = [];
+  for (const marker of markers) {
+    let placed = false;
+    for (const group of groups) {
+      const anchor = group[0];
+      if (
+        calculateDistance(marker.lat, marker.lng, anchor.lat, anchor.lng) <=
+        thresholdMeters
+      ) {
+        group.push(marker);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) groups.push([marker]);
+  }
+
+  const result: GlobeNonna[] = [];
+  for (const group of groups) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    const anchor = group[0];
+    const latRad = (anchor.lat * Math.PI) / 180;
+    const metersToLat = (m: number) => (m / 6371000) * (180 / Math.PI);
+    const metersToLng = (m: number) => metersToLat(m) / Math.cos(latRad || 1e-6);
+    const ringMeters = Math.min(thresholdMeters * 0.85, 90);
+
+    group.forEach((marker, index) => {
+      if (index === 0) {
+        result.push(marker);
+        return;
+      }
+      const angle = (2 * Math.PI * index) / group.length;
+      result.push({
+        ...marker,
+        lat: anchor.lat + metersToLat(ringMeters * Math.cos(angle)),
+        lng: anchor.lng + metersToLng(ringMeters * Math.sin(angle)),
+      });
+    });
+  }
+  return result;
+}
+
 async function buildMarkerTemplate(opts: {
   name: string;
   photoUrl: string | null;
@@ -1808,6 +1860,20 @@ export default function Earth3DPage() {
           );
         }
         result = markers;
+      } else if (level === "CITY") {
+        let markers = data.cities;
+        if (viewport.country) {
+          markers = filterByViewportCountry(markers);
+        }
+        if (regionFilterFromClickRef.current && viewport.region) {
+          const countryCode =
+            viewport.countryCode ||
+            getCountryInfoWithFallback(viewport.country || "").code;
+          markers = markers.filter((m) =>
+            regionLabelsMatch(m.region, viewport.region, countryCode),
+          );
+        }
+        result = markers;
       }
 
       setNonnaData(result);
@@ -1875,6 +1941,9 @@ export default function Earth3DPage() {
             currentLevelRef.current === "NONNA")
         ) {
           return;
+        }
+        if (cityFilterFromClickRef.current && markers.length > 1) {
+          markers = spreadOverlappingMarkers(markers);
         }
         setNonnaData(markers);
       } catch (err) {
@@ -1957,8 +2026,14 @@ export default function Earth3DPage() {
         };
 
         const level = currentLevelRef.current;
-        if (level === "NONNA" || level === "CITY") {
+        if (level === "NONNA") {
           await fetchIndividualNonnas(getIndividualMarkerFilters());
+        } else if (level === "CITY") {
+          if (cityFilterFromClickRef.current) {
+            await fetchIndividualNonnas(getIndividualMarkerFilters());
+          } else {
+            applyClusterLevel("CITY", allClustersRef.current);
+          }
         } else {
           applyClusterLevel(level, allClustersRef.current);
         }
@@ -1976,8 +2051,16 @@ export default function Earth3DPage() {
 
   const refreshMarkersForLevel = useCallback(() => {
     const level = currentLevelRef.current;
-    if (level === "NONNA" || level === "CITY") {
+    if (level === "NONNA") {
       void fetchIndividualNonnas(getIndividualMarkerFilters());
+      return;
+    }
+    if (level === "CITY") {
+      if (cityFilterFromClickRef.current) {
+        void fetchIndividualNonnas(getIndividualMarkerFilters());
+      } else if (allClustersRef.current) {
+        applyClusterLevel("CITY", allClustersRef.current);
+      }
       return;
     }
     if (allClustersRef.current) {
@@ -2296,6 +2379,54 @@ export default function Earth3DPage() {
             }, 1700);
           }
         } else {
+          // City cluster drill: stay at CITY and show individual pins for that city.
+          if (
+            currentLevel === "CITY" &&
+            nonna.nonnaCount > 1 &&
+            (nonna.clusterLevel === "city" || nonna.city || clusterName)
+          ) {
+            const cityName = nonna.city || clusterName;
+            viewportCityRef.current = cityName;
+            cityFilterFromClickRef.current = true;
+            if (nonna.region) {
+              viewportRegionRef.current = nonna.region;
+              regionFilterFromClickRef.current = true;
+            }
+
+            void fetchIndividualNonnas({
+              city: cityName,
+              region: nonna.region || undefined,
+            });
+
+            const map3d = map3dRef.current;
+            if (map3d) {
+              flightStateRef.current = {
+                active: true,
+                targetRange: ZOOM_RANGES.CITY * 0.55,
+                targetLevel: "CITY",
+                startTime: Date.now(),
+                lastRanges: [],
+              };
+              map3d.flyCameraTo({
+                endCamera: {
+                  center: {
+                    lat: nonna.lat,
+                    lng: nonna.lng,
+                    altitude: 0,
+                  },
+                  range: ZOOM_RANGES.CITY * 0.55,
+                  tilt: 65,
+                  heading: map3d.heading,
+                },
+                durationMillis: 1500,
+              });
+              setTimeout(() => {
+                flightStateRef.current.active = false;
+              }, 1700);
+            }
+            return;
+          }
+
           // Multiple nonnas - get the closest one and zoom to next level
           console.log(
             "[Earth3D] Multiple nonnas in cluster - finding closest and zooming to next level",
@@ -2358,18 +2489,10 @@ export default function Earth3DPage() {
             cityFilterFromClickRef.current = false;
           } else if (currentLevel === "STATE") {
             nextLevel = "CITY";
-            viewportCityRef.current = nonna.city || null;
-            cityFilterFromClickRef.current = !!nonna.city;
-            viewportRegionRef.current =
-              nonna.region || viewportRegionRef.current;
-            regionFilterFromClickRef.current = !!viewportRegionRef.current;
-          } else if (currentLevel === "CITY") {
-            nextLevel = "NONNA";
-            viewportCityRef.current = nonna.city || clusterName;
-            cityFilterFromClickRef.current = true;
-            viewportRegionRef.current =
-              nonna.region || viewportRegionRef.current;
-            regionFilterFromClickRef.current = !!viewportRegionRef.current;
+            viewportRegionRef.current = nonna.region || clusterName;
+            regionFilterFromClickRef.current = true;
+            viewportCityRef.current = null;
+            cityFilterFromClickRef.current = false;
           } else {
             nextLevel = "CITY";
           }
@@ -2377,8 +2500,12 @@ export default function Earth3DPage() {
           setLevel(nextLevel);
           currentLevelRef.current = nextLevel;
 
-          if (nextLevel === "CITY" || nextLevel === "NONNA") {
-            void fetchIndividualNonnas(getIndividualMarkerFilters());
+          if (nextLevel === "CITY") {
+            if (cityFilterFromClickRef.current) {
+              void fetchIndividualNonnas(getIndividualMarkerFilters());
+            } else if (allClustersRef.current) {
+              applyClusterLevel("CITY", allClustersRef.current);
+            }
           } else if (allClustersRef.current) {
             applyClusterLevel(nextLevel, allClustersRef.current);
           }
@@ -2950,7 +3077,10 @@ export default function Earth3DPage() {
             const level = currentLevelRef.current;
             const isCityZoom = level === "CITY" || level === "NONNA";
             const showAvatar =
-              level === "NONNA" || (isCityZoom && nonna.nonnaCount === 1);
+              level === "NONNA" ||
+              (isCityZoom &&
+                cityFilterFromClickRef.current &&
+                nonna.nonnaCount === 1);
             const markerMode = showAvatar
               ? ("avatar" as const)
               : ("bubble" as const);
