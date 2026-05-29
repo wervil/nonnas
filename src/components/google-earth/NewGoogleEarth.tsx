@@ -3,6 +3,7 @@ import {
   getCountryCodesByContinent,
   getCountryInfoWithFallback,
 } from "@/lib/countryData";
+import { regionLabelsMatch } from "@/lib/locationData";
 import { useUser } from "@stackframe/stack";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -1799,9 +1800,11 @@ export default function Earth3DPage() {
           ? filterByViewportCountry(data.states)
           : data.states;
         if (regionFilterFromClickRef.current && viewport.region) {
-          const regionNorm = normAdminLabel(viewport.region);
-          markers = markers.filter(
-            (m) => normAdminLabel(m.region) === regionNorm,
+          const countryCode =
+            viewport.countryCode ||
+            getCountryInfoWithFallback(viewport.country || "").code;
+          markers = markers.filter((m) =>
+            regionLabelsMatch(m.region, viewport.region, countryCode),
           );
         }
         result = markers;

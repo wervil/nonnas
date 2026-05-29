@@ -3,6 +3,7 @@ import {
   getCountryInfoWithFallback,
   getRegionCoordinates,
 } from "@/lib/countryData";
+import { regionLabelsMatch } from "@/lib/locationData";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
@@ -245,19 +246,21 @@ async function fetchIndividualMarkers(
       eq(sql`lower(${recipes.country})`, countryFilter.toLowerCase()),
     );
   }
-  if (regionFilter) {
-    conditions.push(
-      eq(sql`lower(${recipes.region})`, regionFilter.toLowerCase()),
-    );
-  }
   if (cityFilter) {
     conditions.push(eq(sql`lower(${recipes.city})`, cityFilter.toLowerCase()));
   }
 
-  const rows = await db
+  let rows = await db
     .select()
     .from(recipes)
     .where(and(...conditions));
+
+  if (regionFilter) {
+    rows = rows.filter((r) => {
+      const code = getCountryInfoWithFallback(r.country || "").code;
+      return regionLabelsMatch(r.region, regionFilter, code);
+    });
+  }
 
   const markers: GlobeNonna[] = [];
 
@@ -340,9 +343,11 @@ export async function GET(req: NextRequest) {
       const { cities } = buildClusterLayers(rows);
       let clusters = cities;
       if (regionParam) {
-        const regionNorm = regionParam.toLowerCase().trim();
-        clusters = clusters.filter(
-          (c) => (c.region || "").toLowerCase().trim() === regionNorm,
+        const countryCode = countryParam
+          ? getCountryInfoWithFallback(countryParam).code
+          : null;
+        clusters = clusters.filter((c) =>
+          regionLabelsMatch(c.region, regionParam, countryCode),
         );
       }
       return NextResponse.json(

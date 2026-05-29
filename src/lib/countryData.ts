@@ -1,6 +1,11 @@
 // Country data with continent mapping and coordinates
 // ISO 3166-1 alpha-2 codes
 
+import {
+  extractPrimaryPlaceName,
+  findMacroRegionsForCity,
+} from "@/lib/locationData";
+
 export type CountryInfo = {
   code: string;
   name: string;
@@ -289,6 +294,18 @@ export const usStateCoordinates: Record<string, { lat: number; lng: number }> = 
   "wyoming": { lat: 42.755966, lng: -107.302490 }
 };
 
+const regionCoordsMap: Record<string, { lat: number; lng: number }> = {
+  // Canada provinces
+  ontario: { lat: 51.2538, lng: -85.3232 },
+  quebec: { lat: 52.9399, lng: -73.5491 },
+  "british columbia": { lat: 53.7267, lng: -127.6476 },
+  // Italy regions / cities
+  lombardy: { lat: 45.4791, lng: 9.8452 },
+  sicily: { lat: 37.599, lng: 14.0154 },
+  campania: { lat: 40.8122, lng: 14.7836 },
+  messina: { lat: 38.1938, lng: 15.554 },
+};
+
 export function getRegionCoordinates(regionName: string | undefined | null, countryCode: string, fallbackLat: number, fallbackLng: number): { lat: number; lng: number } {
   if (!regionName) return { lat: fallbackLat, lng: fallbackLng };
 
@@ -302,17 +319,20 @@ export function getRegionCoordinates(regionName: string | undefined | null, coun
     }
   }
 
-  // Fallback map for non-US regions (we can expand this later)
-  const regionCoordsMap: Record<string, { lat: number; lng: number }> = {
-    // Canada provinces
-    "ontario": { lat: 51.2538, lng: -85.3232 },
-    "quebec": { lat: 52.9399, lng: -73.5491 },
-    "british columbia": { lat: 53.7267, lng: -127.6476 },
-    // Italy regions
-    "lombardy": { lat: 45.4791, lng: 9.8452 },
-    "sicily": { lat: 37.5990, lng: 14.0154 },
-    "campania": { lat: 40.8122, lng: 14.7836 },
-  };
+  const primary = extractPrimaryPlaceName(regionName);
+  if (primary) {
+    const normPrimary = primary.toLowerCase();
+    const macroRegions = findMacroRegionsForCity(countryCode, primary);
+    for (const macro of macroRegions) {
+      const macroNorm = macro.toLowerCase();
+      if (regionCoordsMap[macroNorm]) {
+        return regionCoordsMap[macroNorm];
+      }
+    }
+    if (regionCoordsMap[normPrimary]) {
+      return regionCoordsMap[normPrimary];
+    }
+  }
 
   const genericInfo = regionCoordsMap[normRegion];
   if (genericInfo) {

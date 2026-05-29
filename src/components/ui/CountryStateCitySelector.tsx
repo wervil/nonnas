@@ -1,7 +1,8 @@
 'use client'
 
 import { geocodeCityInBrowser } from '@/lib/geocodeClient'
-import { City, Country, State } from 'country-state-city'
+import { getCitiesForState, resolveGeocodeRegionName } from '@/lib/locationData'
+import { Country, State } from 'country-state-city'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Control, Controller, FieldValues, Path, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -60,7 +61,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
 
   const cityRecords = useMemo(() => {
     if (!selectedCountry || !selectedState) return []
-    return City.getCitiesOfState(selectedCountry, selectedState)
+    return getCitiesForState(selectedCountry, selectedState)
   }, [selectedCountry, selectedState])
 
   const cities = useMemo<Option[]>(
@@ -80,10 +81,11 @@ const CountryStateCitySelector = <T extends FieldValues>({
 
   const updateCoordinates = async (cityName: string) => {
     const countryName = Country.getCountryByCode(selectedCountry)?.name
-    const regionName = State.getStateByCodeAndCountry(
+    const stateLabel = State.getStateByCodeAndCountry(
       selectedState,
       selectedCountry,
     )?.name
+    const regionName = resolveGeocodeRegionName(stateLabel, selectedCountry)
 
     if (!countryName) return
 
@@ -94,7 +96,7 @@ const CountryStateCitySelector = <T extends FieldValues>({
     try {
       const coordinates = await geocodeCityInBrowser(
         cityName,
-        regionName,
+        regionName ?? stateLabel,
         countryName,
         selectedCountry,
       )

@@ -4,6 +4,7 @@ import {
   getCountryInfoWithFallback,
   getRegionCoordinates,
 } from "@/lib/countryData";
+import { regionLabelsMatch } from "@/lib/locationData";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { NextRequest, NextResponse } from "next/server";
@@ -80,8 +81,10 @@ export async function GET(req: NextRequest) {
     } else if (clusterLevel === "country") {
       whereConditions.push(eq(recipes.country, clusterName));
     } else if (clusterLevel === "state") {
-      whereConditions.push(eq(recipes.region, clusterName));
-      if (countryCode) {
+      const countryParam = searchParams.get("country");
+      if (countryParam) {
+        whereConditions.push(eq(recipes.country, countryParam));
+      } else if (countryCode) {
         const countryInfo = getCountryInfoWithFallback(clusterName);
         if (countryInfo.code === countryCode.toUpperCase()) {
           whereConditions.push(eq(recipes.country, countryInfo.name));
@@ -93,10 +96,6 @@ export async function GET(req: NextRequest) {
       if (countryParam) {
         whereConditions.push(eq(recipes.country, countryParam));
       }
-      const regionParam = searchParams.get("region");
-      if (regionParam) {
-        whereConditions.push(eq(recipes.region, regionParam));
-      }
     } else {
       return NextResponse.json(
         { error: "Invalid level. Must be: continent, country, state, or city" },
@@ -105,10 +104,24 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all nonnas in the cluster
-    const nonnas = await db
+    let nonnas = await db
       .select()
       .from(recipes)
       .where(and(...whereConditions));
+
+    const regionParam = searchParams.get("region");
+
+    if (clusterLevel === "state") {
+      nonnas = nonnas.filter((n) => {
+        const code = getCountryInfoWithFallback(n.country || "").code;
+        return regionLabelsMatch(n.region, clusterName, code);
+      });
+    } else if (clusterLevel === "city" && regionParam) {
+      nonnas = nonnas.filter((n) => {
+        const code = getCountryInfoWithFallback(n.country || "").code;
+        return regionLabelsMatch(n.region, regionParam, code);
+      });
+    }
 
     if (nonnas.length === 0) {
       return NextResponse.json({ closestNonna: null });
