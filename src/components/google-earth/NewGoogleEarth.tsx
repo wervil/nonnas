@@ -1825,6 +1825,11 @@ export default function Earth3DPage() {
 
   const applyClusterLevel = useCallback(
     (level: ZoomLevel, data: NonNullable<typeof allClustersRef.current>) => {
+      // Drawing cluster badges supersedes any in-flight individual-nonna fetch.
+      // Bumping the seq makes a late-resolving CITY/STATE fetch abort instead of
+      // clobbering these clusters with deeper-level markers (the "ghost" badge).
+      individualFetchSeqRef.current += 1;
+
       const viewport = {
         country: viewportCountryRef.current,
         countryCode: viewportCountryCodeRef.current,
@@ -1935,13 +1940,16 @@ export default function Earth3DPage() {
           }
         }
         if (fetchSeq !== individualFetchSeqRef.current) return;
-        if (
-          markers.length === 0 &&
-          (currentLevelRef.current === "CITY" ||
-            currentLevelRef.current === "NONNA")
-        ) {
-          return;
-        }
+        // Only apply individual-nonna results when we still want individuals.
+        // If the user has zoomed back out to a cluster level (or to a
+        // non-drilled CITY showing city clusters), discard this result so it
+        // can't overwrite the cluster badges with stale deeper-level markers.
+        const lvl = currentLevelRef.current;
+        const wantsIndividuals =
+          lvl === "NONNA" ||
+          (lvl === "CITY" && cityFilterFromClickRef.current);
+        if (!wantsIndividuals) return;
+        if (markers.length === 0) return;
         if (cityFilterFromClickRef.current && markers.length > 1) {
           markers = spreadOverlappingMarkers(markers);
         }
@@ -5189,8 +5197,21 @@ export default function Earth3DPage() {
       const EARTH_RADIUS = 6371000,
         FOV_FACTOR = 1.6;
       const checkZoom = () => {
-        if (!mounted || !overlayRef.current) return;
-        const currentRange = Number(map3d.range ?? ZOOM_RANGES.EARTH);
+        if (!mounted) return;
+        // Keep the loop alive even if the ref is briefly detached, otherwise the
+        // ring freezes on screen (stuck visible) and never tracks zoom again.
+        if (!overlayRef.current) {
+          animationFrameId = requestAnimationFrame(checkZoom);
+          return;
+        }
+        const rawRange = Number(map3d.range);
+        // If the range reads as NaN/undefined for a frame (happens transiently
+        // during flights / right after load), fall back to the tracked zoom
+        // level's nominal range so the ring hides when the user has zoomed in
+        // instead of defaulting to fully visible.
+        const currentRange = Number.isFinite(rawRange)
+          ? rawRange
+          : (ZOOM_RANGES[currentLevelRef.current] ?? ZOOM_RANGES.EARTH);
 
         const distance = EARTH_RADIUS + currentRange;
         const d = Math.max(distance, EARTH_RADIUS + 10);
