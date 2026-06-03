@@ -744,6 +744,51 @@ function geometryFromNominatimResult(
   return null;
 }
 
+async function loadImageAsDataUrl(
+  url: string,
+  timeoutMs = 4000,
+): Promise<string> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const response = await fetch(url, { signal: controller.signal }).finally(
+    () => window.clearTimeout(timeout),
+  );
+  if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Photo URL for SVG <image> — Map3D markers do not render foreignObject/HTML. */
+async function resolveMarkerPhotoHref(
+  photoUrl: string | null | undefined,
+  avatarUri: string,
+): Promise<string> {
+  const raw = photoUrl?.trim();
+  if (!raw) return avatarUri;
+  if (raw.startsWith("data:")) return raw;
+
+  const fetchUrl = raw.startsWith("/")
+    ? `${window.location.origin}${raw}`
+    : `/api/proxy-image?url=${encodeURIComponent(raw)}`;
+
+  try {
+    return await loadImageAsDataUrl(fetchUrl);
+  } catch {
+    // Same-origin proxy may work as direct href when base64 inlining fails
+    if (fetchUrl.startsWith("/")) return fetchUrl;
+    return avatarUri;
+  }
+}
+
+function escapeSvgAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
 async function buildMarkerTemplate(opts: {
   name: string;
   photoUrl: string | null;
@@ -790,21 +835,6 @@ async function buildMarkerTemplate(opts: {
   const svgH = svgSize;
   const cx = svgW / 2;
   const cy = svgH / 2;
-  async function loadImageAsBase64(url: string): Promise<string> {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 700);
-    const response = await fetch(url, { signal: controller.signal }).finally(
-      () => window.clearTimeout(timeout),
-    );
-    if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
 
   // Compact square SVG so the map anchor (center) sits on the saved lat/lng.
   // The old bubble layout used a tall viewBox with empty label space below the
@@ -849,17 +879,11 @@ async function buildMarkerTemplate(opts: {
     return tpl;
   }
 
-  let imgHref = avatarUri;
-  if (opts.photoUrl) {
-    try {
-      imgHref = await loadImageAsBase64(
-        `/api/proxy-image?url=${encodeURIComponent(opts.photoUrl)}`,
-      );
-    } catch {
-      imgHref = avatarUri;
-    }
-  }
-  const imgHrefSafe = imgHref.replace(/"/g, "&quot;");
+  const imgHref = await resolveMarkerPhotoHref(opts.photoUrl, avatarUri);
+  const imgHrefSafe = escapeSvgAttr(imgHref);
+  const imgX = cx - aR;
+  const imgY = cy - aR;
+  const imgSize = aR * 2;
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -911,10 +935,17 @@ async function buildMarkerTemplate(opts: {
         <!-- white background circle -->
         <circle cx="${cx}" cy="${cy}" r="${aR}" fill="white" filter="url(#ash${uid})"/>
   
-        <!-- avatar image using foreignObject with background -->
-        <foreignObject x="${cx - aR}" y="${cy - aR}" width="${aR * 2}" height="${aR * 2}" clip-path="url(#clip${uid})">
-          <div xmlns="http://www.w3.org/1999/xhtml" style="width: 100%; height: 100%; background-image: url('${imgHrefSafe}'); background-size: cover; background-position: center;"></div>
-        </foreignObject>
+        <!-- native SVG image (foreignObject does not paint in Map3D markers) -->
+        <image
+          x="${imgX}"
+          y="${imgY}"
+          width="${imgSize}"
+          height="${imgSize}"
+          href="${imgHrefSafe}"
+          xlink:href="${imgHrefSafe}"
+          clip-path="url(#clip${uid})"
+          preserveAspectRatio="xMidYMid slice"
+        />
           
         <!-- border -->
         <circle cx="${cx}" cy="${cy}" r="${aR}" fill="none" stroke="${TEAL.light}" stroke-width="3.5"/>
@@ -3285,7 +3316,8 @@ export default function Earth3DPage() {
             const showAvatar =
               level === "NONNA" ||
               (isCityZoom &&
-                cityFilterFromClickRef.current &&
+                (cityFilterFromClickRef.current ||
+                  nonna.clusterLevel === "nonna") &&
                 nonna.nonnaCount === 1);
             const markerMode = showAvatar
               ? ("avatar" as const)
@@ -3294,9 +3326,25 @@ export default function Earth3DPage() {
               level === "COUNTRY" || level === "STATE" || level === "CITY"
                 ? nonna.city || nonna.region || nonna.countryName
                 : nonna.countryName;
+            let photoUrl = nonna.representativePhoto;
+            if (!photoUrl && showAvatar && nonna.recipeId) {
+              try {
+                const res = await fetch(
+                  `/api/recipes?published=true&id=${nonna.recipeId}`,
+                );
+                const data = await res.json();
+                const recipe = data?.recipes?.[0] || data?.[0];
+                photoUrl =
+                  recipe?.avatar_image ||
+                  (Array.isArray(recipe?.photo) ? recipe.photo[0] : null) ||
+                  null;
+              } catch {
+                // Keep initials fallback
+              }
+            }
             const tplCompact = await buildMarkerTemplate({
               name: nonna.representativeName,
-              photoUrl: nonna.representativePhoto,
+              photoUrl,
               avatarUri,
               countryCode: nonna.countryCode,
               countryName: pinLabel,
