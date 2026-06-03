@@ -744,26 +744,51 @@ function geometryFromNominatimResult(
   return null;
 }
 
-async function loadImageAsDataUrl(
-  url: string,
-  timeoutMs = 4000,
+const markerPhotoDataUrlCache = new Map<string, string>();
+
+/** Map3D avatar pins only paint photos when inlined as a compact data URL in SVG <image>. */
+async function rasterizePhotoForMarker(
+  fetchUrl: string,
+  maxPx = 128,
+  timeoutMs = 5000,
 ): Promise<string> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  const response = await fetch(url, { signal: controller.signal }).finally(
+  const response = await fetch(fetchUrl, { signal: controller.signal }).finally(
     () => window.clearTimeout(timeout),
   );
   if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
   const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth || maxPx;
+        const h = img.naturalHeight || maxPx;
+        const scale = Math.min(1, maxPx / Math.max(w, h, 1));
+        const cw = Math.max(1, Math.round(w * scale));
+        const ch = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas unavailable"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, cw, ch);
+        resolve(canvas.toDataURL("image/jpeg", 0.88));
+      };
+      img.onerror = () => reject(new Error("Image decode failed"));
+      img.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
-/** Photo URL for SVG <image> — Map3D markers do not render foreignObject/HTML. */
+/** Photo URL for SVG <image> — only used in avatar mode (city drill / NONNA). */
 async function resolveMarkerPhotoHref(
   photoUrl: string | null | undefined,
   avatarUri: string,
@@ -772,15 +797,18 @@ async function resolveMarkerPhotoHref(
   if (!raw) return avatarUri;
   if (raw.startsWith("data:")) return raw;
 
+  const cached = markerPhotoDataUrlCache.get(raw);
+  if (cached) return cached;
+
   const fetchUrl = raw.startsWith("/")
     ? `${window.location.origin}${raw}`
     : `/api/proxy-image?url=${encodeURIComponent(raw)}`;
 
   try {
-    return await loadImageAsDataUrl(fetchUrl);
+    const dataUrl = await rasterizePhotoForMarker(fetchUrl);
+    markerPhotoDataUrlCache.set(raw, dataUrl);
+    return dataUrl;
   } catch {
-    // Same-origin proxy may work as direct href when base64 inlining fails
-    if (fetchUrl.startsWith("/")) return fetchUrl;
     return avatarUri;
   }
 }
