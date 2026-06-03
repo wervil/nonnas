@@ -137,6 +137,22 @@ export function regionLabelsMatch(
   return na.includes(nb) || nb.includes(na);
 }
 
+/** Whether two city labels refer to the same place (handles minor spelling differences). */
+export function cityLabelsMatch(
+  a: string | undefined | null,
+  b: string | undefined | null,
+): boolean {
+  const na = normalizeLocationLabel(a);
+  const nb = normalizeLocationLabel(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  const pa = normalizeLocationLabel(extractPrimaryPlaceName(a) || a);
+  const pb = normalizeLocationLabel(extractPrimaryPlaceName(b) || b);
+  if (pa && pb && pa === pb) return true;
+  return false;
+}
+
 /**
  * Prefer a geocoder-friendly region string (macro-region when available).
  */

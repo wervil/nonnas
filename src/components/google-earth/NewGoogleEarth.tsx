@@ -3,7 +3,7 @@ import {
   getCountryCodesByContinent,
   getCountryInfoWithFallback,
 } from "@/lib/countryData";
-import { regionLabelsMatch } from "@/lib/locationData";
+import { cityLabelsMatch, regionLabelsMatch } from "@/lib/locationData";
 import { useUser } from "@stackframe/stack";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -874,6 +874,33 @@ function markerMatchesViewportCountry(
     markerInfo.code !== "XX" &&
     markerInfo.code === vpInfo.code
   );
+}
+
+type ClusterLayers = {
+  continents: GlobeNonna[];
+  countries: GlobeNonna[];
+  states: GlobeNonna[];
+  cities: GlobeNonna[];
+} | null;
+
+function findCityClusterFromLabel(
+  data: ClusterLayers,
+  geocodedCity: string,
+  country?: string | null,
+  countryCode?: string | null,
+): GlobeNonna | null {
+  if (!data?.cities?.length || !geocodedCity.trim()) return null;
+
+  const matches = data.cities.filter((c) => {
+    if (!cityLabelsMatch(c.city, geocodedCity)) return false;
+    if (country && !markerMatchesViewportCountry(c, country, countryCode)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (matches.length === 0) return null;
+  return matches.sort((a, b) => b.nonnaCount - a.nonnaCount)[0];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1890,18 +1917,14 @@ export default function Earth3DPage() {
     async (opts?: { city?: string; region?: string }) => {
       const fetchSeq = ++individualFetchSeqRef.current;
       try {
-        // Always load individual nonnas at city zoom (CITY API only returns city clusters).
-        const params = new URLSearchParams({ level: "NONNA" });
         const country = viewportCountryRef.current;
-        if (country) params.set("country", country);
-        const region =
-          opts?.region ??
-          (regionFilterFromClickRef.current ? viewportRegionRef.current : null);
-        if (region) params.set("region", region);
+        const countryCode = viewportCountryCodeRef.current;
         const city =
           opts?.city ??
           (cityFilterFromClickRef.current ? viewportCityRef.current : null);
-        if (city) params.set("city", city);
+        const region =
+          opts?.region ??
+          (regionFilterFromClickRef.current ? viewportRegionRef.current : null);
 
         const loadMarkers = async (query: URLSearchParams) => {
           const res = await fetch(`/api/nonnas/clustering?${query}`, {
@@ -1912,44 +1935,76 @@ export default function Earth3DPage() {
           return (data.clusters || []) as GlobeNonna[];
         };
 
-        let markers = await loadMarkers(params);
-        if (markers.length === 0 && city && region) {
+        let markers: GlobeNonna[] = [];
+
+        // City drill: prefer city+country only — geocoder region names often
+        // don't match recipe.region (e.g. Albertslund / Denmark).
+        if (city && country) {
           const cityOnlyParams = new URLSearchParams({ level: "NONNA" });
-          if (country) cityOnlyParams.set("country", country);
+          cityOnlyParams.set("country", country);
           cityOnlyParams.set("city", city);
           markers = await loadMarkers(cityOnlyParams);
         }
-        if (markers.length === 0 && (city || region)) {
-          const fallbackParams = new URLSearchParams({ level: "NONNA" });
-          if (country) fallbackParams.set("country", country);
-          markers = await loadMarkers(fallbackParams);
+
+        if (markers.length === 0 && city && region && country) {
+          const withRegion = new URLSearchParams({ level: "NONNA" });
+          withRegion.set("country", country);
+          withRegion.set("city", city);
+          withRegion.set("region", region);
+          markers = await loadMarkers(withRegion);
+        }
+
+        if (markers.length === 0 && city && country) {
+          const broadParams = new URLSearchParams({ level: "NONNA" });
+          broadParams.set("country", country);
+          const broad = await loadMarkers(broadParams);
+          const matched = broad.filter((m) => cityLabelsMatch(m.city, city));
+          if (matched.length > 0) markers = matched;
+        }
+
+        if (markers.length === 0 && !city) {
+          const params = new URLSearchParams({ level: "NONNA" });
+          if (country) params.set("country", country);
+          if (region) params.set("region", region);
+          markers = await loadMarkers(params);
+          if (!country) {
+            const nearbyMarkers = filterMarkersNearCenter(markers, 500);
+            if (nearbyMarkers.length > 0) markers = nearbyMarkers;
+          }
         }
 
         if (city) {
-          const cityNorm = normAdminLabel(city);
-          const cityMarkers = markers.filter(
-            (m) => normAdminLabel(m.city) === cityNorm,
-          );
-          if (cityMarkers.length > 0) {
-            markers = cityMarkers;
-          }
-        } else if (!country) {
-          const nearbyMarkers = filterMarkersNearCenter(markers, 500);
-          if (nearbyMarkers.length > 0) {
-            markers = nearbyMarkers;
-          }
+          const matched = markers.filter((m) => cityLabelsMatch(m.city, city));
+          if (matched.length > 0) markers = matched;
         }
+
         if (fetchSeq !== individualFetchSeqRef.current) return;
-        // Only apply individual-nonna results when we still want individuals.
-        // If the user has zoomed back out to a cluster level (or to a
-        // non-drilled CITY showing city clusters), discard this result so it
-        // can't overwrite the cluster badges with stale deeper-level markers.
         const lvl = currentLevelRef.current;
         const wantsIndividuals =
           lvl === "NONNA" ||
           (lvl === "CITY" && cityFilterFromClickRef.current);
         if (!wantsIndividuals) return;
+
+        if (markers.length === 0 && city && cityFilterFromClickRef.current) {
+          const cluster = findCityClusterFromLabel(
+            allClustersRef.current,
+            city,
+            country,
+            countryCode,
+          );
+          if (cluster) {
+            setNonnaData([cluster]);
+            return;
+          }
+          cityFilterFromClickRef.current = false;
+          if (allClustersRef.current) {
+            applyClusterLevel("CITY", allClustersRef.current);
+          }
+          return;
+        }
+
         if (markers.length === 0) return;
+
         if (cityFilterFromClickRef.current && markers.length > 1) {
           markers = spreadOverlappingMarkers(markers);
         }
@@ -1959,7 +2014,75 @@ export default function Earth3DPage() {
         console.error("[Earth3D] individual nonnas fetch error:", err);
       }
     },
-    [filterMarkersNearCenter],
+    [applyClusterLevel, filterMarkersNearCenter],
+  );
+
+  const beginCityDrill = useCallback(
+    (
+      geocodedCity: string,
+      options?: {
+        region?: string | null;
+        country?: string | null;
+        countryCode?: string | null;
+        lat?: number;
+        lng?: number;
+        zoomFactor?: number;
+      },
+    ) => {
+      const country =
+        options?.country ?? viewportCountryRef.current ?? undefined;
+      const countryCode =
+        options?.countryCode ?? viewportCountryCodeRef.current ?? undefined;
+      const cluster = findCityClusterFromLabel(
+        allClustersRef.current,
+        geocodedCity,
+        country ?? null,
+        countryCode,
+      );
+      const dbCity = cluster?.city || geocodedCity;
+      const dbRegion = cluster?.region ?? options?.region ?? null;
+
+      viewportCityRef.current = dbCity;
+      cityFilterFromClickRef.current = true;
+      if (dbRegion) {
+        viewportRegionRef.current = dbRegion;
+        regionFilterFromClickRef.current = true;
+      } else {
+        regionFilterFromClickRef.current = false;
+      }
+
+      void fetchIndividualNonnas({
+        city: dbCity,
+        region: dbRegion || undefined,
+      });
+
+      const map3d = map3dRef.current;
+      const flyLat = options?.lat ?? cluster?.lat;
+      const flyLng = options?.lng ?? cluster?.lng;
+      if (map3d && Number.isFinite(flyLat) && Number.isFinite(flyLng)) {
+        const factor = options?.zoomFactor ?? 0.55;
+        flightStateRef.current = {
+          active: true,
+          targetRange: ZOOM_RANGES.CITY * factor,
+          targetLevel: "CITY",
+          startTime: Date.now(),
+          lastRanges: [],
+        };
+        map3d.flyCameraTo({
+          endCamera: {
+            center: { lat: flyLat!, lng: flyLng!, altitude: 0 },
+            range: ZOOM_RANGES.CITY * factor,
+            tilt: 65,
+            heading: map3d.heading,
+          },
+          durationMillis: 1500,
+        });
+        setTimeout(() => {
+          flightStateRef.current.active = false;
+        }, 1700);
+      }
+    },
+    [fetchIndividualNonnas],
   );
 
   const getIndividualMarkerFilters = useCallback(
@@ -2393,45 +2516,13 @@ export default function Earth3DPage() {
             nonna.nonnaCount > 1 &&
             (nonna.clusterLevel === "city" || nonna.city || clusterName)
           ) {
-            const cityName = nonna.city || clusterName;
-            viewportCityRef.current = cityName;
-            cityFilterFromClickRef.current = true;
-            if (nonna.region) {
-              viewportRegionRef.current = nonna.region;
-              regionFilterFromClickRef.current = true;
-            }
-
-            void fetchIndividualNonnas({
-              city: cityName,
-              region: nonna.region || undefined,
+            beginCityDrill(nonna.city || clusterName, {
+              region: nonna.region,
+              country: nonna.countryName,
+              countryCode: nonna.countryCode,
+              lat: nonna.lat,
+              lng: nonna.lng,
             });
-
-            const map3d = map3dRef.current;
-            if (map3d) {
-              flightStateRef.current = {
-                active: true,
-                targetRange: ZOOM_RANGES.CITY * 0.55,
-                targetLevel: "CITY",
-                startTime: Date.now(),
-                lastRanges: [],
-              };
-              map3d.flyCameraTo({
-                endCamera: {
-                  center: {
-                    lat: nonna.lat,
-                    lng: nonna.lng,
-                    altitude: 0,
-                  },
-                  range: ZOOM_RANGES.CITY * 0.55,
-                  tilt: 65,
-                  heading: map3d.heading,
-                },
-                durationMillis: 1500,
-              });
-              setTimeout(() => {
-                flightStateRef.current.active = false;
-              }, 1700);
-            }
             return;
           }
 
@@ -2565,6 +2656,7 @@ export default function Earth3DPage() {
       setPanel,
       setCommentSection,
       fetchIndividualNonnas,
+      beginCityDrill,
       getIndividualMarkerFilters,
       applyClusterLevel,
       drawContinentHighlight,
@@ -3889,8 +3981,13 @@ export default function Earth3DPage() {
               if (countryCode)
                 params.set("countrycodes", countryCode.toLowerCase());
             } else {
-              params.set("featuretype", "city");
-              params.set("city", name);
+              const countryLabel = countryCode
+                ? getCountryInfoWithFallback(countryCode).name || countryCode
+                : "";
+              params.set(
+                "q",
+                countryLabel ? `${name}, ${countryLabel}` : name,
+              );
               if (countryCode)
                 params.set("countrycodes", countryCode.toLowerCase());
             }
@@ -4717,19 +4814,55 @@ export default function Earth3DPage() {
             currentLevelRef.current = nextLevel;
 
             if (nextLevel === "CITY") {
-              viewportCountryRef.current = info.country || viewportCountryRef.current;
+              viewportCountryRef.current =
+                info.country || viewportCountryRef.current;
               viewportCountryCodeRef.current =
                 info.countryCode || viewportCountryCodeRef.current;
-              viewportRegionRef.current =
-                featureType === "city"
-                  ? info.state || null
-                  : featureType === "state"
-                    ? targetName
-                    : viewportRegionRef.current;
-              regionFilterFromClickRef.current = !!viewportRegionRef.current;
-              viewportCityRef.current = featureType === "city" ? targetName : null;
-              cityFilterFromClickRef.current = featureType === "city";
-              void fetchIndividualNonnas(getIndividualMarkerFilters());
+
+              if (featureType === "city" && targetName) {
+                const cluster = findCityClusterFromLabel(
+                  allClustersRef.current,
+                  targetName,
+                  info.country,
+                  info.countryCode,
+                );
+                const enteringFromState = level === "STATE";
+                const alreadyAtCity = level === "CITY";
+
+                if (alreadyAtCity || (cluster && cluster.nonnaCount === 1)) {
+                  beginCityDrill(targetName, {
+                    region: cluster?.region,
+                    country: info.country,
+                    countryCode: info.countryCode,
+                    lat: latLng.lat,
+                    lng: latLng.lng,
+                  });
+                } else if (enteringFromState && cluster && cluster.nonnaCount > 1) {
+                  viewportRegionRef.current = cluster.region || null;
+                  regionFilterFromClickRef.current = !!cluster.region;
+                  cityFilterFromClickRef.current = false;
+                  viewportCityRef.current = null;
+                  if (allClustersRef.current) {
+                    applyClusterLevel("CITY", allClustersRef.current);
+                  }
+                } else {
+                  beginCityDrill(targetName, {
+                    region: cluster?.region,
+                    country: info.country,
+                    countryCode: info.countryCode,
+                    lat: latLng.lat,
+                    lng: latLng.lng,
+                  });
+                }
+              } else if (featureType === "state") {
+                viewportRegionRef.current = targetName;
+                regionFilterFromClickRef.current = true;
+                cityFilterFromClickRef.current = false;
+                viewportCityRef.current = null;
+                if (allClustersRef.current) {
+                  applyClusterLevel("CITY", allClustersRef.current);
+                }
+              }
             }
 
             // Set flight state
@@ -4827,11 +4960,19 @@ export default function Earth3DPage() {
                       url += `&country=${encodeURIComponent(info.country || "")}`;
                       url += `&region=${encodeURIComponent(targetName)}`;
                     } else if (featureType === "city") {
+                      const cityCluster = findCityClusterFromLabel(
+                        allClustersRef.current,
+                        targetName,
+                        info.country,
+                        info.countryCode,
+                      );
+                      const dbCity = cityCluster?.city || targetName;
+                      const dbRegion = cityCluster?.region;
                       url += `&country=${encodeURIComponent(info.country || "")}`;
-                      if (info.state) {
-                        url += `&region=${encodeURIComponent(info.state)}`;
+                      if (dbRegion) {
+                        url += `&region=${encodeURIComponent(dbRegion)}`;
                       }
-                      url += `&city=${encodeURIComponent(targetName)}`;
+                      url += `&city=${encodeURIComponent(dbCity)}`;
                     }
 
                     const response = await fetch(url);
@@ -4859,7 +5000,21 @@ export default function Earth3DPage() {
                 }));
 
                 // Draw boundary for the clicked location
-                fetchAndDrawBoundary(targetName, featureType, info.countryCode);
+                let boundaryName = targetName;
+                if (featureType === "city" && targetName) {
+                  const cityCluster = findCityClusterFromLabel(
+                    allClustersRef.current,
+                    targetName,
+                    info.country,
+                    info.countryCode,
+                  );
+                  if (cityCluster?.city) boundaryName = cityCluster.city;
+                }
+                fetchAndDrawBoundary(
+                  boundaryName,
+                  featureType,
+                  info.countryCode,
+                );
               }
             }
           }
