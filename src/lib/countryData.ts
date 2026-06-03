@@ -351,6 +351,15 @@ export function getCountryInfo(countryName: string): CountryInfo | null {
   return countryMap[normalized] || null;
 }
 
+/** Resolve ISO alpha-2 (e.g. DK) to country metadata. */
+export function getCountryInfoByCode(countryCode: string): CountryInfo | null {
+  const cc = countryCode.toUpperCase().trim();
+  if (!cc) return null;
+  return (
+    Object.values(countryMap).find((c) => c.code === cc) || null
+  );
+}
+
 /**
  * Get country info with fallback for unknown countries
  */

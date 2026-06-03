@@ -1,6 +1,7 @@
 "use client";
 import {
   getCountryCodesByContinent,
+  getCountryInfoByCode,
   getCountryInfoWithFallback,
 } from "@/lib/countryData";
 import { cityLabelsMatch, regionLabelsMatch } from "@/lib/locationData";
@@ -648,6 +649,99 @@ function spreadOverlappingMarkers(
     });
   }
   return result;
+}
+
+type GeoJsonPolygon = {
+  type: "Polygon";
+  coordinates: number[][][];
+};
+
+type BoundaryDrawOptions = {
+  countryName?: string | null;
+  centerLat?: number;
+  centerLng?: number;
+};
+
+function resolveCountryDisplayName(
+  countryName?: string | null,
+  countryCode?: string | null,
+): string {
+  if (countryName) {
+    const info = getCountryInfoWithFallback(countryName);
+    if (info.code !== "XX") return info.name;
+    return countryName;
+  }
+  if (countryCode) {
+    const byCode = getCountryInfoByCode(countryCode);
+    if (byCode) return byCode.name;
+  }
+  return "";
+}
+
+function circlePolygonGeoJson(
+  lat: number,
+  lng: number,
+  radiusKm: number,
+  segments = 32,
+): GeoJsonPolygon {
+  const coords: number[][] = [];
+  const latRad = (lat * Math.PI) / 180;
+  const metersToLat = (m: number) => (m / 6371000) * (180 / Math.PI);
+  const metersToLng = (m: number) => metersToLat(m) / Math.cos(latRad || 1e-6);
+  for (let i = 0; i <= segments; i++) {
+    const angle = (2 * Math.PI * i) / segments;
+    coords.push([
+      lng + metersToLng(radiusKm * 1000 * Math.sin(angle)),
+      lat + metersToLat(radiusKm * 1000 * Math.cos(angle)),
+    ]);
+  }
+  return { type: "Polygon", coordinates: [coords] };
+}
+
+function bboxToPolygonGeoJson(bbox: string[] | number[]): GeoJsonPolygon {
+  const [south, north, west, east] = bbox.map(Number);
+  const ring: number[][] = [
+    [west, south],
+    [east, south],
+    [east, north],
+    [west, north],
+    [west, south],
+  ];
+  return { type: "Polygon", coordinates: [ring] };
+}
+
+function geometryFromNominatimResult(
+  item:
+    | {
+        geojson?: { type: string; coordinates?: unknown };
+        boundingbox?: string[];
+        lat?: string;
+        lon?: string;
+      }
+    | undefined,
+  fallbackLat?: number,
+  fallbackLng?: number,
+): GeoJsonPolygon | null {
+  const raw = item?.geojson;
+  if (raw?.type === "Polygon" && Array.isArray(raw.coordinates)) {
+    return raw as GeoJsonPolygon;
+  }
+  if (raw?.type === "MultiPolygon" && Array.isArray(raw.coordinates)) {
+    const first = (raw.coordinates as number[][][][])[0]?.[0];
+    if (first?.length) return { type: "Polygon", coordinates: [first] };
+  }
+  if (item?.boundingbox?.length === 4) {
+    return bboxToPolygonGeoJson(item.boundingbox);
+  }
+  const lat = Number(item?.lat);
+  const lng = Number(item?.lon);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return circlePolygonGeoJson(lat, lng, 10);
+  }
+  if (Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng)) {
+    return circlePolygonGeoJson(fallbackLat!, fallbackLng!, 10);
+  }
+  return null;
 }
 
 async function buildMarkerTemplate(opts: {
@@ -2081,6 +2175,17 @@ export default function Earth3DPage() {
           flightStateRef.current.active = false;
         }, 1700);
       }
+
+      void fetchAndDrawBoundaryRef.current?.(
+        dbCity,
+        "city",
+        countryCode,
+        {
+          countryName: country,
+          centerLat: Number.isFinite(flyLat) ? flyLat : cluster?.lat,
+          centerLng: Number.isFinite(flyLng) ? flyLng : cluster?.lng,
+        },
+      );
     },
     [fetchIndividualNonnas],
   );
@@ -2105,6 +2210,7 @@ export default function Earth3DPage() {
         name: string,
         featureType: "continent" | "country" | "state" | "city",
         countryCode?: string | null,
+        drawOptions?: BoundaryDrawOptions,
       ) => Promise<void>)
     | null
   >(null);
@@ -3858,6 +3964,7 @@ export default function Earth3DPage() {
         name: string,
         featureType: "continent" | "country" | "state" | "city",
         countryCode?: string | null,
+        drawOptions?: BoundaryDrawOptions,
       ) => {
         console.log(
           "[Earth3D] Fetching boundary for",
@@ -3871,6 +3978,8 @@ export default function Earth3DPage() {
           // through Nominatim (which returns either nothing useful or a giant
           // Point that triggers the bad fallback path).
           let geojson: any = null;
+          const fallbackLat = drawOptions?.centerLat;
+          const fallbackLng = drawOptions?.centerLng;
           if (featureType === "continent") {
             try {
               if (!continentGeoJsonCacheRef.current) {
@@ -3967,47 +4076,112 @@ export default function Earth3DPage() {
 
           // For state/city — and country if the local file missed — query Nominatim.
           if (!geojson && featureType !== "continent") {
-            const params = new URLSearchParams({
-              polygon_geojson: "1",
-              format: "json",
-              limit: "1",
-            });
-            if (featureType === "country") {
-              params.set("q", name);
-              params.set("featuretype", "country");
-            } else if (featureType === "state") {
-              params.set("featuretype", "state");
-              params.set("state", name);
-              if (countryCode)
-                params.set("countrycodes", countryCode.toLowerCase());
-            } else {
-              const countryLabel = countryCode
-                ? getCountryInfoWithFallback(countryCode).name || countryCode
-                : "";
-              params.set(
-                "q",
-                countryLabel ? `${name}, ${countryLabel}` : name,
-              );
-              if (countryCode)
-                params.set("countrycodes", countryCode.toLowerCase());
-            }
+            const countryLabel = resolveCountryDisplayName(
+              drawOptions?.countryName ?? viewportCountryRef.current,
+              countryCode,
+            );
 
-            console.log("[Earth3D] Nominatim fetch params:", params.toString());
-            const proxyUrl = `/api/nominatim-proxy?${params.toString()}`;
-            const res = await fetch(proxyUrl);
-            if (!res.ok) {
-              console.error(
-                "[Earth3D] Proxy fetch failed:",
-                res.status,
-                res.statusText,
+            const fetchNominatim = async (query: URLSearchParams) => {
+              const proxyUrl = `/api/nominatim-proxy?${query.toString()}`;
+              const res = await fetch(proxyUrl);
+              if (!res.ok) {
+                throw new Error(`Proxy HTTP ${res.status}`);
+              }
+              const data = await res.json();
+              if (data?.error) return null;
+              return data?.[0] as
+                | {
+                    geojson?: { type: string; coordinates?: unknown };
+                    boundingbox?: string[];
+                    lat?: string;
+                    lon?: string;
+                  }
+                | undefined;
+            };
+
+            if (featureType === "city") {
+              const queries: URLSearchParams[] = [];
+              const base = new URLSearchParams({
+                polygon_geojson: "1",
+                format: "json",
+                limit: "1",
+              });
+              if (countryLabel) {
+                const q1 = new URLSearchParams(base);
+                q1.set("q", `${name}, ${countryLabel}`);
+                if (countryCode) {
+                  q1.set("countrycodes", countryCode.toLowerCase());
+                }
+                queries.push(q1);
+              }
+              const q2 = new URLSearchParams(base);
+              q2.set("city", name);
+              if (countryCode) {
+                q2.set("countrycodes", countryCode.toLowerCase());
+              }
+              queries.push(q2);
+
+              for (const params of queries) {
+                console.log(
+                  "[Earth3D] Nominatim city fetch:",
+                  params.toString(),
+                );
+                try {
+                  const item = await fetchNominatim(params);
+                  const resolved = geometryFromNominatimResult(
+                    item ?? undefined,
+                    fallbackLat,
+                    fallbackLng,
+                  );
+                  if (resolved) {
+                    geojson = resolved;
+                    break;
+                  }
+                } catch (nomErr) {
+                  console.warn("[Earth3D] Nominatim city attempt failed:", nomErr);
+                }
+              }
+
+              if (
+                !geojson &&
+                Number.isFinite(fallbackLat) &&
+                Number.isFinite(fallbackLng)
+              ) {
+                geojson = circlePolygonGeoJson(fallbackLat!, fallbackLng!, 10);
+                console.log(
+                  "[Earth3D] City highlight fallback circle at",
+                  name,
+                );
+              }
+            } else {
+              const params = new URLSearchParams({
+                polygon_geojson: "1",
+                format: "json",
+                limit: "1",
+              });
+              if (featureType === "country") {
+                params.set("q", name);
+                params.set("featuretype", "country");
+              } else if (featureType === "state") {
+                params.set("featuretype", "state");
+                params.set("state", name);
+                if (countryCode) {
+                  params.set("countrycodes", countryCode.toLowerCase());
+                }
+              }
+              console.log(
+                "[Earth3D] Nominatim fetch params:",
+                params.toString(),
               );
-              throw new Error(`Proxy HTTP ${res.status}`);
+              const item = await fetchNominatim(params);
+              if (featureType === "country" || featureType === "state") {
+                geojson = item?.geojson;
+                if (geojson?.type === "Point") geojson = null;
+              }
             }
-            const data = await res.json();
-            geojson = data?.[0]?.geojson;
           }
 
-          if (!geojson || geojson.type === "Point") {
+          if (!geojson) {
             console.warn(
               "[Earth3D] No polygon boundary available for",
               name,
@@ -4901,7 +5075,9 @@ export default function Earth3DPage() {
           // Handle boundary highlighting and panel
           if (targetName) {
             // If clicking the same region AND staying at the same level, toggle panel off
-            const isDrillDown = nextLevel !== level;
+            const isDrillDown =
+              nextLevel !== level ||
+              (level === "CITY" && featureType === "city");
             if (targetName === activeHighlightName && !isDrillDown) {
               console.log(
                 "[Earth3D] Clicking same region at same level - closing panel",
@@ -5014,6 +5190,13 @@ export default function Earth3DPage() {
                   boundaryName,
                   featureType,
                   info.countryCode,
+                  featureType === "city"
+                    ? {
+                        countryName: info.country,
+                        centerLat: latLng.lat,
+                        centerLng: latLng.lng,
+                      }
+                    : undefined,
                 );
               }
             }
