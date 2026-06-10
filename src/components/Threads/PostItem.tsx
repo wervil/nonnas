@@ -6,13 +6,13 @@ import {
   Check,
   Edit2,
   Loader2,
-  MessageSquare,
+  // MessageSquare, // DIRECT_MESSAGING_DISABLED
   Reply,
   ShieldAlert,
   Trash2,
   X,
 } from "lucide-react";
-import Link from "next/link";
+// import Link from "next/link"; // DIRECT_MESSAGING_DISABLED
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -253,6 +253,7 @@ export default function PostItem({
                     <span className="text-gray-400/70 ml-1">(edited)</span>
                   )}
                 </span>
+                {/* DIRECT_MESSAGING_DISABLED: Message User link paused per legal requirement
                 {currentUserId && currentUserId !== post.user_id && (
                   <Link
                     href={`/messages?chatWith=${post.user_id}&name=${encodeURIComponent(post.author_name || "")}`}
@@ -263,6 +264,7 @@ export default function PostItem({
                     <MessageSquare className="w-3.5 h-3.5" />
                   </Link>
                 )}
+                */}
                 {isOwner && (
                   <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full font-[var(--font-bell)] ml-2">
                     You

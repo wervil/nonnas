@@ -1,7 +1,8 @@
 'use client';
 
 import { Header } from '@/components/Header';
-import { MessagingInterface } from '@/components/messaging/MessagingInterface';
+// DIRECT_MESSAGING_DISABLED: Paused per legal requirement. Re-enable MessagingInterface when ready.
+// import { MessagingInterface } from '@/components/messaging/MessagingInterface';
 import { useUser } from '@stackframe/stack';
 
 export const MessagesClient = () => {
@@ -27,7 +28,12 @@ export const MessagesClient = () => {
                 setSearch={undefined}
             />
             <main className="flex-1 flex flex-col w-full relative min-h-0 overflow-hidden">
-                <MessagingInterface />
+                {/* <MessagingInterface /> */}
+                <div className="flex-1 flex items-center justify-center px-4 text-center">
+                    <p className="font-(--font-bell) text-gray-600">
+                        Direct messaging is temporarily unavailable.
+                    </p>
+                </div>
             </main>
         </div>
     );

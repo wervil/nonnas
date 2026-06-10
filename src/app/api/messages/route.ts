@@ -7,7 +7,17 @@ import { NextResponse } from "next/server";
 
 const db = drizzle(process.env.DATABASE_URL!);
 
+// DIRECT_MESSAGING_DISABLED: Paused per legal requirement. Remove this block to re-enable.
+const DIRECT_MESSAGING_DISABLED = true;
+
 export async function POST(request: Request) {
+  if (DIRECT_MESSAGING_DISABLED) {
+    return NextResponse.json(
+      { error: "Direct messaging is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
+
   const user = await stackServerApp.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

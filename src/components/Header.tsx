@@ -15,7 +15,7 @@ import {
   LogIn,
   LogOut,
   Menu,
-  MessageCircle,
+  // MessageCircle, // DIRECT_MESSAGING_DISABLED
   Plus,
   Settings,
   User,
@@ -251,6 +251,7 @@ export const Header = ({
                     />
                   </div>
                 </Link>
+                {/* DIRECT_MESSAGING_DISABLED: Messages nav paused per legal requirement
                 <Link href="/messages">
                   <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/messages") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
                     <MessageCircle
@@ -258,6 +259,7 @@ export const Header = ({
                     />
                   </div>
                 </Link>
+                */}
               </>
             ) : (
               <>
@@ -268,6 +270,7 @@ export const Header = ({
                     />
                   </div>
                 </Link>
+                {/* DIRECT_MESSAGING_DISABLED: Messages nav paused per legal requirement
                 <Link href="/messages">
                   <div className={`inline-flex items-center justify-center w-10 h-10 transition-colors ${isActive("/messages") ? "bg-[#9BC9C3]" : "hover:bg-gray-100"}`}>
                     <MessageCircle
@@ -275,6 +278,7 @@ export const Header = ({
                     />
                   </div>
                 </Link>
+                */}
               </>
             )
           ) : null}
@@ -380,6 +384,7 @@ export const Header = ({
                           Profile
                         </Link>
                       </DropdownMenuItem>
+                      {/* DIRECT_MESSAGING_DISABLED: Messages nav paused per legal requirement
                       <DropdownMenuItem asChild>
                         <Link
                           href="/messages"
@@ -391,6 +396,7 @@ export const Header = ({
                           Messages
                         </Link>
                       </DropdownMenuItem>
+                      */}
                     </>
                   ) : (
                     <>
@@ -405,6 +411,7 @@ export const Header = ({
                           Settings
                         </Link>
                       </DropdownMenuItem>
+                      {/* DIRECT_MESSAGING_DISABLED: Messages nav paused per legal requirement
                       <DropdownMenuItem asChild>
                         <Link
                           href="/messages"
@@ -416,6 +423,7 @@ export const Header = ({
                           Messages
                         </Link>
                       </DropdownMenuItem>
+                      */}
                     </>
                   )}
                 </>
