@@ -1197,6 +1197,11 @@ export default function Earth3DPage() {
   // file: local-first lookup, Nominatim only as a fallback.
   const stateGeoJsonCacheRef = useRef<any>(null);
   const currentMarkersRef = useRef<any[]>([]);
+  // Cache of recipeId -> representative photo URL. Marker rendering used to
+  // re-fetch /api/recipes for every avatar marker on every navigation, which
+  // serialized N requests before any marker appeared (the "bogged down at the
+  // city level" symptom). Memoizing across renders keeps repeat visits instant.
+  const recipePhotoCacheRef = useRef<Map<string, string | null>>(new Map());
 
   // Function to clear all current markers immediately
   const clearCurrentMarkers = useCallback(() => {
@@ -1295,24 +1300,35 @@ export default function Earth3DPage() {
       `;
       document.head.appendChild(style);
 
-      // Also try to inject into any Shadow DOMs
+      // Also try to inject into any Shadow DOMs.
+      // IMPORTANT: track roots we've already styled. The previous version
+      // re-scanned the whole document every second and appended a *new* <style>
+      // node to every shadow root each pass, so shadow roots accumulated
+      // hundreds of duplicate style tags over time. That unbounded DOM growth
+      // (plus a full-document querySelectorAll every second) is what made the
+      // globe progressively laggier the longer it was used.
+      const styledRoots = new WeakSet<ShadowRoot>();
       const injectIntoShadowDOMs = () => {
         const allElements = document.querySelectorAll("*");
         allElements.forEach((el) => {
-          if (el.shadowRoot) {
+          const root = el.shadowRoot;
+          if (root && !styledRoots.has(root)) {
+            styledRoots.add(root);
             const shadowStyle = document.createElement("style");
             shadowStyle.textContent = `
               *:focus { outline: none !important; box-shadow: none !important; }
               * { -webkit-tap-highlight-color: transparent !important; }
             `;
-            el.shadowRoot.appendChild(shadowStyle);
+            root.appendChild(shadowStyle);
           }
         });
       };
 
       injectIntoShadowDOMs();
-      // Re-check periodically for dynamically created Shadow DOMs
-      const interval = setInterval(injectIntoShadowDOMs, 1000);
+      // Re-check periodically for dynamically created Shadow DOMs. With the
+      // WeakSet guard each pass is now idempotent (no node creation once a root
+      // is styled), and a slower cadence keeps the full-document scan cheap.
+      const interval = setInterval(injectIntoShadowDOMs, 3000);
 
       return () => clearInterval(interval);
     }
@@ -3324,10 +3340,70 @@ export default function Earth3DPage() {
 
     const map3d = map3dRef.current;
     let cancelled = false;
+
+    // Resolve a nonna's representative photo, memoized by recipeId so we never
+    // re-hit the network for the same recipe twice within a session.
+    const photoCache = recipePhotoCacheRef.current;
+    const getRecipePhoto = async (
+      recipeId: string | number,
+    ): Promise<string | null> => {
+      const key = String(recipeId);
+      if (photoCache.has(key)) return photoCache.get(key) ?? null;
+      // Bound each fetch so a slow/hung connection can't stall marker rendering.
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 6000);
+      try {
+        const res = await fetch(`/api/recipes?published=true&id=${key}`, {
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        const recipe = data?.recipes?.[0] || data?.[0];
+        const photo =
+          recipe?.avatar_image ||
+          (Array.isArray(recipe?.photo) ? recipe.photo[0] : null) ||
+          null;
+        photoCache.set(key, photo);
+        return photo;
+      } catch {
+        // Don't cache aborts/timeouts as a permanent miss — only cache a real
+        // null so a slow first attempt can still succeed on a later navigation.
+        if (controller.signal.aborted) return null;
+        photoCache.set(key, null);
+        return null;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
     (async () => {
       try {
         const { Marker3DInteractiveElement } =
           await window.google.maps.importLibrary("maps3d");
+
+        // Warm the photo cache for every avatar-eligible nonna in parallel
+        // before building markers, instead of awaiting one fetch per iteration.
+        // Cap the wait so markers still appear quickly on a slow connection —
+        // any photo that hasn't arrived yet falls back to a generated avatar and
+        // is picked up from the cache on the next navigation.
+        const warmLevel = currentLevelRef.current;
+        if (warmLevel === "CITY" || warmLevel === "NONNA") {
+          const warm = Promise.all(
+            nonnaData
+              .filter(
+                (n) =>
+                  !n.representativePhoto &&
+                  n.recipeId &&
+                  n.nonnaCount === 1,
+              )
+              .map((n) => getRecipePhoto(n.recipeId!)),
+          );
+          const cap = new Promise<void>((resolve) =>
+            window.setTimeout(resolve, 2500),
+          );
+          await Promise.race([warm, cap]);
+        }
+        if (cancelled) return;
+
         const nextMarkers: any[] = [];
         for (const nonna of nonnaData) {
           if (cancelled) return;
@@ -3356,19 +3432,8 @@ export default function Earth3DPage() {
                 : nonna.countryName;
             let photoUrl = nonna.representativePhoto;
             if (!photoUrl && showAvatar && nonna.recipeId) {
-              try {
-                const res = await fetch(
-                  `/api/recipes?published=true&id=${nonna.recipeId}`,
-                );
-                const data = await res.json();
-                const recipe = data?.recipes?.[0] || data?.[0];
-                photoUrl =
-                  recipe?.avatar_image ||
-                  (Array.isArray(recipe?.photo) ? recipe.photo[0] : null) ||
-                  null;
-              } catch {
-                // Keep initials fallback
-              }
+              // Served from the cache warmed above (or fetched once and reused).
+              photoUrl = await getRecipePhoto(nonna.recipeId);
             }
             const tplCompact = await buildMarkerTemplate({
               name: nonna.representativeName,
@@ -3726,7 +3791,10 @@ export default function Earth3DPage() {
           }
         }
         if (cancelled) return;
-        if (nextMarkers.length === 0) return;
+        // Always clear the previous markers, even when there are no new ones to
+        // show. Returning early on an empty result left stale markers from the
+        // previously viewed area on the map (e.g. nonnas appearing to "stick"
+        // around or show up at the wrong level after navigating).
         clearCurrentMarkers();
         for (const marker of nextMarkers) {
           map3d.append(marker);
@@ -5561,47 +5629,48 @@ export default function Earth3DPage() {
         map3d.removeEventListener("mouseover", removeTooltips),
       );
 
-      // ── Aggressive tooltip removal with MutationObserver ──
+      // ── Tooltip removal with MutationObserver ──
       const removeAllTitles = () => {
-        const allElements = map3d.querySelectorAll("*");
-        allElements.forEach((el: Element) => {
-          el.removeAttribute("title");
-          if (el.parentElement) {
-            el.parentElement.removeAttribute("title");
-          }
-        });
+        const allElements = map3d.querySelectorAll("[title]");
+        allElements.forEach((el: Element) => el.removeAttribute("title"));
       };
 
-      // Set up MutationObserver to catch dynamically added elements
+      // The Google 3D map streams tile/DOM mutations constantly. The previous
+      // observer ran querySelectorAll("*") on every added subtree on every
+      // mutation, which got more expensive the longer you panned/zoomed. Instead
+      // coalesce bursts of mutations into a single throttled pass that only
+      // touches elements that actually have a title attribute.
+      let titleSweepScheduled = false;
+      const scheduleTitleSweep = () => {
+        if (titleSweepScheduled) return;
+        titleSweepScheduled = true;
+        setTimeout(() => {
+          titleSweepScheduled = false;
+          if (!mounted) return;
+          removeAllTitles();
+        }, 250);
+      };
+
       const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === "childList") {
-            mutation.addedNodes.forEach((node) => {
-              if (node.nodeType === Node.ELEMENT_NODE) {
-                const element = node as Element;
-                element.removeAttribute("title");
-                // Also check all children
-                const allChildren = element.querySelectorAll("*");
-                allChildren.forEach((el) => el.removeAttribute("title"));
-              }
-            });
+        for (const mutation of mutations) {
+          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+            scheduleTitleSweep();
+            break;
           }
-        });
+        }
       });
 
-      // Start observing the map for changes
       observer.observe(map3d, {
         childList: true,
         subtree: true,
       });
 
-      // Initial cleanup and periodic cleanup
+      // Initial cleanup. Dynamic elements are handled by the observer above, so
+      // we no longer need a 1s full-tree polling interval.
       removeAllTitles();
-      const cleanupInterval = setInterval(removeAllTitles, 1000);
 
       listeners.push(() => {
         observer.disconnect();
-        clearInterval(cleanupInterval);
       });
 
       // ── Animated globe ring overlay ──
