@@ -37,8 +37,12 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body>
+    <html lang={locale} suppressHydrationWarning>
+      {/* suppressHydrationWarning: browser extensions (e.g. ColorZilla adds
+          cz-shortcut-listen, Grammarly, etc.) inject attributes into <body>
+          before React hydrates, which would otherwise trigger a hydration
+          mismatch warning. This only suppresses attribute diffs on this element. */}
+      <body suppressHydrationWarning>
         <Script
           id="google-maps"
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`}

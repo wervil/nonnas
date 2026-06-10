@@ -3904,6 +3904,26 @@ export default function Earth3DPage() {
         await window.google.maps.importLibrary("maps3d");
       const { Geocoder } = await window.google.maps.importLibrary("geocoding");
       const geocoder = new Geocoder();
+      // Reverse-geocoding the camera center over open ocean (or other empty
+      // spots) makes the Google geocoder reject with ZERO_RESULTS, surfacing as
+      // a noisy uncaught MapsRequestError. That's an expected "nothing here"
+      // outcome, not a failure — normalize it to an empty result set so every
+      // call site (which all read `response?.results?.[0]`) handles it cleanly.
+      const rawGeocode = geocoder.geocode.bind(geocoder);
+      geocoder.geocode = async (...args: any[]) => {
+        try {
+          return await rawGeocode(...args);
+        } catch (err: any) {
+          const status = err?.code || err?.status;
+          if (
+            status === "ZERO_RESULTS" ||
+            /ZERO_RESULTS/.test(String(err?.message))
+          ) {
+            return { results: [] } as any;
+          }
+          throw err;
+        }
+      };
       geocoderRef.current = geocoder;
       const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
       const map3d = new Map3DElement({
