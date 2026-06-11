@@ -12,6 +12,7 @@ import { UserNamePrompt } from "@/components/UserNamePrompt";
 import { StackProvider, StackTheme } from "@stackframe/stack";
 import { Toaster } from "sonner";
 import { stackServerApp } from "../stack";
+import { TanstackQueryProvider } from "@/providers/tanstack-query-provider";
 
 /** Avoid serving a statically cached HTML shell across deploys */
 export const dynamic = "force-dynamic";
@@ -46,15 +47,17 @@ export default async function RootLayout({
         />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <StackProvider app={stackServerApp}>
-            <StackTheme>
-              <div className="flex flex-col min-h-svh">
-                <div className="flex-1 min-h-0">{children}</div>
-                <ConditionalFooter />
-              </div>
-              <Suspense fallback={null}>
-                <UserNamePrompt />
-              </Suspense>
-            </StackTheme>
+            <TanstackQueryProvider>
+              <StackTheme>
+                <div className="flex flex-col min-h-svh">
+                  <div className="flex-1 min-h-0">{children}</div>
+                  <ConditionalFooter />
+                </div>
+                <Suspense fallback={null}>
+                  <UserNamePrompt />
+                </Suspense>
+              </StackTheme>
+            </TanstackQueryProvider>
           </StackProvider>
         </NextIntlClientProvider>
         <Toaster richColors position="bottom-right" />
