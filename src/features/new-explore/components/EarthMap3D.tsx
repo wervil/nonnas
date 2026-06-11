@@ -871,10 +871,10 @@ export default function EarthMap3D() {
     countryCode: "",
   });
   const { currentLevel, setLevel } = useEarthNavigation();
-  const { data: allClustersData } = useAllClusters(mapReady);
-  const { data: continentsGeo } = useGeoJsonBoundaries("continents", mapReady);
-  const { data: countriesGeo } = useGeoJsonBoundaries("countries", mapReady);
-  const { data: statesGeo } = useGeoJsonBoundaries("states", mapReady);
+  const { data: allClustersData } = useAllClusters(true);
+  const { data: continentsGeo } = useGeoJsonBoundaries("continents", true);
+  const { data: countriesGeo } = useGeoJsonBoundaries("countries", true);
+  const { data: statesGeo } = useGeoJsonBoundaries("states", true);
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
   useEffect(() => {
     currentLevelRef.current = currentLevel;
