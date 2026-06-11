@@ -8,6 +8,12 @@ export type GeoJsonPolygon = {
   coordinates: number[][][];
 };
 
+export type BoundaryDrawOptions = {
+  countryName?: string | null;
+  centerLat?: number;
+  centerLng?: number;
+};
+
 export function resolveCountryDisplayName(
   countryName?: string | null,
   countryCode?: string | null,

@@ -22,12 +22,10 @@ export default function GlobeShell() {
       queryFn: fetchAllClusters,
     });
 
-    const assets = ["continents", "countries", "states"] as const;
-    assets.forEach((asset) => {
-      void queryClient.prefetchQuery({
-        queryKey: globeKeys.geojson(asset),
-        queryFn: () => fetchGeoJsonAsset(asset),
-      });
+    // Continents only at boot — countries/states load when the user zooms in
+    void queryClient.prefetchQuery({
+      queryKey: globeKeys.geojson("continents"),
+      queryFn: () => fetchGeoJsonAsset("continents"),
     });
   }, [queryClient]);
 
