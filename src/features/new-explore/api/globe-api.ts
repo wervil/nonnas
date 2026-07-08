@@ -6,6 +6,87 @@ import type {
   RecipeFilters,
 } from "../types";
 
+const CLUSTER_RESULT_TTL_MS = 60_000;
+
+const clusterResultCache = new Map<
+  string,
+  { data: GlobeNonna[]; expires: number }
+>();
+const clusterInflight = new Map<string, Promise<GlobeNonna[]>>();
+
+function clusterQueryKey(query: URLSearchParams): string {
+  return [...query.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join("&");
+}
+
+/** Deduped clustering fetch — coalesces identical in-flight requests and caches for 1 min. */
+export async function fetchClusterMarkersByQuery(
+  query: URLSearchParams,
+  signal?: AbortSignal,
+): Promise<GlobeNonna[]> {
+  const key = clusterQueryKey(query);
+
+  const cached = clusterResultCache.get(key);
+  if (cached && Date.now() < cached.expires) {
+    return cached.data;
+  }
+
+  const inflight = clusterInflight.get(key);
+  if (inflight) {
+    return inflight;
+  }
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(`/api/nonnas/clustering?${query}`, {
+        cache: "no-store",
+        signal,
+      });
+      if (!res.ok) throw new Error("Failed to fetch cluster markers");
+      const data = await res.json();
+      const markers = (
+        Array.isArray(data)
+          ? data
+          : (data.clusters ?? data.markers ?? data.nonnas ?? [])
+      ) as GlobeNonna[];
+      clusterResultCache.set(key, {
+        data: markers,
+        expires: Date.now() + CLUSTER_RESULT_TTL_MS,
+      });
+      return markers;
+    } catch (err) {
+      if ((err as Error).name === "AbortError") throw err;
+      return [];
+    } finally {
+      clusterInflight.delete(key);
+    }
+  })();
+
+  clusterInflight.set(key, promise);
+  return promise;
+}
+
+export type NominatimResult = {
+  geojson?: { type: string; coordinates?: unknown };
+  boundingbox?: string[];
+  lat?: string;
+  lon?: string;
+};
+
+export async function fetchNominatimSearch(
+  params: URLSearchParams,
+  timeoutMs = 5000,
+): Promise<NominatimResult[]> {
+  const res = await fetch(`/api/nominatim-proxy?${params}`, {
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? (data as NominatimResult[]) : [];
+}
+
 export async function fetchAllClusters(): Promise<AllClustersResponse> {
   const res = await fetch("/api/nonnas/clustering?level=ALL", {
     cache: "no-store",
@@ -88,9 +169,6 @@ export async function fetchRecipeById(
 export async function fetchNominatimBoundary(
   query: string,
 ): Promise<unknown> {
-  const res = await fetch(
-    `/api/nominatim-proxy?q=${encodeURIComponent(query)}`,
-  );
-  if (!res.ok) throw new Error("Nominatim proxy failed");
-  return res.json();
+  const params = new URLSearchParams({ q: query });
+  return fetchNominatimSearch(params);
 }

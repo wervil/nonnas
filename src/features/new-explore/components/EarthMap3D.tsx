@@ -1,8 +1,10 @@
 "use client";
 import { useEarthNavigation } from "@/contexts/EarthNavigationContext";
+import { fetchClusterMarkersByQuery, fetchNominatimSearch } from "@/features/new-explore/api/globe-api";
 import { useAllClusters } from "@/features/new-explore/hooks/useAllClusters";
 import { useGeoJsonBoundaries } from "@/features/new-explore/hooks/useGeoJsonBoundaries";
 import { mapRecipesToPanelNonnas } from "@/features/new-explore/lib/recipes";
+import { createResilientGeocoder } from "@/features/new-explore/lib/geocoder";
 import { loadGoogleMaps } from "@/features/new-explore/lib/maps-loader";
 import {
   consumeStreetViewRestoreParam,
@@ -10,12 +12,21 @@ import {
   parseStreetViewReturnPayload,
 } from "@/features/new-explore/lib/street-view";
 import {
+  INDIVIDUAL_NONNAS_DEBOUNCE_MS,
+  MARKER_PHOTO_TIMEOUT_MS,
   MARKER_SCALE_BY_LEVEL,
+  NOMINATIM_TIMEOUT_MS,
   STREET_VIEW_RETURN_STORAGE_KEY,
   TEAL,
   ZOOM_LEVEL_META,
   ZOOM_RANGES,
 } from "@/features/new-explore/constants";
+import { loadMarkerPhotoDataUrl } from "@/features/new-explore/lib/markers";
+import {
+  extractOuterRingsFromGeometry,
+  normalizeGeoJsonGeometry,
+  safeCountryCode,
+} from "@/features/new-explore/lib/boundaries";
 import type {
   GlobeNonna,
   LatLngLiteral,
@@ -103,9 +114,9 @@ const PALETTES = [
   ["#14b8a6", "#0d9488", "#0891b2"],
 ];
 function generateAvatarSvgUri(name: string, countryCode: string): string {
-  const seed = hashStr(name + countryCode);
+  const seed = hashStr((name || "") + (countryCode || ""));
   const [c0, c1, c2] = PALETTES[seed % PALETTES.length];
-  const parts = name.trim().split(/\s+/);
+  const parts = (name || "").trim().split(/\s+/);
   const initials =
     parts.length >= 2
       ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -129,9 +140,10 @@ function generateAvatarSvgUri(name: string, countryCode: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 function countryFlag(code: string): string {
-  if (!code || code.length !== 2) return "🌍";
+  const s = typeof code === "string" ? code.trim() : "";
+  if (s.length !== 2) return "🌍";
   return String.fromCodePoint(
-    ...code
+    ...s
       .toUpperCase()
       .split("")
       .map((c) => 0x1f1e6 + c.charCodeAt(0) - 65),
@@ -281,13 +293,18 @@ function geometryFromNominatimResult(
   fallbackLat?: number,
   fallbackLng?: number,
 ): GeoJsonPolygon | null {
-  const raw = item?.geojson;
+  const raw = normalizeGeoJsonGeometry(item?.geojson);
   if (raw?.type === "Polygon" && Array.isArray(raw.coordinates)) {
-    return raw as GeoJsonPolygon;
+    const outer = raw.coordinates[0];
+    if (Array.isArray(outer) && outer.length >= 4) {
+      return { type: "Polygon", coordinates: [outer as number[][]] };
+    }
   }
   if (raw?.type === "MultiPolygon" && Array.isArray(raw.coordinates)) {
     const first = (raw.coordinates as number[][][][])[0]?.[0];
-    if (first?.length) return { type: "Polygon", coordinates: [first] };
+    if (Array.isArray(first) && first.length >= 4) {
+      return { type: "Polygon", coordinates: [first] };
+    }
   }
   if (item?.boundingbox?.length === 4) {
     return bboxToPolygonGeoJson(item.boundingbox);
@@ -309,42 +326,9 @@ const markerPhotoDataUrlCache = new Map<string, string>();
 async function rasterizePhotoForMarker(
   fetchUrl: string,
   maxPx = 128,
-  timeoutMs = 5000,
+  timeoutMs = MARKER_PHOTO_TIMEOUT_MS,
 ): Promise<string> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  const response = await fetch(fetchUrl, { signal: controller.signal }).finally(
-    () => window.clearTimeout(timeout),
-  );
-  if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
-  const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  try {
-    return await new Promise<string>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const w = img.naturalWidth || maxPx;
-        const h = img.naturalHeight || maxPx;
-        const scale = Math.min(1, maxPx / Math.max(w, h, 1));
-        const cw = Math.max(1, Math.round(w * scale));
-        const ch = Math.max(1, Math.round(h * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = cw;
-        canvas.height = ch;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Canvas unavailable"));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, cw, ch);
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
-      };
-      img.onerror = () => reject(new Error("Image decode failed"));
-      img.src = objectUrl;
-    });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
+  return loadMarkerPhotoDataUrl(fetchUrl, maxPx, timeoutMs);
 }
 
 /** Photo URL for SVG <image> — only used in avatar mode (city drill / NONNA). */
@@ -398,7 +382,8 @@ async function buildMarkerTemplate(opts: {
     zoomLevel,
   } = opts;
   const scale = MARKER_SCALE_BY_LEVEL[zoomLevel];
-  const flag = countryFlag(countryCode);
+  const cc = safeCountryCode(countryCode) || "xx";
+  const flag = countryFlag(cc);
   const displayName = (name || `Nonna from ${countryName}`)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -407,7 +392,7 @@ async function buildMarkerTemplate(opts: {
   const countLabel = nonnaCount === 1 ? "1 Nonna" : `${nonnaCount} Nonnas`;
   const badge = `${flag} ${countryName}  ·  ${countLabel}`;
   const uid =
-    countryCode.toLowerCase().replace(/[^a-z]/g, "") +
+    cc.toLowerCase().replace(/[^a-z]/g, "") +
     (expanded ? "e" : "c") +
     zoomLevel +
     mode;
@@ -1389,6 +1374,12 @@ export default function EarthMap3D() {
   const regionFilterFromClickRef = useRef(false);
   const cityFilterFromClickRef = useRef(false);
   const individualFetchSeqRef = useRef(0);
+  const individualFetchAbortRef = useRef<AbortController | null>(null);
+  const individualFetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  /** Bumped on zoom-out / level change so in-flight marker builds can't append stale avatars. */
+  const markerBuildSeqRef = useRef(0);
   const filterMarkersNearCenter = useCallback(
     (markers: GlobeNonna[], maxKm: number) => {
       const map3d = map3dRef.current;
@@ -1429,6 +1420,8 @@ export default function EarthMap3D() {
       // Bumping the seq makes a late-resolving CITY/STATE fetch abort instead of
       // clobbering these clusters with deeper-level markers (the "ghost" badge).
       individualFetchSeqRef.current += 1;
+      markerBuildSeqRef.current += 1;
+      individualFetchAbortRef.current?.abort();
 
       const viewport = {
         country: viewportCountryRef.current,
@@ -1489,6 +1482,10 @@ export default function EarthMap3D() {
   const fetchIndividualNonnas = useCallback(
     async (opts?: { city?: string; region?: string }) => {
       const fetchSeq = ++individualFetchSeqRef.current;
+      individualFetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      individualFetchAbortRef.current = controller;
+
       try {
         const country = viewportCountryRef.current;
         const countryCode = viewportCountryCodeRef.current;
@@ -1499,19 +1496,11 @@ export default function EarthMap3D() {
           opts?.region ??
           (regionFilterFromClickRef.current ? viewportRegionRef.current : null);
 
-        const loadMarkers = async (query: URLSearchParams) => {
-          const res = await fetch(`/api/nonnas/clustering?${query}`, {
-            cache: "no-store",
-          });
-          if (!res.ok) throw new Error("Failed to fetch individual nonnas");
-          const data = await res.json();
-          return (data.clusters || []) as GlobeNonna[];
-        };
+        const loadMarkers = (query: URLSearchParams) =>
+          fetchClusterMarkersByQuery(query, controller.signal);
 
         let markers: GlobeNonna[] = [];
 
-        // City drill: prefer city+country only — geocoder region names often
-        // don't match recipe.region (e.g. Albertslund / Denmark).
         if (city && country) {
           const cityOnlyParams = new URLSearchParams({ level: "NONNA" });
           cityOnlyParams.set("country", country);
@@ -1519,7 +1508,13 @@ export default function EarthMap3D() {
           markers = await loadMarkers(cityOnlyParams);
         }
 
-        if (markers.length === 0 && city && region && country) {
+        if (
+          markers.length === 0 &&
+          city &&
+          region &&
+          country &&
+          !controller.signal.aborted
+        ) {
           const withRegion = new URLSearchParams({ level: "NONNA" });
           withRegion.set("country", country);
           withRegion.set("city", city);
@@ -1527,7 +1522,12 @@ export default function EarthMap3D() {
           markers = await loadMarkers(withRegion);
         }
 
-        if (markers.length === 0 && city && country) {
+        if (
+          markers.length === 0 &&
+          city &&
+          country &&
+          !controller.signal.aborted
+        ) {
           const broadParams = new URLSearchParams({ level: "NONNA" });
           broadParams.set("country", country);
           const broad = await loadMarkers(broadParams);
@@ -1535,7 +1535,7 @@ export default function EarthMap3D() {
           if (matched.length > 0) markers = matched;
         }
 
-        if (markers.length === 0 && !city) {
+        if (markers.length === 0 && !city && !controller.signal.aborted) {
           const params = new URLSearchParams({ level: "NONNA" });
           if (country) params.set("country", country);
           if (region) params.set("region", region);
@@ -1552,6 +1552,7 @@ export default function EarthMap3D() {
         }
 
         if (fetchSeq !== individualFetchSeqRef.current) return;
+        if (controller.signal.aborted) return;
         const lvl = currentLevelRef.current;
         const wantsIndividuals =
           lvl === "NONNA" ||
@@ -1583,11 +1584,33 @@ export default function EarthMap3D() {
         }
         setNonnaData(markers);
       } catch (err) {
+        if ((err as Error).name === "AbortError") return;
         if (fetchSeq !== individualFetchSeqRef.current) return;
         console.error("[Earth3D] individual nonnas fetch error:", err);
       }
     },
     [applyClusterLevel, filterMarkersNearCenter],
+  );
+
+  const scheduleIndividualNonnasFetch = useCallback(
+    (
+      opts?: { city?: string; region?: string },
+      immediate = false,
+    ) => {
+      if (individualFetchDebounceRef.current) {
+        clearTimeout(individualFetchDebounceRef.current);
+        individualFetchDebounceRef.current = null;
+      }
+      if (immediate) {
+        void fetchIndividualNonnas(opts);
+        return;
+      }
+      individualFetchDebounceRef.current = setTimeout(() => {
+        individualFetchDebounceRef.current = null;
+        void fetchIndividualNonnas(opts);
+      }, INDIVIDUAL_NONNAS_DEBOUNCE_MS);
+    },
+    [fetchIndividualNonnas],
   );
 
   const beginCityDrill = useCallback(
@@ -1624,10 +1647,13 @@ export default function EarthMap3D() {
         regionFilterFromClickRef.current = false;
       }
 
-      void fetchIndividualNonnas({
-        city: dbCity,
-        region: dbRegion || undefined,
-      });
+      scheduleIndividualNonnasFetch(
+        {
+          city: dbCity,
+          region: dbRegion || undefined,
+        },
+        true,
+      );
 
       const map3d = map3dRef.current;
       const flyLat = options?.lat ?? cluster?.lat;
@@ -1666,7 +1692,7 @@ export default function EarthMap3D() {
         },
       );
     },
-    [fetchIndividualNonnas],
+    [scheduleIndividualNonnasFetch],
   );
 
   const getIndividualMarkerFilters = useCallback(
@@ -1733,24 +1759,16 @@ export default function EarthMap3D() {
     };
 
     const level = currentLevelRef.current;
-    if (level === "NONNA") {
-      void fetchIndividualNonnas(getIndividualMarkerFilters());
-    } else if (level === "CITY") {
-      if (cityFilterFromClickRef.current) {
-        void fetchIndividualNonnas(getIndividualMarkerFilters());
-      } else {
-        applyClusterLevel("CITY", allClustersRef.current);
-      }
-    } else {
+    const wantsIndividuals =
+      level === "NONNA" ||
+      (level === "CITY" && cityFilterFromClickRef.current);
+
+    // Refresh cached cluster layers on poll, but don't re-fire expensive
+    // NONNA fetches — those are triggered by zoom/drill actions only.
+    if (!wantsIndividuals) {
       applyClusterLevel(level, allClustersRef.current);
     }
-  }, [
-    mapReady,
-    allClustersData,
-    applyClusterLevel,
-    fetchIndividualNonnas,
-    getIndividualMarkerFilters,
-  ]);
+  }, [mapReady, allClustersData, applyClusterLevel]);
 
   useEffect(() => {
     if (continentsGeo) continentGeoJsonCacheRef.current = continentsGeo;
@@ -1761,12 +1779,12 @@ export default function EarthMap3D() {
   const refreshMarkersForLevel = useCallback(() => {
     const level = currentLevelRef.current;
     if (level === "NONNA") {
-      void fetchIndividualNonnas(getIndividualMarkerFilters());
+      scheduleIndividualNonnasFetch(getIndividualMarkerFilters());
       return;
     }
     if (level === "CITY") {
       if (cityFilterFromClickRef.current) {
-        void fetchIndividualNonnas(getIndividualMarkerFilters());
+        scheduleIndividualNonnasFetch(getIndividualMarkerFilters());
       } else if (allClustersRef.current) {
         applyClusterLevel("CITY", allClustersRef.current);
       }
@@ -1775,7 +1793,7 @@ export default function EarthMap3D() {
     if (allClustersRef.current) {
       applyClusterLevel(level, allClustersRef.current);
     }
-  }, [applyClusterLevel, fetchIndividualNonnas, getIndividualMarkerFilters]);
+  }, [applyClusterLevel, scheduleIndividualNonnasFetch, getIndividualMarkerFilters]);
 
   const updateViewportContext = useCallback(async () => {
     const map3d = map3dRef.current;
@@ -1861,6 +1879,18 @@ export default function EarthMap3D() {
   useEffect(() => {
     const level = currentLevel;
     const prev = previousLevel;
+    const levels: ZoomLevel[] = [
+      "EARTH",
+      "CONTINENT",
+      "COUNTRY",
+      "STATE",
+      "CITY",
+      "NONNA",
+    ];
+    const currentIdx = levels.indexOf(level);
+    const prevIdx = prev ? levels.indexOf(prev) : -1;
+    const isZoomOut = prevIdx !== -1 && currentIdx < prevIdx;
+
     if (level === "STATE" && prev !== "STATE") {
       if (!regionFilterFromClickRef.current) {
         viewportRegionRef.current = null;
@@ -1879,6 +1909,27 @@ export default function EarthMap3D() {
       viewportRegionRef.current = null;
       viewportCityRef.current = null;
     }
+
+    // On zoom-out, swap to cluster markers immediately from cache. Don't wait
+    // for reverse-geocode (updateViewportContext) — on slow networks that delay
+    // left individual avatars visible under cluster bubbles.
+    if (isZoomOut) {
+      individualFetchSeqRef.current += 1;
+      markerBuildSeqRef.current += 1;
+      individualFetchAbortRef.current?.abort();
+      clearCurrentMarkers();
+
+      const wantsIndividuals =
+        level === "NONNA" ||
+        (level === "CITY" && cityFilterFromClickRef.current);
+
+      if (!wantsIndividuals && allClustersRef.current) {
+        applyClusterLevel(level, allClustersRef.current);
+      } else if (!wantsIndividuals) {
+        refreshMarkersForLevel();
+      }
+    }
+
     if (
       level === "STATE" ||
       level === "CITY" ||
@@ -1887,12 +1938,16 @@ export default function EarthMap3D() {
       void updateViewportContext();
       return;
     }
-    refreshMarkersForLevel();
+    if (!isZoomOut) {
+      refreshMarkersForLevel();
+    }
   }, [
     currentLevel,
     previousLevel,
     refreshMarkersForLevel,
     updateViewportContext,
+    applyClusterLevel,
+    clearCurrentMarkers,
   ]);
 
   useEffect(() => {
@@ -2179,7 +2234,7 @@ export default function EarthMap3D() {
 
           if (nextLevel === "CITY") {
             if (cityFilterFromClickRef.current) {
-              void fetchIndividualNonnas(getIndividualMarkerFilters());
+              scheduleIndividualNonnasFetch(getIndividualMarkerFilters(), true);
             } else if (allClustersRef.current) {
               applyClusterLevel("CITY", allClustersRef.current);
             }
@@ -2233,7 +2288,7 @@ export default function EarthMap3D() {
       setLevel,
       setPanel,
       setCommentSection,
-      fetchIndividualNonnas,
+      scheduleIndividualNonnasFetch,
       beginCityDrill,
       getIndividualMarkerFilters,
       applyClusterLevel,
@@ -2486,60 +2541,50 @@ export default function EarthMap3D() {
               }
             }
 
-            // Final fallback: If geocoder only returned plus_code or no address, use reverse geocoding with broader search
+            // Final fallback: search other geocode results for city/admin info
             if (
               !targetName &&
               (!first.address_components ||
                 first.address_components.length === 1)
             ) {
               console.log(
-                `[Earth3D] CITY level - Geocoder returned insufficient data, trying reverse geocoding fallback`,
+                `[Earth3D] CITY level - Geocoder returned insufficient data, searching all results`,
               );
 
-              try {
-                // Try reverse geocoding with administrative area focus
-                const fallbackResponse = await geocoderRef.current.geocode({
-                  location: { lat, lng },
-                  types: [
-                    "administrative_area_level_2",
-                    "administrative_area_level_3",
-                    "locality",
-                  ],
-                });
+              const fallbackResult = response?.results?.find((r: google.maps.GeocoderResult) =>
+                r.address_components?.some(
+                  (c) =>
+                    c.types?.includes("locality") ||
+                    c.types?.includes("administrative_area_level_2") ||
+                    c.types?.includes("administrative_area_level_3"),
+                ),
+              );
 
-                if (fallbackResponse?.results?.[0]) {
-                  const fallbackResult = fallbackResponse.results[0];
-                  const fallbackCityComponent =
-                    fallbackResult.address_components?.find(
-                      (c: any) =>
-                        c.types?.includes("locality") ||
-                        c.types?.includes("administrative_area_level_2") ||
-                        c.types?.includes("administrative_area_level_3"),
-                    );
+              if (fallbackResult) {
+                const fallbackCityComponent =
+                  fallbackResult.address_components?.find(
+                    (c: any) =>
+                      c.types?.includes("locality") ||
+                      c.types?.includes("administrative_area_level_2") ||
+                      c.types?.includes("administrative_area_level_3"),
+                  );
 
-                  if (fallbackCityComponent?.long_name) {
-                    targetName = fallbackCityComponent.long_name;
-                    console.log(
-                      `[Earth3D] CITY level - Fallback geocoding found:`,
-                      targetName,
-                    );
-                  } else {
-                    // Last resort: use the formatted address or place name
-                    targetName =
-                      fallbackResult.formatted_address?.split(",")[0] ||
-                      fallbackResult.name ||
-                      null;
-                    console.log(
-                      `[Earth3D] CITY level - Last resort fallback:`,
-                      targetName,
-                    );
-                  }
+                if (fallbackCityComponent?.long_name) {
+                  targetName = fallbackCityComponent.long_name;
+                  console.log(
+                    `[Earth3D] CITY level - Fallback geocoding found:`,
+                    targetName,
+                  );
+                } else {
+                  targetName =
+                    fallbackResult.formatted_address?.split(",")[0] ||
+                    fallbackResult.name ||
+                    null;
+                  console.log(
+                    `[Earth3D] CITY level - Last resort fallback:`,
+                    targetName,
+                  );
                 }
-              } catch (fallbackError) {
-                console.warn(
-                  `[Earth3D] CITY level - Fallback geocoding failed:`,
-                  fallbackError,
-                );
               }
             }
           }
@@ -2731,7 +2776,14 @@ export default function EarthMap3D() {
 
   // Place nonna markers
   useEffect(() => {
-    if (!nonnaData.length || !mapReady || !map3dRef.current) {
+    const buildSeq = ++markerBuildSeqRef.current;
+
+    if (!mapReady || !map3dRef.current) {
+      return;
+    }
+
+    if (!nonnaData.length) {
+      clearCurrentMarkers();
       return;
     }
 
@@ -2741,9 +2793,11 @@ export default function EarthMap3D() {
       try {
         const { Marker3DInteractiveElement } =
           await window.google.maps.importLibrary("maps3d");
+        if (cancelled || buildSeq !== markerBuildSeqRef.current) return;
+
         const nextMarkers: any[] = [];
         for (const nonna of nonnaData) {
-          if (cancelled) return;
+          if (cancelled || buildSeq !== markerBuildSeqRef.current) return;
           try {
             if (!Number.isFinite(nonna.lat) || !Number.isFinite(nonna.lng)) {
               continue;
@@ -2794,7 +2848,7 @@ export default function EarthMap3D() {
               mode: markerMode,
               zoomLevel: level,
             });
-            if (cancelled) return;
+            if (cancelled || buildSeq !== markerBuildSeqRef.current) return;
             const marker = new Marker3DInteractiveElement({
               position: { lat: nonna.lat, lng: nonna.lng, altitude: 0 },
               altitudeMode: "RELATIVE_TO_GROUND",
@@ -3138,8 +3192,7 @@ export default function EarthMap3D() {
             );
           }
         }
-        if (cancelled) return;
-        if (nextMarkers.length === 0) return;
+        if (cancelled || buildSeq !== markerBuildSeqRef.current) return;
         clearCurrentMarkers();
         for (const marker of nextMarkers) {
           map3d.append(marker);
@@ -3248,7 +3301,7 @@ export default function EarthMap3D() {
       const { Map3DElement, Marker3DElement, Polygon3DElement } =
         await window.google.maps.importLibrary("maps3d");
       const { Geocoder } = await window.google.maps.importLibrary("geocoding");
-      const geocoder = new Geocoder();
+      const geocoder = createResilientGeocoder(Geocoder);
       geocoderRef.current = geocoder;
       const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
       const map3d = new Map3DElement({
@@ -3455,11 +3508,12 @@ export default function EarthMap3D() {
         countryCode?: string | null,
         drawOptions?: BoundaryDrawOptions,
       ) => {
+        const cc = safeCountryCode(countryCode);
         console.log(
           "[Earth3D] Fetching boundary for",
           name,
           featureType,
-          countryCode,
+          cc,
         );
 
         try {
@@ -3538,7 +3592,7 @@ export default function EarthMap3D() {
               }
               const sFc = stateGeoJsonCacheRef.current;
               const target = name.toLowerCase();
-              const cc = (countryCode || "").toLowerCase();
+              const ccLower = (cc || "").toLowerCase();
               // Match by name (or English alias) AND, when known, by country
               // code — that disambiguates duplicates like "Georgia" (US/Country).
               const feature = sFc.features.find((f: any) => {
@@ -3547,7 +3601,7 @@ export default function EarthMap3D() {
                   (p.name || "").toLowerCase() === target ||
                   (p.name_en || "").toLowerCase() === target;
                 if (!nameMatches) return false;
-                if (cc && p.iso_a2) return p.iso_a2.toLowerCase() === cc;
+                if (ccLower && p.iso_a2) return p.iso_a2.toLowerCase() === ccLower;
                 return true;
               });
               if (feature?.geometry) {
@@ -3567,68 +3621,42 @@ export default function EarthMap3D() {
           if (!geojson && featureType !== "continent") {
             const countryLabel = resolveCountryDisplayName(
               drawOptions?.countryName ?? viewportCountryRef.current,
-              countryCode,
+              cc,
             );
 
             const fetchNominatim = async (query: URLSearchParams) => {
-              const proxyUrl = `/api/nominatim-proxy?${query.toString()}`;
-              const res = await fetch(proxyUrl);
-              if (!res.ok) {
-                throw new Error(`Proxy HTTP ${res.status}`);
-              }
-              const data = await res.json();
-              if (data?.error) return null;
-              return data?.[0] as
-                | {
-                    geojson?: { type: string; coordinates?: unknown };
-                    boundingbox?: string[];
-                    lat?: string;
-                    lon?: string;
-                  }
-                | undefined;
+              const data = await fetchNominatimSearch(
+                query,
+                NOMINATIM_TIMEOUT_MS,
+              );
+              return data[0] ?? null;
             };
 
             if (featureType === "city") {
-              const queries: URLSearchParams[] = [];
-              const base = new URLSearchParams({
+              const params = new URLSearchParams({
                 polygon_geojson: "1",
                 format: "json",
                 limit: "1",
               });
               if (countryLabel) {
-                const q1 = new URLSearchParams(base);
-                q1.set("q", `${name}, ${countryLabel}`);
-                if (countryCode) {
-                  q1.set("countrycodes", countryCode.toLowerCase());
-                }
-                queries.push(q1);
+                params.set("q", `${name}, ${countryLabel}`);
+              } else {
+                params.set("q", name);
               }
-              const q2 = new URLSearchParams(base);
-              q2.set("city", name);
-              if (countryCode) {
-                q2.set("countrycodes", countryCode.toLowerCase());
+              if (cc) {
+                params.set("countrycodes", cc.toLowerCase());
               }
-              queries.push(q2);
 
-              for (const params of queries) {
-                console.log(
-                  "[Earth3D] Nominatim city fetch:",
-                  params.toString(),
+              try {
+                const item = await fetchNominatim(params);
+                const resolved = geometryFromNominatimResult(
+                  item ?? undefined,
+                  fallbackLat,
+                  fallbackLng,
                 );
-                try {
-                  const item = await fetchNominatim(params);
-                  const resolved = geometryFromNominatimResult(
-                    item ?? undefined,
-                    fallbackLat,
-                    fallbackLng,
-                  );
-                  if (resolved) {
-                    geojson = resolved;
-                    break;
-                  }
-                } catch (nomErr) {
-                  console.warn("[Earth3D] Nominatim city attempt failed:", nomErr);
-                }
+                if (resolved) geojson = resolved;
+              } catch (nomErr) {
+                console.warn("[Earth3D] Nominatim city attempt failed:", nomErr);
               }
 
               if (
@@ -3650,12 +3678,13 @@ export default function EarthMap3D() {
               });
               if (featureType === "country") {
                 params.set("q", name);
-                params.set("featuretype", "country");
               } else if (featureType === "state") {
-                params.set("featuretype", "state");
-                params.set("state", name);
-                if (countryCode) {
-                  params.set("countrycodes", countryCode.toLowerCase());
+                params.set(
+                  "q",
+                  countryLabel ? `${name}, ${countryLabel}` : name,
+                );
+                if (cc) {
+                  params.set("countrycodes", cc.toLowerCase());
                 }
               }
               console.log(
@@ -3664,8 +3693,17 @@ export default function EarthMap3D() {
               );
               const item = await fetchNominatim(params);
               if (featureType === "country" || featureType === "state") {
-                geojson = item?.geojson;
-                if (geojson?.type === "Point") geojson = null;
+                let normalized = normalizeGeoJsonGeometry(item?.geojson);
+                if (normalized?.type === "Point") normalized = null;
+                if (!normalized) {
+                  const fallback = geometryFromNominatimResult(
+                    item ?? undefined,
+                    fallbackLat,
+                    fallbackLng,
+                  );
+                  if (fallback) normalized = fallback;
+                }
+                geojson = normalized;
               }
             }
           }
@@ -3679,12 +3717,15 @@ export default function EarthMap3D() {
             return;
           }
           console.log("[Earth3D] Got geojson type:", geojson.type);
-          let rings: number[][][] = [];
-          if (geojson.type === "Polygon") rings = [geojson.coordinates[0]];
-          else if (geojson.type === "MultiPolygon")
-            rings = (geojson.coordinates as number[][][][]).map((p) => p[0]);
-          else {
-            console.warn("[Earth3D] Unsupported geojson type:", geojson.type);
+          let rings = extractOuterRingsFromGeometry(
+            normalizeGeoJsonGeometry(geojson) ?? geojson,
+          );
+          if (!rings.length) {
+            console.warn(
+              "[Earth3D] Unsupported or empty geojson for",
+              name,
+              geojson.type,
+            );
             return;
           }
           const MAX_RING_POINTS = 300;
@@ -3763,20 +3804,32 @@ export default function EarthMap3D() {
           console.log("[Earth3D] Drawing", rings.length, "polygons for", name);
           clearPolygonOverlays();
           for (const ring of rings) {
-            const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
-              lat,
-              lng,
-              altitude: 0,
-            }));
-            const poly = new Polygon3DElement({
-              outerCoordinates,
-              fillColor: TEAL.fill,
-              strokeColor: isContinent ? "rgba(0,0,0,0)" : TEAL.stroke,
-              strokeWidth: isContinent ? 0 : 2.5,
-              altitudeMode: "CLAMP_TO_GROUND",
-            });
-            map3d.append(poly);
-            polygonOverlays.push(poly);
+            try {
+              const outerCoordinates = ring.map(([lng, lat]: number[]) => ({
+                lat: Number(lat),
+                lng: Number(lng),
+                altitude: 0,
+              }));
+              const poly = new Polygon3DElement({
+                outerCoordinates,
+                fillColor: TEAL.fill,
+                strokeColor: isContinent ? "rgba(0,0,0,0)" : TEAL.stroke,
+                strokeWidth: isContinent ? 0 : 2.5,
+                altitudeMode: "CLAMP_TO_GROUND",
+              });
+              map3d.append(poly);
+              polygonOverlays.push(poly);
+            } catch (ringErr) {
+              console.warn(
+                "[Earth3D] Skipped invalid ring for",
+                name,
+                ringErr,
+              );
+            }
+          }
+          if (!polygonOverlays.length) {
+            console.warn("[Earth3D] No polygons drawn for", name);
+            return;
           }
           console.log("[Earth3D] Successfully drew boundary for", name);
         } catch (err) {
@@ -4293,47 +4346,17 @@ export default function EarthMap3D() {
           });
 
           if (!hasCountryInfo) {
-            console.log("[Earth3D] No country info, trying broader search...");
-            try {
-              const broaderResponse = await geocoder.geocode({
-                location: latLng,
-                types: ["country"],
-              });
-              const broaderResult = broaderResponse?.results?.[0];
-              if (broaderResult) {
-                console.log("[Earth3D] Broader search result:", broaderResult);
-                first = broaderResult;
-              }
-            } catch (broaderError) {
-              console.warn(
-                "[Earth3D] Broader search failed, using fallback:",
-                broaderError,
-              );
-              // If broader search fails, try without any parameters
-              try {
-                const fallbackResponse = await geocoder.geocode({
-                  location: latLng,
-                });
-                const fallbackResult = fallbackResponse?.results?.find(
-                  (r: any) =>
-                    r.address_components?.some((c: any) =>
-                      c.types?.includes("country"),
-                    ),
-                );
-                if (fallbackResult) {
-                  console.log(
-                    "[Earth3D] Fallback search result:",
-                    fallbackResult,
-                  );
-                  first = fallbackResult;
-                }
-              } catch (fallbackError) {
-                console.error(
-                  "[Earth3D] All geocoding attempts failed:",
-                  fallbackError,
-                );
-                return; // Exit gracefully if all attempts fail
-              }
+            console.log(
+              "[Earth3D] No country info in first result, searching all results...",
+            );
+            const countryResult = response?.results?.find((r: google.maps.GeocoderResult) =>
+              r.address_components?.some((c) =>
+                c.types?.includes("country"),
+              ),
+            );
+            if (countryResult) {
+              console.log("[Earth3D] Found result with country info:", countryResult);
+              first = countryResult;
             }
           }
 
@@ -5099,7 +5122,7 @@ export default function EarthMap3D() {
     setLevel,
     handleZoomIn,
     updateViewportContext,
-    fetchIndividualNonnas,
+    scheduleIndividualNonnasFetch,
     getIndividualMarkerFilters,
   ]);
   const mobileStyles = {

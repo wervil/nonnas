@@ -10,7 +10,8 @@ export function useAllClusters(enabled = true) {
     queryKey: globeKeys.allClusters(),
     queryFn: fetchAllClusters,
     enabled,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
     refetchInterval: CLUSTER_POLL_INTERVAL_MS,
   });
 }

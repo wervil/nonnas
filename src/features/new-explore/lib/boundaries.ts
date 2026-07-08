@@ -8,6 +8,89 @@ export type GeoJsonPolygon = {
   coordinates: number[][][];
 };
 
+export type GeoJsonGeometry = {
+  type: string;
+  coordinates?: unknown;
+  geometries?: unknown[];
+};
+
+export function safeCountryCode(code: unknown): string | null {
+  if (typeof code !== "string") return null;
+  const trimmed = code.trim();
+  return trimmed.length >= 2 ? trimmed : null;
+}
+
+function isValidRing(ring: unknown): ring is number[][] {
+  if (!Array.isArray(ring) || ring.length < 4) return false;
+  for (const pt of ring) {
+    if (!Array.isArray(pt) || pt.length < 2) return false;
+    const lng = Number(pt[0]);
+    const lat = Number(pt[1]);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
+  }
+  return true;
+}
+
+/** Unwrap Feature / JSON-string geojson from Nominatim into a plain geometry object. */
+export function normalizeGeoJsonGeometry(
+  input: unknown,
+): GeoJsonGeometry | null {
+  if (!input) return null;
+  if (typeof input === "string") {
+    try {
+      return normalizeGeoJsonGeometry(JSON.parse(input));
+    } catch {
+      return null;
+    }
+  }
+  if (typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+  if (obj.type === "Feature" && obj.geometry) {
+    return normalizeGeoJsonGeometry(obj.geometry);
+  }
+  if (typeof obj.type === "string") {
+    return {
+      type: obj.type,
+      coordinates: obj.coordinates,
+      geometries: Array.isArray(obj.geometries)
+        ? (obj.geometries as unknown[])
+        : undefined,
+    };
+  }
+  return null;
+}
+
+/** Extract outer rings from Polygon / MultiPolygon / GeometryCollection. */
+export function extractOuterRingsFromGeometry(
+  geometry: GeoJsonGeometry | null | undefined,
+): number[][][] {
+  if (!geometry) return [];
+  const rings: number[][][] = [];
+
+  if (geometry.type === "Polygon" && Array.isArray(geometry.coordinates)) {
+    const outer = geometry.coordinates[0];
+    if (isValidRing(outer)) rings.push(outer);
+  } else if (
+    geometry.type === "MultiPolygon" &&
+    Array.isArray(geometry.coordinates)
+  ) {
+    for (const polygon of geometry.coordinates) {
+      if (!Array.isArray(polygon)) continue;
+      const outer = polygon[0];
+      if (isValidRing(outer)) rings.push(outer);
+    }
+  } else if (
+    geometry.type === "GeometryCollection" &&
+    Array.isArray(geometry.geometries)
+  ) {
+    for (const part of geometry.geometries) {
+      rings.push(...extractOuterRingsFromGeometry(normalizeGeoJsonGeometry(part)));
+    }
+  }
+
+  return rings;
+}
+
 export function resolveCountryDisplayName(
   countryName?: string | null,
   countryCode?: string | null,
@@ -17,8 +100,9 @@ export function resolveCountryDisplayName(
     if (info.code !== "XX") return info.name;
     return countryName;
   }
-  if (countryCode) {
-    const byCode = getCountryInfoByCode(countryCode);
+  const cc = safeCountryCode(countryCode);
+  if (cc) {
+    const byCode = getCountryInfoByCode(cc);
     if (byCode) return byCode.name;
   }
   return "";
@@ -68,13 +152,14 @@ export function geometryFromNominatimResult(
   fallbackLat?: number,
   fallbackLng?: number,
 ): GeoJsonPolygon | null {
-  const raw = item?.geojson;
+  const raw = normalizeGeoJsonGeometry(item?.geojson);
   if (raw?.type === "Polygon" && Array.isArray(raw.coordinates)) {
-    return raw as GeoJsonPolygon;
+    const outer = raw.coordinates[0];
+    if (isValidRing(outer)) return { type: "Polygon", coordinates: [outer] };
   }
   if (raw?.type === "MultiPolygon" && Array.isArray(raw.coordinates)) {
     const first = (raw.coordinates as number[][][][])[0]?.[0];
-    if (first?.length) return { type: "Polygon", coordinates: [first] };
+    if (isValidRing(first)) return { type: "Polygon", coordinates: [first] };
   }
   if (item?.boundingbox?.length === 4) {
     return bboxToPolygonGeoJson(item.boundingbox);

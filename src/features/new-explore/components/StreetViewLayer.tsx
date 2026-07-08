@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   calculateDistance,
   generateAvatarSvgUri,
+  photoSrcForImgElement,
 } from "../lib/markers";
 import type { GlobeNonna } from "../types";
 
@@ -186,12 +187,11 @@ export default function StreetViewLayer({
         }}
       >
         {placements.map((p, i) => {
-          const imgSrc = p.photo
-            ? `/api/proxy-image?url=${encodeURIComponent(p.photo)}`
-            : generateAvatarSvgUri(
-                p.nonna.representativeName,
-                p.nonna.countryCode,
-              );
+          const avatarFallback = generateAvatarSvgUri(
+            p.nonna.representativeName,
+            p.nonna.countryCode,
+          );
+          const imgSrc = photoSrcForImgElement(p.photo, avatarFallback);
           return (
             <button
               key={`${p.nonna.id}-${i}`}

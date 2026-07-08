@@ -1,4 +1,80 @@
 import type { GlobeNonna } from "../types";
+import { MARKER_PHOTO_TIMEOUT_MS } from "../constants";
+
+const MAX_CONCURRENT_PHOTO_LOADS = 3;
+let activePhotoLoads = 0;
+const photoLoadWaiters: (() => void)[] = [];
+
+async function withPhotoLoadSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (activePhotoLoads >= MAX_CONCURRENT_PHOTO_LOADS) {
+    await new Promise<void>((resolve) => photoLoadWaiters.push(resolve));
+  }
+  activePhotoLoads++;
+  try {
+    return await fn();
+  } finally {
+    activePhotoLoads--;
+    photoLoadWaiters.shift()?.();
+  }
+}
+
+export async function loadMarkerPhotoDataUrl(
+  fetchUrl: string,
+  maxPx = 128,
+  timeoutMs = MARKER_PHOTO_TIMEOUT_MS,
+): Promise<string> {
+  return withPhotoLoadSlot(async () => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(fetchUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        return await new Promise<string>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const w = img.naturalWidth || maxPx;
+            const h = img.naturalHeight || maxPx;
+            const scale = Math.min(1, maxPx / Math.max(w, h, 1));
+            const cw = Math.max(1, Math.round(w * scale));
+            const ch = Math.max(1, Math.round(h * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = cw;
+            canvas.height = ch;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              reject(new Error("Canvas unavailable"));
+              return;
+            }
+            ctx.drawImage(img, 0, 0, cw, ch);
+            resolve(canvas.toDataURL("image/jpeg", 0.88));
+          };
+          img.onerror = () => reject(new Error("Image decode failed"));
+          img.src = objectUrl;
+        });
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  });
+}
+
+/** For regular <img> tags — use the CDN URL directly; proxy only when needed. */
+export function photoSrcForImgElement(
+  photo: string | null | undefined,
+  avatarFallback: string,
+): string {
+  const raw = photo?.trim();
+  if (!raw) return avatarFallback;
+  if (raw.startsWith("data:") || raw.startsWith("/")) return raw;
+  // Public blob/CDN URLs work in <img> without a server round-trip.
+  if (raw.startsWith("http")) return raw;
+  return avatarFallback;
+}
 
 export function calculateDistance(
   lat1: number,
@@ -38,9 +114,9 @@ const PALETTES = [
 ];
 
 export function generateAvatarSvgUri(name: string, countryCode: string): string {
-  const seed = hashStr(name + countryCode);
+  const seed = hashStr((name || "") + (countryCode || ""));
   const [c0, c1, c2] = PALETTES[seed % PALETTES.length];
-  const parts = name.trim().split(/\s+/);
+  const parts = (name || "").trim().split(/\s+/);
   const initials =
     parts.length >= 2
       ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()

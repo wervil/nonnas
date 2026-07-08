@@ -45,3 +45,7 @@ export const TEAL = {
 export const STREET_VIEW_RETURN_STORAGE_KEY = "nonnas.streetViewReturnState";
 
 export const CLUSTER_POLL_INTERVAL_MS = 5 * 60 * 1000;
+
+export const MARKER_PHOTO_TIMEOUT_MS = 2000;
+export const NOMINATIM_TIMEOUT_MS = 5000;
+export const INDIVIDUAL_NONNAS_DEBOUNCE_MS = 400;
