@@ -631,6 +631,12 @@ export default function EarthMap3D() {
   }, [clearCurrentMarkers]);
 
   const [streetViewActive, setStreetViewActive] = useState(false);
+  // Mirror of streetViewActive readable inside long-lived closures (the scroll
+  // zoom loop is created once in the init effect and can't see fresh state).
+  const streetViewActiveRef = useRef(false);
+  useEffect(() => {
+    streetViewActiveRef.current = streetViewActive;
+  }, [streetViewActive]);
   const [streetViewPickMode, setStreetViewPickMode] = useState(false);
   const user = useUser();
   const l = useTranslations("labels");
@@ -4806,12 +4812,16 @@ export default function EarthMap3D() {
           rawIndex > curIndex ? Math.min(rawIndex, curIndex + 1) : rawIndex;
         const newLevel = LEVEL_ORDER_SCROLL[clampedIndex];
 
-        // Only change level if it's different and not during a programmatic flight
-        // Also prevent changing away from NONNA level (internal Street View level)
+        // Only change level if it's different and not during a programmatic flight.
+        // Lock the NONNA level against scroll ONLY while Street View is actually
+        // open — otherwise a stray NONNA state would trap the camera: no pill
+        // highlights and the individual nonna avatar stays visible after zoom-out.
+        const nonnaLocked =
+          currentLevelRef.current === "NONNA" && streetViewActiveRef.current;
         if (
           newLevel !== currentLevelRef.current &&
           !flightStateRef.current.active &&
-          currentLevelRef.current !== "NONNA"
+          !nonnaLocked
         ) {
           const prevIndex = LEVEL_ORDER_SCROLL.indexOf(currentLevelRef.current);
           setLevel(newLevel);
