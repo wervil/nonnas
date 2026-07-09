@@ -867,6 +867,21 @@ export default function EarthMap3D() {
   const { data: countriesGeo } = useGeoJsonBoundaries("countries", true);
   const { data: statesGeo } = useGeoJsonBoundaries("states", true);
   const currentLevelRef = useRef<ZoomLevel>(currentLevel);
+  // TEMP debug hook for testing zoom-out recovery — REMOVE before shipping.
+  // In the browser console: setEarthLevel("NONNA")
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).setEarthLevel = (
+      lvl: ZoomLevel,
+    ) => {
+      currentLevelRef.current = lvl;
+      setLevel(lvl);
+      console.log("[Earth3D][debug] level forced to", lvl);
+    };
+    console.log("[Earth3D][debug] setEarthLevel() ready");
+    return () => {
+      delete (window as unknown as Record<string, unknown>).setEarthLevel;
+    };
+  }, [setLevel]);
   useEffect(() => {
     currentLevelRef.current = currentLevel;
 
@@ -4812,16 +4827,25 @@ export default function EarthMap3D() {
           rawIndex > curIndex ? Math.min(rawIndex, curIndex + 1) : rawIndex;
         const newLevel = LEVEL_ORDER_SCROLL[clampedIndex];
 
-        // Only change level if it's different and not during a programmatic flight.
-        // Lock the NONNA level against scroll ONLY while Street View is actually
-        // open — otherwise a stray NONNA state would trap the camera: no pill
-        // highlights and the individual nonna avatar stays visible after zoom-out.
-        const nonnaLocked =
-          currentLevelRef.current === "NONNA" && streetViewActiveRef.current;
+        // NONNA is the internal Street View level. Normal per-tick scroll must
+        // NOT demote it — during the entry handoff the flight flag clears a frame
+        // before streetViewActive commits, and demoting there tears Street View
+        // down. So keep NONNA locked by default.
+        //
+        // Recovery: if we're stuck at NONNA with Street View NOT active AND the
+        // camera has clearly been zoomed back out (range far larger than the
+        // ~50m Street View descent), allow the demotion so the level pill and
+        // cluster markers resync and the individual nonna avatar clears.
+        const atNonna = currentLevelRef.current === "NONNA";
+        const stuckNonna =
+          atNonna &&
+          !streetViewActiveRef.current &&
+          currentRange > ZOOM_RANGES.CITY * 3;
+        const nonnaBlocksChange = atNonna && !stuckNonna;
         if (
           newLevel !== currentLevelRef.current &&
           !flightStateRef.current.active &&
-          !nonnaLocked
+          !nonnaBlocksChange
         ) {
           const prevIndex = LEVEL_ORDER_SCROLL.indexOf(currentLevelRef.current);
           setLevel(newLevel);
